@@ -1,0 +1,53 @@
+{
+  "summary": "Iteration 2 testing of MissionBoard AI mission drafting + profile_notes. Backend: full regression suite 18/18 PASS, new AI suite 15/15 PASS (real Claude Sonnet 4.5 calls via emergentintegrations succeed, JSON is parsed, skill/strategy fuzzy-matching returns valid seeded UUIDs, role + linkage gating enforced, UserPublic.profile_notes propagated everywhere). Frontend Playwright run validated: AI draft-day toggle → 3 draft cards rendered → 'Add to today' saves real mission (count 2→3, button shows 'Saved ✓'); MissionForm 'Draft with AI' panel visible only in create mode (hidden in edit mode); profile_notes save persists across reload. One real UI bug found in parent profile-notes save-msg (race with loadStudents() — see frontend_issues).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/ai/draft-mission", "issue": "When LLM returns names that don't fuzzy-match any seeded skill/strategy, the response has empty skill_ids/strategy_ids. Expected behavior per problem statement (soft-warning, not failure), but parent UI gives no indication so the user has to manually select chips. Consider returning the unmatched names in skill_names so UI can surface 'AI suggested X (unmatched)'. Empirically all our test calls matched fine."},
+      {"endpoint": "/api/ai/draft-day", "issue": "No upper-bound clamp on `count` beyond max=5 in code; default of 3 is used when count omitted. Field is not validated by Pydantic (uses raw int default). Minor."},
+      {"endpoint": "AI endpoints", "issue": "_extract_json's bracket finding uses min([-1]) when both find() return -1 — actually guarded by `or [-1]`, OK. No backend timeout on the upstream Claude call — if Anthropic stalls, FastAPI will hold the connection until cluster timeout. Consider a 30s asyncio.wait_for."},
+      {"endpoint": "PUT /api/students/{id}/profile", "issue": "Endpoint silently no-ops if student_id is valid but role != 'student' (the update filter has role:'student'). Returns 200 with previous data. Minor; in practice _assert_parent_owns_student blocks it."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ParentDashboard profile-notes save", "issue": "After clicking 'Save notes', saveProfile sets profileMsg='Saved ✓' then calls loadStudents(selectedStudent.id) which replaces selectedStudent with a new object reference. The useEffect on [selectedStudent] then runs setProfileMsg('') wiping the success indicator within ~50ms. User effectively never sees 'Saved ✓'. Fix: in the useEffect, only reset profileMsg when the selectedStudent id actually changes (track previous id), or set profileMsg AFTER awaiting loadStudents.", "selector": "[data-testid='parent-profile-msg']", "priority": "MEDIUM"},
+      {"component": "MissionForm AI draft", "issue": "Clicking 'Draft for me' when the Student dropdown has not been picked yet shows 'Pick a student first.' error. Since the typical parent has exactly one linked student, the student select should default to that single student (form.student_id should be initialized to the only linked student id, mirroring what ParentDashboard already does for selectedStudent). Currently the dropdown starts blank and AI cannot run until the user manually picks the only available option.", "selector": "[data-testid='mission-form-student']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "MissionForm", "issues": ["Due date still uses native browser date picker (carry-over from iter 1)."]},
+      {"screen": "Parent Dashboard / AI panel", "issues": ["No visible loading skeleton for the ~5-8s wait while Claude generates 3 missions — only the button text changes. Consider a placeholder card row."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_missionboard.py",
+    "/app/backend/tests/test_ai_drafting.py",
+    "/app/test_reports/pytest/regression_results.xml",
+    "/app/test_reports/pytest/ai_results.xml"
+  ],
+  "action_items": [
+    "FRONTEND: Fix profile-notes save message race — preserve profileMsg across loadStudents (don't clear it when same student is re-set).",
+    "FRONTEND: Auto-select the single linked student in MissionForm so the 'Draft with AI' button works without an extra dropdown step.",
+    "BACKEND (nice-to-have): wrap LLM call in asyncio.wait_for(30) to fail fast on a stuck upstream.",
+    "FRONTEND: optional loading placeholder cards under the AI draft-day panel while Claude generates."
+  ],
+  "critical_code_review_comments": [
+    "AI implementation is clean: system prompt restricts the model to choose names from seeded lists, _extract_json handles fenced JSON, _match_ids does 3-tier fuzzy match (exact → substring → token overlap≥2). Skill/strategy ids returned are real seeded UUIDs verified against /api/skills and /api/strategies.",
+    "Role+linkage gating consistent: both /api/ai/draft-mission and /api/ai/draft-day require role=parent AND call _assert_parent_owns_student(req.student_id). PUT /api/students/{id}/profile follows the same pattern.",
+    "UserPublic.profile_notes is correctly threaded through auth/me, login, register, students/link, students list and update_student_profile (5 places).",
+    "server.py is now 852 lines — getting hard to navigate. Recommend splitting AI section into routers/ai.py and models into models.py before adding more features.",
+    "Hardcoded EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '') at module load — fine because seed/.env loads first, but should fail loudly at startup if missing instead of at the first request.",
+    "MissionForm.jsx draftWithAI line 108 `!form.student_id && !editing` is fine logic but the UX gap is that the student dropdown defaults to empty even when there's exactly one linked student — see ui_bugs."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ai_drafting.py (new)"
+  ],
+  "success_rate": {"backend": "100% (33/33: 18 regression + 15 AI)", "frontend": "Critical AI flows working; 2 medium UX bugs found"},
+  "test_credentials": "parent@demo.com/demo1234 (linked to Enzo), student@demo.com/demo1234. From /app/memory/test_credentials.md.",
+  "seed_data_creation": "Pytest creates TEST_-prefixed users (auto cleaned by uuid uniqueness, no orphan rows that affect product behaviour) and 1-2 TEST_ AI-drafted missions which are deleted at end of test. Playwright run created 2 TEST_aiform/TEST_ai missions saved to today's list — they remain in the DB for parent@demo.com because we did not delete them (they will not affect Enzo seed since seed only runs when ZERO missions exist for today). Manual cleanup optional: DELETE /api/missions/{id} as parent.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run regression: python -m pytest /app/backend/tests/ -v --junitxml=/app/test_reports/pytest/results.xml — both test_missionboard.py and test_ai_drafting.py should be green. AI tests take ~30s total because they hit real Claude. The AI endpoint occasionally returns empty skill_ids/strategy_ids when the model picks names that don't fuzzy-match the seeded pool — this is a soft warning per spec, not a failure. UserPublic now contains profile_notes — assert its presence in any auth response shape tests. Frontend bugs to retest after main agent fixes: (1) profile-notes 'Saved ✓' message persisting, (2) MissionForm auto-selecting the only linked student.",
+  "rca of the issue": "Profile-notes save-message disappears: ParentDashboard.saveProfile awaits api.put → setProfileMsg('Saved ✓') → awaits loadStudents(selectedStudent.id). loadStudents fetches /api/students and calls setSelectedStudent(found) with a brand-new object literal (different reference even for the same id). React's [selectedStudent] useEffect fires on the new reference and calls setProfileMsg('') unconditionally, blanking the success indicator within the next render. Repro: login as parent → edit notes → click Save → watch — 'Saved ✓' flashes for <100ms or doesn't render at all. Mitigation: in the [selectedStudent] effect, only reset profile state when selectedStudent?.id !== previousIdRef.current; OR set profileMsg AFTER the loadStudents await; OR have loadStudents preserve the existing selectedStudent reference when the id is unchanged."
+}

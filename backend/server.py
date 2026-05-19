@@ -17,6 +17,10 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
+from emergentintegrations.llm.chat import LlmChat, UserMessage
+import json
+import re
+
 
 # ---------- DB ----------
 mongo_url = os.environ["MONGO_URL"]
@@ -71,6 +75,7 @@ class UserPublic(BaseModel):
     name: str
     email: EmailStr
     linked_student_ids: List[str] = []
+    profile_notes: str = ""
 
 
 class RegisterRequest(BaseModel):
@@ -227,6 +232,7 @@ async def register(req: RegisterRequest, response: Response):
         name=req.name,
         email=email,
         linked_student_ids=[],
+        profile_notes="",
     )
 
 
@@ -244,6 +250,7 @@ async def login(req: LoginRequest, response: Response):
         name=user["name"],
         email=email,
         linked_student_ids=user.get("linked_student_ids", []),
+        profile_notes=user.get("profile_notes", ""),
     )
 
 
@@ -261,6 +268,7 @@ async def me(user: dict = Depends(get_current_user)):
         name=user["name"],
         email=user["email"],
         linked_student_ids=user.get("linked_student_ids", []),
+        profile_notes=user.get("profile_notes", ""),
     )
 
 
@@ -291,6 +299,7 @@ async def link_student(req: LinkStudentRequest, user: dict = Depends(require_rol
         name=user["name"],
         email=user["email"],
         linked_student_ids=list(linked),
+        profile_notes=user.get("profile_notes", ""),
     )
 
 
@@ -307,9 +316,36 @@ async def list_my_students(user: dict = Depends(require_role("parent"))):
             name=s["name"],
             email=s["email"],
             linked_student_ids=s.get("linked_student_ids", []),
+            profile_notes=s.get("profile_notes", ""),
         )
         for s in students
     ]
+
+
+class StudentProfileUpdate(BaseModel):
+    profile_notes: str = ""
+
+
+@api.put("/students/{student_id}/profile", response_model=UserPublic)
+async def update_student_profile(
+    student_id: str,
+    req: StudentProfileUpdate,
+    user: dict = Depends(require_role("parent")),
+):
+    await _assert_parent_owns_student(user, student_id)
+    await db.users.update_one(
+        {"id": student_id, "role": "student"},
+        {"$set": {"profile_notes": req.profile_notes or ""}},
+    )
+    s = await db.users.find_one({"id": student_id}, {"_id": 0, "password_hash": 0})
+    return UserPublic(
+        id=s["id"],
+        role=s["role"],
+        name=s["name"],
+        email=s["email"],
+        linked_student_ids=s.get("linked_student_ids", []),
+        profile_notes=s.get("profile_notes", ""),
+    )
 
 
 # ---------- Missions ----------
@@ -441,6 +477,220 @@ async def list_logs(
         query["mission_id"] = mission_id
     logs = await db.mission_logs.find(query, {"_id": 0}).sort("timestamp", -1).to_list(1000)
     return logs
+
+
+# ---------- AI Mission Drafting ----------
+EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
+AI_MODEL_PROVIDER = "anthropic"
+AI_MODEL_NAME = "claude-sonnet-4-5-20250929"
+
+
+class AIDraftRequest(BaseModel):
+    student_id: str
+    prompt: str = ""
+
+
+class AIDayDraftRequest(BaseModel):
+    student_id: str
+    count: int = 3
+    prompt: str = ""
+
+
+class AIDraftedMission(BaseModel):
+    title: str
+    description: str = ""
+    steps: List[str] = []
+    estimated_minutes: int = 15
+    skill_ids: List[str] = []
+    strategy_ids: List[str] = []
+    skill_names: List[str] = []
+    strategy_names: List[str] = []
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"[^a-z0-9 ]", " ", (s or "").lower()).strip()
+
+
+def _match_ids(names: List[str], pool: List[dict]) -> List[str]:
+    """Fuzzy-match AI-supplied names against existing skill/strategy pool, returning ids."""
+    out: List[str] = []
+    norm_pool = [(_norm(p["name"]), p["id"]) for p in pool]
+    for n in names or []:
+        target = _norm(n)
+        if not target:
+            continue
+        # exact
+        match = next((pid for nm, pid in norm_pool if nm == target), None)
+        # substring either way
+        if not match:
+            match = next((pid for nm, pid in norm_pool if target in nm or nm in target), None)
+        # token overlap
+        if not match:
+            t_tokens = set(target.split())
+            best = (0, None)
+            for nm, pid in norm_pool:
+                overlap = len(t_tokens & set(nm.split()))
+                if overlap > best[0]:
+                    best = (overlap, pid)
+            if best[0] >= 2:
+                match = best[1]
+        if match and match not in out:
+            out.append(match)
+    return out
+
+
+def _extract_json(text: str):
+    """Strip code fences and parse JSON from an LLM response."""
+    if text is None:
+        return None
+    s = text.strip()
+    # strip ```json ... ``` or ``` ... ```
+    fence = re.match(r"^```(?:json)?\s*(.*?)\s*```$", s, re.DOTALL)
+    if fence:
+        s = fence.group(1).strip()
+    # find first { or [ to last } or ]
+    try:
+        return json.loads(s)
+    except Exception:
+        pass
+    start = min([i for i in [s.find("{"), s.find("[")] if i != -1] or [-1])
+    end = max(s.rfind("}"), s.rfind("]"))
+    if start != -1 and end != -1 and end > start:
+        try:
+            return json.loads(s[start : end + 1])
+        except Exception:
+            return None
+    return None
+
+
+async def _ai_chat(system_message: str, user_text: str) -> str:
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI is not configured. Set EMERGENT_LLM_KEY in backend/.env.")
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"missionboard-{uuid.uuid4()}",
+        system_message=system_message,
+    ).with_model(AI_MODEL_PROVIDER, AI_MODEL_NAME)
+    try:
+        return await chat.send_message(UserMessage(text=user_text))
+    except Exception as e:
+        logger.exception("AI call failed")
+        raise HTTPException(status_code=502, detail=f"AI service error: {e}") from e
+
+
+def _system_prompt(skills: List[dict], strategies: List[dict]) -> str:
+    skill_lines = "\n".join([f"- {s['name']} ({s['category']}): {s['description']}" for s in skills])
+    strat_lines = "\n".join([f"- {s['name']} {s.get('emoji','')}: {s['description']}" for s in strategies])
+    return (
+        "You are MissionBoard's assistant. You help a busy parent draft small, kid-friendly daily "
+        "learning 'missions' for their child. Missions focus on Reading and Executive Function. "
+        "Each mission must be tiny, doable in 5-25 minutes, and broken into 2-5 concrete steps a child can check off. "
+        "Use warm, encouraging, second-person language ('you'). Avoid jargon and emoji.\n\n"
+        "Pick skill_names and strategy_names ONLY from the lists below — copy the names exactly.\n\n"
+        f"AVAILABLE SKILLS:\n{skill_lines}\n\n"
+        f"AVAILABLE STRATEGIES:\n{strat_lines}\n\n"
+        "Always respond with STRICT JSON only — no prose, no code fences."
+    )
+
+
+def _student_context(student: dict) -> str:
+    notes = (student.get("profile_notes") or "").strip()
+    name = student.get("name", "the child")
+    if notes:
+        return f"Student: {name}.\nProfile notes from parent: {notes}\n"
+    return f"Student: {name}. (No profile notes provided — keep it broadly appropriate for an upper-elementary learner.)\n"
+
+
+@api.post("/ai/draft-mission", response_model=AIDraftedMission)
+async def ai_draft_mission(req: AIDraftRequest, user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, req.student_id)
+    student = await db.users.find_one({"id": req.student_id}, {"_id": 0, "password_hash": 0})
+    skills = await db.skills.find({}, {"_id": 0}).to_list(1000)
+    strategies = await db.strategies.find({}, {"_id": 0}).to_list(1000)
+
+    user_text = (
+        _student_context(student)
+        + f"Parent idea/topic: {req.prompt or '(none — surprise me with something useful for today)'}\n\n"
+        + "Return JSON with this exact shape:\n"
+        + '{ "title": str, "description": str, "steps": [str, ...] (2-5 items), '
+        + '"estimated_minutes": int (5-25), '
+        + '"skill_names": [str, ...] (1-2 items, copied exactly from AVAILABLE SKILLS), '
+        + '"strategy_names": [str, ...] (1-2 items, copied exactly from AVAILABLE STRATEGIES) }'
+    )
+
+    raw = await _ai_chat(_system_prompt(skills, strategies), user_text)
+    data = _extract_json(raw) or {}
+    title = (data.get("title") or "").strip() or "Today's mission"
+    description = (data.get("description") or "").strip()
+    steps_raw = data.get("steps") or []
+    steps = [str(s).strip() for s in steps_raw if str(s).strip()][:5]
+    try:
+        minutes = int(data.get("estimated_minutes") or 15)
+    except Exception:
+        minutes = 15
+    minutes = max(5, min(60, minutes))
+    skill_names = [str(x).strip() for x in (data.get("skill_names") or []) if str(x).strip()]
+    strategy_names = [str(x).strip() for x in (data.get("strategy_names") or []) if str(x).strip()]
+    return AIDraftedMission(
+        title=title,
+        description=description,
+        steps=steps,
+        estimated_minutes=minutes,
+        skill_ids=_match_ids(skill_names, skills),
+        strategy_ids=_match_ids(strategy_names, strategies),
+        skill_names=skill_names,
+        strategy_names=strategy_names,
+    )
+
+
+@api.post("/ai/draft-day", response_model=List[AIDraftedMission])
+async def ai_draft_day(req: AIDayDraftRequest, user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, req.student_id)
+    student = await db.users.find_one({"id": req.student_id}, {"_id": 0, "password_hash": 0})
+    skills = await db.skills.find({}, {"_id": 0}).to_list(1000)
+    strategies = await db.strategies.find({}, {"_id": 0}).to_list(1000)
+
+    n = max(1, min(5, int(req.count or 3)))
+    user_text = (
+        _student_context(student)
+        + f"Parent guidance (optional): {req.prompt or '(none)'}\n\n"
+        + f"Draft {n} small, varied missions for today. Mix Reading and Executive Function skills. "
+        + "Total time across all missions should feel doable in a single afternoon (roughly 30-60 minutes combined).\n\n"
+        + 'Return a JSON ARRAY of mission objects, each shaped like: '
+        + '{ "title": str, "description": str, "steps": [str, ...] (2-5 items), '
+        + '"estimated_minutes": int (5-25), '
+        + '"skill_names": [str, ...] (1-2, copied exactly), '
+        + '"strategy_names": [str, ...] (1-2, copied exactly) }'
+    )
+
+    raw = await _ai_chat(_system_prompt(skills, strategies), user_text)
+    data = _extract_json(raw)
+    items = data if isinstance(data, list) else (data.get("missions") if isinstance(data, dict) else None) or []
+
+    out: List[AIDraftedMission] = []
+    for d in items[:n]:
+        if not isinstance(d, dict):
+            continue
+        title = (d.get("title") or "").strip() or "Mission"
+        steps = [str(s).strip() for s in (d.get("steps") or []) if str(s).strip()][:5]
+        try:
+            minutes = int(d.get("estimated_minutes") or 15)
+        except Exception:
+            minutes = 15
+        minutes = max(5, min(60, minutes))
+        sk_names = [str(x).strip() for x in (d.get("skill_names") or []) if str(x).strip()]
+        st_names = [str(x).strip() for x in (d.get("strategy_names") or []) if str(x).strip()]
+        out.append(AIDraftedMission(
+            title=title,
+            description=(d.get("description") or "").strip(),
+            steps=steps,
+            estimated_minutes=minutes,
+            skill_ids=_match_ids(sk_names, skills),
+            strategy_ids=_match_ids(st_names, strategies),
+            skill_names=sk_names,
+            strategy_names=st_names,
+        ))
+    return out
 
 
 # ---------- Health ----------

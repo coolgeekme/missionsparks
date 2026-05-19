@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { api, formatApiErrorDetail } from "../lib/api";
-import { Save, Trash2, Plus, ArrowLeft } from "lucide-react";
+import { Save, Trash2, Plus, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -26,6 +26,11 @@ export default function MissionForm() {
     });
     const [err, setErr] = useState("");
     const [busy, setBusy] = useState(false);
+
+    // AI draft
+    const [aiPrompt, setAiPrompt] = useState("");
+    const [aiBusy, setAiBusy] = useState(false);
+    const [aiErr, setAiErr] = useState("");
 
     useEffect(() => {
         (async () => {
@@ -99,6 +104,34 @@ export default function MissionForm() {
         }
     };
 
+    const draftWithAI = async () => {
+        if (!form.student_id && !editing) {
+            setAiErr("Pick a student first.");
+            return;
+        }
+        setAiBusy(true);
+        setAiErr("");
+        try {
+            const { data } = await api.post("/ai/draft-mission", {
+                student_id: form.student_id,
+                prompt: aiPrompt,
+            });
+            setForm((f) => ({
+                ...f,
+                title: data.title || f.title,
+                description: data.description || f.description,
+                steps: data.steps.length ? data.steps : f.steps,
+                estimated_minutes: data.estimated_minutes || f.estimated_minutes,
+                skill_ids: data.skill_ids.length ? data.skill_ids : f.skill_ids,
+                strategy_ids: data.strategy_ids.length ? data.strategy_ids : f.strategy_ids,
+            }));
+        } catch (e) {
+            setAiErr(formatApiErrorDetail(e.response?.data?.detail) || e.message);
+        } finally {
+            setAiBusy(false);
+        }
+    };
+
     return (
         <div className="min-h-screen" data-testid="mission-form-page">
             <Navbar />
@@ -110,6 +143,39 @@ export default function MissionForm() {
                     {editing ? "Edit mission" : "Create a mission"}
                 </h1>
                 <p className="text-[#4A5568] font-semibold mb-6">Small steps. Big wins. 🌱</p>
+
+                {!editing && (
+                    <div className="mb-card p-5 mb-5 border-[#FFD166]" data-testid="mission-form-ai-panel">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Sparkles className="text-[#FFD166]" size={18} />
+                            <h2 className="font-display font-bold text-lg text-[#0B132B]">Draft with AI</h2>
+                            <span className="mb-chip bg-[#FFD166]/30 text-[#876200] text-xs py-0.5 px-2">Optional</span>
+                        </div>
+                        <p className="text-sm font-semibold text-[#4A5568] mb-3">
+                            Type a one-line idea and let AI fill in the title, steps, skills, and strategies. You can still edit everything below before saving.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <input
+                                value={aiPrompt}
+                                onChange={(e) => setAiPrompt(e.target.value)}
+                                placeholder="e.g. Reading practice with our chapter book about dragons"
+                                className="mb-input flex-1"
+                                data-testid="mission-form-ai-prompt"
+                            />
+                            <button
+                                type="button"
+                                onClick={draftWithAI}
+                                disabled={aiBusy}
+                                className="btn-pop-secondary flex items-center justify-center gap-2"
+                                data-testid="mission-form-ai-draft"
+                            >
+                                {aiBusy ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
+                                {aiBusy ? "Drafting…" : "Draft for me"}
+                            </button>
+                        </div>
+                        {aiErr && <p className="text-sm font-bold text-[#EF476F] bg-[#EF476F]/10 rounded-xl px-3 py-2 mt-3" data-testid="mission-form-ai-error">{aiErr}</p>}
+                    </div>
+                )}
 
                 <form onSubmit={submit} className="mb-card p-6 space-y-5" data-testid="mission-form">
                     {!editing && (
