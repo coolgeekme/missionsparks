@@ -1,0 +1,73 @@
+{
+  "theme": "light",
+  "archetype": "6 (Vibrant Play)",
+  "colors": {
+    "background": "#F0F8FF",
+    "surface": "#FFFFFF",
+    "primary": "#4361EE",
+    "secondary": "#FFD166",
+    "accent": "#06D6A0",
+    "warning": "#EF476F",
+    "text": {
+      "primary": "#0B132B",
+      "secondary": "#4A5568",
+      "muted": "#A0AEC0"
+    },
+    "border": "#E2E8F0"
+  },
+  "typography": {
+    "fonts": {
+      "heading": "'Fredoka', sans-serif",
+      "body": "'Nunito', sans-serif"
+    },
+    "scales": {
+      "h1": "text-4xl sm:text-5xl font-black tracking-tight text-[#0B132B]",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight text-[#0B132B]",
+      "h3": "text-xl sm:text-2xl font-bold text-[#0B132B]",
+      "h4": "text-lg font-bold text-[#0B132B]",
+      "body": "text-base font-medium text-[#4A5568]",
+      "small": "text-sm font-bold uppercase tracking-widest text-[#A0AEC0]"
+    }
+  },
+  "spacing_and_layout": {
+    "global_padding": "p-6 md:p-12",
+    "card_padding": "p-6 sm:p-8",
+    "gap": "gap-6 sm:gap-8",
+    "radius": "rounded-3xl",
+    "layout_strategy": "Mobile-first, soft bento grid. Avoid standard rigid rows. Use generous spacing (p-6 to p-12) to create a relaxed, engaging environment for kids. Keep cognitive load low."
+  },
+  "surfaces": {
+    "cards": "bg-white rounded-3xl border-2 border-[#E2E8F0] shadow-[0_6px_0_0_#E2E8F0] hover:-translate-y-1 hover:shadow-[0_8px_0_0_#E2E8F0] transition-all duration-200",
+    "buttons": {
+      "primary": "bg-[#4361EE] text-white rounded-2xl font-bold py-3 px-6 shadow-[0_6px_0_0_#3A53CC] hover:-translate-y-1 hover:shadow-[0_8px_0_0_#3A53CC] active:translate-y-1 active:shadow-[0_0px_0_0_#3A53CC] transition-all",
+      "secondary": "bg-[#FFD166] text-[#0B132B] rounded-2xl font-bold py-3 px-6 shadow-[0_6px_0_0_#E5BC5C] hover:-translate-y-1 hover:shadow-[0_8px_0_0_#E5BC5C] active:translate-y-1 active:shadow-none transition-all"
+    }
+  },
+  "components": {
+    "forms": "Use Shadcn components but heavily customize. Override border radii to rounded-2xl, increase input height to h-14 for kid-friendly tap targets, and use border-2 border-slate-200.",
+    "badges": "rounded-full px-4 py-2 font-bold text-sm bg-[#FFD166]/20 text-[#D4A017]",
+    "emoji_buttons": "Large touch targets (h-20 w-20) for reflection logs. Display giant emojis (bad/okay/good). Treat like radio buttons with a thick selected state (border-4 border-[#4361EE] bg-[#4361EE]/10 rounded-2xl)."
+  },
+  "media": {
+    "hero_rocket": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/151314fa-6f88-4a3d-a39f-0044b194f5e9/images/1ec739dfedecb93df2ad320aeb4f02b79070a29d4126c045ddb5fc82ecf1c875.png",
+      "description": "3D claymorphism rocket ship, transparent background. Place in Student dashboard hero, welcoming header, or empty states to keep it playful."
+    },
+    "reward_star": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/151314fa-6f88-4a3d-a39f-0044b194f5e9/images/5f587837e7ac036a02af75fb2b488a2a8b33429167fae318cb66d294e807a889.png",
+      "description": "3D claymorphism smiling star medal. Use on mission complete success screen or in the reflection log completion."
+    },
+    "parent_child_learning": {
+      "url": "https://images.unsplash.com/photo-1629360067822-89c74b25bb66?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwzfHxwYXJlbnQlMjBhbmQlMjBjaGlsZCUyMHN0dWR5aW5nfGVufDB8fHx8MTc3OTE1OTI3NXww&ixlib=rb-4.1.0&q=85",
+      "description": "Parent and child studying. Recommended for the Login/Register split screen or Parent Dashboard empty states."
+    }
+  },
+  "instructions_to_main_agent": [
+    "Import Google Fonts 'Fredoka' and 'Nunito' into the global index.css/html.",
+    "Use lucide-react for all standard iconography, but rely heavily on standard native emojis for the kids' UI (e.g., in badges and reflection forms).",
+    "CRITICAL: Include data-testid attributes on ALL interactive and key elements using kebab-case role-based names (e.g., data-testid='student-mission-card', data-testid='log-reflection-submit').",
+    "Use Duolingo-style gamified tactile buttons (solid background + solid bottom shadow of darker shade, compressing on active state) instead of flat minimal buttons.",
+    "Ensure all implementation files are written in standard JS/JSX, not TypeScript (no .tsx).",
+    "Avoid the default Shadcn 'Vercel' look; do not use subtle grays and sharp corners. Strip standard shadcn borders and apply the rounded-3xl and border-2 patterns defined here."
+  ]
+}
