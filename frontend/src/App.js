@@ -1,54 +1,85 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import ParentDashboard from "./pages/ParentDashboard";
+import MissionForm from "./pages/MissionForm";
+import ParentLogs from "./pages/ParentLogs";
+import StudentDashboard from "./pages/StudentDashboard";
+import MissionDetail from "./pages/MissionDetail";
+import { Toaster } from "./components/ui/sonner";
+import "./App.css";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
-
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
-
-function App() {
-  return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
-  );
+function RootRedirect() {
+    const { user } = useAuth();
+    if (user === null) return <div className="min-h-screen flex items-center justify-center text-[#4361EE] font-bold">Loading…</div>;
+    if (!user) return <Navigate to="/login" replace />;
+    return <Navigate to={user.role === "parent" ? "/parent" : "/student"} replace />;
 }
 
-export default App;
+export default function App() {
+    return (
+        <div className="App">
+            <AuthProvider>
+                <BrowserRouter>
+                    <Routes>
+                        <Route path="/" element={<RootRedirect />} />
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/register" element={<Register />} />
+                        <Route
+                            path="/parent"
+                            element={
+                                <ProtectedRoute role="parent">
+                                    <ParentDashboard />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/parent/missions/new"
+                            element={
+                                <ProtectedRoute role="parent">
+                                    <MissionForm />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/parent/missions/:id/edit"
+                            element={
+                                <ProtectedRoute role="parent">
+                                    <MissionForm />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/parent/logs"
+                            element={
+                                <ProtectedRoute role="parent">
+                                    <ParentLogs />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/student"
+                            element={
+                                <ProtectedRoute role="student">
+                                    <StudentDashboard />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/student/missions/:id"
+                            element={
+                                <ProtectedRoute role="student">
+                                    <MissionDetail />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                    <Toaster />
+                </BrowserRouter>
+            </AuthProvider>
+        </div>
+    );
+}
