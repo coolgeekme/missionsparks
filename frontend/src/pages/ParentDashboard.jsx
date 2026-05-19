@@ -71,12 +71,14 @@ export default function ParentDashboard() {
         if (selectedStudent) {
             loadMissions(selectedStudent.id);
             setProfileNotes(selectedStudent.profile_notes || "");
-            setProfileMsg("");
             setAiDrafts([]);
             setSavedIdx({});
             setAiOpen(false);
         }
-    }, [selectedStudent]);
+        // intentionally NOT clearing profileMsg here — saveProfile sets it after a
+        // successful PUT and we want it to remain visible after loadStudents
+        // returns a new object reference for the same student.
+    }, [selectedStudent?.id]);
 
     const handleLink = async (e) => {
         e.preventDefault();
@@ -105,8 +107,8 @@ export default function ParentDashboard() {
         setProfileMsg("");
         try {
             await api.put(`/students/${selectedStudent.id}/profile`, { profile_notes: profileNotes });
-            setProfileMsg("Saved ✓");
             await loadStudents(selectedStudent.id);
+            setProfileMsg("Saved ✓");
         } catch (e) {
             setProfileMsg(formatApiErrorDetail(e.response?.data?.detail) || e.message);
         } finally {

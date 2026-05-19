@@ -165,8 +165,8 @@ export default function MissionForm() {
                             <button
                                 type="button"
                                 onClick={draftWithAI}
-                                disabled={aiBusy}
-                                className="btn-pop-secondary flex items-center justify-center gap-2"
+                                disabled={aiBusy || !form.student_id}
+                                className="btn-pop-secondary flex items-center justify-center gap-2 disabled:opacity-50"
                                 data-testid="mission-form-ai-draft"
                             >
                                 {aiBusy ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
