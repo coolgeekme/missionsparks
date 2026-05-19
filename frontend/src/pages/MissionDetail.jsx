@@ -29,6 +29,7 @@ export default function MissionDetail() {
     const [feeling, setFeeling] = useState(null);
     const [note, setNote] = useState("");
     const [submitted, setSubmitted] = useState(false);
+    const [postStreak, setPostStreak] = useState(null);
     const [err, setErr] = useState("");
     const [busy, setBusy] = useState(false);
 
@@ -65,6 +66,10 @@ export default function MissionDetail() {
                 feeling,
                 note,
             });
+            try {
+                const { data } = await api.get("/streak");
+                setPostStreak(data);
+            } catch { /* non-blocking */ }
             setSubmitted(true);
         } catch (e) {
             setErr(formatApiErrorDetail(e.response?.data?.detail) || e.message);
@@ -90,9 +95,19 @@ export default function MissionDetail() {
                     <img src={STAR_URL} alt="Reward" className="h-40 w-40 mx-auto drop-shadow-xl" />
                     <h1 className="font-display font-extrabold text-4xl text-[#0B132B] mt-4">Mission complete! 🎉</h1>
                     <p className="text-[#4A5568] font-semibold mt-2">Awesome reflection. Your parent will see it in their logs.</p>
-                    <button onClick={() => navigate("/student")} className="btn-pop-primary mt-6" data-testid="mission-success-back">
-                        Back to missions
-                    </button>
+                    {postStreak && (
+                        <div className="mt-5 inline-flex items-center gap-2 rounded-2xl border-2 border-[#EF476F] bg-[#EF476F]/10 px-4 py-2" data-testid="mission-success-streak">
+                            <span className="text-2xl">🔥</span>
+                            <span className="font-display font-bold text-lg text-[#0B132B]">
+                                {postStreak.current_streak} day streak
+                            </span>
+                        </div>
+                    )}
+                    <div className="mt-6">
+                        <button onClick={() => navigate("/student")} className="btn-pop-primary" data-testid="mission-success-back">
+                            Back to missions
+                        </button>
+                    </div>
                 </main>
             </div>
         );

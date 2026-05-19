@@ -4,7 +4,7 @@ import Navbar from "../components/Navbar";
 import { api, formatApiErrorDetail } from "../lib/api";
 import {
     Plus, ClipboardList, Users, Pencil, Trash2, UserPlus, Clock,
-    Sparkles, Save, Loader2, Wand2, X,
+    Sparkles, Save, Loader2, Wand2, X, Flame,
 } from "lucide-react";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -23,6 +23,9 @@ export default function ParentDashboard() {
     const [profileNotes, setProfileNotes] = useState("");
     const [profileSaving, setProfileSaving] = useState(false);
     const [profileMsg, setProfileMsg] = useState("");
+
+    // Streak for selected student (parent view)
+    const [studentStreak, setStudentStreak] = useState(null);
 
     // AI day drafting
     const [aiOpen, setAiOpen] = useState(false);
@@ -74,6 +77,14 @@ export default function ParentDashboard() {
             setAiDrafts([]);
             setSavedIdx({});
             setAiOpen(false);
+            (async () => {
+                try {
+                    const { data } = await api.get(`/streak/${selectedStudent.id}`);
+                    setStudentStreak(data);
+                } catch {
+                    setStudentStreak(null);
+                }
+            })();
         }
         // intentionally NOT clearing profileMsg here — saveProfile sets it after a
         // successful PUT and we want it to remain visible after loadStudents
@@ -240,10 +251,22 @@ export default function ParentDashboard() {
 
                 {selectedStudent && (
                     <section className="mb-card p-6" data-testid="parent-profile-card">
-                        <div className="flex items-center gap-2 mb-3">
-                            <Wand2 size={18} className="text-[#4361EE]" />
-                            <h2 className="font-display font-bold text-xl text-[#0B132B]">About {selectedStudent.name}</h2>
-                            <span className="mb-chip bg-[#FFD166]/30 text-[#876200]">Helps AI personalize</span>
+                        <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                            <div className="flex items-center gap-2">
+                                <Wand2 size={18} className="text-[#4361EE]" />
+                                <h2 className="font-display font-bold text-xl text-[#0B132B]">About {selectedStudent.name}</h2>
+                                <span className="mb-chip bg-[#FFD166]/30 text-[#876200]">Helps AI personalize</span>
+                            </div>
+                            {studentStreak && (
+                                <div className="flex items-center gap-2" data-testid="parent-student-streak">
+                                    <span className={`mb-chip ${studentStreak.current_streak > 0 ? "bg-[#EF476F]/15 text-[#EF476F]" : "bg-[#E2E8F0] text-[#4A5568]"}`}>
+                                        <Flame size={14} /> {studentStreak.current_streak} day streak
+                                    </span>
+                                    <span className="mb-chip bg-[#06D6A0]/15 text-[#057a5b]">
+                                        {studentStreak.completed_today_count}/{studentStreak.missions_today_count} today
+                                    </span>
+                                </div>
+                            )}
                         </div>
                         <p className="text-sm font-semibold text-[#4A5568] mb-3">
                             Optional notes the AI will use when drafting missions (grade, reading level, interests, struggles, motivation).

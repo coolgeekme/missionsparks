@@ -1,0 +1,47 @@
+{
+  "summary": "Iteration 3 streak feature testing. Backend: 8 new streak tests all PASS (shape, role+linkage gating, math, fresh-user 0-streak). Regression untouched: 18/18 missionboard + 15/15 AI pass = 41/41 total. Frontend: Student Dashboard streak card renders correctly (1 day streak, 7-day trail with today highlighted in green with check icon, no all-done section since only 1/4 complete). Mission Detail success screen shows '🔥 1 day streak' chip via testid mission-success-streak after submitting a reflection log. Parent Dashboard 'About Enzo' card shows flame chip '1 day streak' + '1/4 today' chip via testid parent-student-streak. All required testids found. No backend or frontend issues.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/streak (_compute_streak)", "issue": "Performs 3 separate Mongo finds against mission_logs / missions for the same student. Could be reduced to 2 (the second mission_logs find duplicates the first — completed_today_logs is the same query as `logs` at the top, just with mission_id projected). Minor perf nit on a hot endpoint."},
+      {"endpoint": "GET /api/streak", "issue": "UTC-only day boundary. A learner who finishes a mission at 10 PM in PST sees the log counted on the NEXT UTC day, which could break the streak in the user's local timeline. Consider accepting an optional tz query param or using a per-student timezone. Documented in the request as expected behaviour — flagged here for product visibility."},
+      {"endpoint": "GET /api/streak/{student_id}", "issue": "When `student_id` does not exist in users at all, the endpoint returns 200 with zeros (because _compute_streak does not validate the id and parent linkage check passes if linked_student_ids contains it; otherwise 403). Acceptable but a 404 for unknown student would be cleaner."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Student Dashboard streak card", "issues": ["Week trail day-dots (e.g. 13W, 14T, …) only display the date number; non-completed days are visually nearly identical to completed days in non-screenshot lighting. The today indicator (green check) is clear; for past completed days a fill colour difference helps. Today-only highlight is fine for now."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_streak.py",
+    "/app/backend/tests/test_missionboard.py",
+    "/app/backend/tests/test_ai_drafting.py",
+    "/app/test_reports/pytest/streak_results.xml",
+    "/app/test_reports/pytest/regression_results.xml",
+    "/app/test_reports/pytest/ai_results.xml"
+  ],
+  "action_items": [
+    "(Optional, not blocking) Collapse the duplicate mission_logs find in _compute_streak to a single query.",
+    "(Product) Decide whether streak should respect the user's local timezone instead of UTC — currently late-night submissions will roll to the next day in UTC."
+  ],
+  "critical_code_review_comments": [
+    "Streak math is correct: longest_streak iterates chronologically counting consecutive days; current_streak anchors at today or yesterday and walks backwards through date_set. Verified: fresh user → 0/0; demo user with 1 completed log today → current=1, longest>=1, last_completed_date=today, week[-1].is_today=true, week dates are 7 consecutive ISO YYYY-MM-DD ending today.",
+    "Role+linkage gating is consistent with the rest of the app: /api/streak gates to student-only with a helpful error pointing parents to the {student_id} variant; /api/streak/{student_id} allows the student themselves or a linked parent (_assert_parent_owns_student). All 4 negative cases (unauth, wrong-role, unlinked-parent, different-student) return correct status codes.",
+    "Frontend integration is clean: StudentDashboard fetches /api/streak alongside missions/skills/strategies in one Promise.all; MissionDetail re-fetches /api/streak only after a successful POST log so the chip reflects the just-incremented streak; ParentDashboard re-fetches /api/streak/{selectedStudent.id} when the selected student changes.",
+    "server.py is now 952 lines (up from 852 in iter 2). The recommendation to split into routers/ (auth, missions, ai, streak) and models.py still stands — adding more features will keep growing this monolith.",
+    "MissionDetail success-streak chip uses optional render (`{postStreak && ...}`) so a failed /api/streak call silently hides the chip rather than blocking the success screen. Good defensive behaviour."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_streak.py (new — 8 tests, 1 module)"
+  ],
+  "success_rate": {"backend": "100% (41/41: 18 regression + 15 AI + 8 streak)", "frontend": "100% on streak feature — all 3 integration points (student card, mission success chip, parent chip) working"},
+  "test_credentials": "parent@demo.com/demo1234 (linked to Enzo), student@demo.com/demo1234. From /app/memory/test_credentials.md.",
+  "seed_data_creation": "Streak tests register 3 throwaway TEST_-prefixed users per run (unlinked parent, other student, fresh student) — no cleanup performed; rows are inert and uuid-uniqued. UI test added 1 extra completed mission_log for demo student (TEST_streak_seed reflection on first available mission) — does not affect product correctness; if you re-run streak tests tomorrow the streak should be 2.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: python -m pytest /app/backend/tests/ -v --junitxml=/app/test_reports/pytest/results.xml — expect 41 passing (18 missionboard + 15 AI + 8 streak). AI suite takes ~30s due to live Claude calls. Streak feature: GET /api/streak returns StreakResponse {current_streak, longest_streak, completed_today, completed_today_count, missions_today_count, last_completed_date, week:[{date,completed,is_today}*7]}; week dates are consecutive UTC ISO dates ending today. Frontend testids: student-streak-card, student-streak-current, student-streak-week (7 children), student-all-done (only when completed==total), mission-success-streak (after reflection submit), parent-student-streak (in parent profile card header). Demo student now has 2 completed logs today after this iteration's test run.",
+  "rca of the issue": "N/A — no defects found in iteration 3."
+}

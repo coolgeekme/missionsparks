@@ -479,6 +479,106 @@ async def list_logs(
     return logs
 
 
+# ---------- Streak ----------
+class StreakResponse(BaseModel):
+    current_streak: int
+    longest_streak: int
+    completed_today: bool
+    completed_today_count: int
+    missions_today_count: int
+    last_completed_date: Optional[str] = None
+    week: List[dict] = []  # [{date: 'YYYY-MM-DD', completed: bool, is_today: bool}, ... 7 days ending today]
+
+
+def _date_from_iso(ts: str) -> str:
+    """Return YYYY-MM-DD from an ISO timestamp."""
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00")).date().isoformat()
+    except Exception:
+        return ts[:10] if ts else ""
+
+
+async def _compute_streak(student_id: str) -> StreakResponse:
+    logs = await db.mission_logs.find(
+        {"student_id": student_id, "status": "completed"}, {"_id": 0, "timestamp": 1}
+    ).to_list(5000)
+    completed_dates = sorted({_date_from_iso(lg["timestamp"]) for lg in logs if lg.get("timestamp")})
+
+    today = datetime.now(timezone.utc).date()
+    today_iso = today.isoformat()
+
+    # longest streak across all days
+    longest = 0
+    cur = 0
+    prev = None
+    for d in completed_dates:
+        try:
+            dt = datetime.fromisoformat(d).date()
+        except Exception:
+            continue
+        if prev is not None and (dt - prev).days == 1:
+            cur += 1
+        else:
+            cur = 1
+        longest = max(longest, cur)
+        prev = dt
+
+    # current streak — count consecutive days ending today or yesterday
+    date_set = set(completed_dates)
+    current = 0
+    anchor = today if today_iso in date_set else (today - timedelta(days=1))
+    while anchor.isoformat() in date_set:
+        current += 1
+        anchor = anchor - timedelta(days=1)
+
+    # today's mission counts
+    todays_missions = await db.missions.count_documents({"student_id": student_id, "due_date": today_iso})
+    completed_today_logs = await db.mission_logs.find(
+        {"student_id": student_id, "status": "completed"}, {"_id": 0, "mission_id": 1, "timestamp": 1}
+    ).to_list(2000)
+    todays_mission_ids = {
+        m["id"]
+        for m in await db.missions.find(
+            {"student_id": student_id, "due_date": today_iso}, {"_id": 0, "id": 1}
+        ).to_list(1000)
+    }
+    completed_today_mids = {lg["mission_id"] for lg in completed_today_logs if _date_from_iso(lg["timestamp"]) == today_iso}
+    completed_today_count = len(todays_mission_ids & completed_today_mids)
+
+    # week trail: 7 days ending today
+    week = []
+    for i in range(6, -1, -1):
+        d = (today - timedelta(days=i)).isoformat()
+        week.append({"date": d, "completed": d in date_set, "is_today": d == today_iso})
+
+    return StreakResponse(
+        current_streak=current,
+        longest_streak=longest,
+        completed_today=today_iso in date_set,
+        completed_today_count=completed_today_count,
+        missions_today_count=todays_missions,
+        last_completed_date=(completed_dates[-1] if completed_dates else None),
+        week=week,
+    )
+
+
+@api.get("/streak", response_model=StreakResponse)
+async def get_my_streak(user: dict = Depends(get_current_user)):
+    if user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Only students have a streak. Use /api/streak/{student_id} as a parent.")
+    return await _compute_streak(user["id"])
+
+
+@api.get("/streak/{student_id}", response_model=StreakResponse)
+async def get_student_streak(student_id: str, user: dict = Depends(get_current_user)):
+    if user["role"] == "student":
+        if user["id"] != student_id:
+            raise HTTPException(status_code=403, detail="Not your streak")
+    else:
+        await _assert_parent_owns_student(user, student_id)
+    return await _compute_streak(student_id)
+
+
 # ---------- AI Mission Drafting ----------
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 AI_MODEL_PROVIDER = "anthropic"
