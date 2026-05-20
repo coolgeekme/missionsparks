@@ -10,6 +10,9 @@ import StudentDashboard from "./pages/StudentDashboard";
 import MissionDetail from "./pages/MissionDetail";
 import GamePicker from "./pages/GamePicker";
 import GamePlay from "./pages/GamePlay";
+import MomentsTracker from "./pages/MomentsTracker";
+import MomentsInsights from "./pages/MomentsInsights";
+import StudentCheckIn from "./pages/StudentCheckIn";
 import { Toaster } from "./components/ui/sonner";
 import "./App.css";
 
@@ -90,6 +93,30 @@ export default function App() {
                             element={
                                 <ProtectedRoute role="student">
                                     <GamePlay />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/parent/moments"
+                            element={
+                                <ProtectedRoute role="parent">
+                                    <MomentsTracker />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/parent/moments/insights"
+                            element={
+                                <ProtectedRoute role="parent">
+                                    <MomentsInsights />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/student/checkin"
+                            element={
+                                <ProtectedRoute role="student">
+                                    <StudentCheckIn />
                                 </ProtectedRoute>
                             }
                         />

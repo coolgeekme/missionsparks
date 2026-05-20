@@ -4,7 +4,7 @@ import Navbar from "../components/Navbar";
 import { api, formatApiErrorDetail } from "../lib/api";
 import {
     Plus, ClipboardList, Users, Pencil, Trash2, UserPlus, Clock,
-    Sparkles, Save, Loader2, Wand2, X, Flame,
+    Sparkles, Save, Loader2, Wand2, X, Flame, Activity,
 } from "lucide-react";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -183,6 +183,9 @@ export default function ParentDashboard() {
                         <p className="text-[#4A5568] font-semibold mt-2">Build small, doable wins for your learner.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
+                        <Link to="/parent/moments" className="btn-pop-ghost flex items-center gap-2" data-testid="parent-go-moments">
+                            <Activity size={16} /> Moments
+                        </Link>
                         <Link to="/parent/logs" className="btn-pop-ghost flex items-center gap-2" data-testid="parent-view-logs">
                             <ClipboardList size={16} /> View logs
                         </Link>

@@ -824,6 +824,318 @@ async def ai_draft_day(req: AIDayDraftRequest, user: dict = Depends(require_role
     return out
 
 
+# ---------- Moments (ADHD behavior + trigger tracking) ----------
+MOMENT_CATALOG = {
+    "moment_types": [
+        # Challenging
+        {"key": "meltdown", "label": "Meltdown", "emoji": "😤", "category": "challenging"},
+        {"key": "impulsive", "label": "Impulsive action", "emoji": "⚡", "category": "challenging"},
+        {"key": "distracted", "label": "Easily distracted", "emoji": "🦋", "category": "challenging"},
+        {"key": "hyperactive", "label": "Hyperactive", "emoji": "🏃", "category": "challenging"},
+        {"key": "withdrawn", "label": "Withdrawn / shut down", "emoji": "🐚", "category": "challenging"},
+        {"key": "anxious", "label": "Anxious", "emoji": "😟", "category": "challenging"},
+        {"key": "frustrated", "label": "Frustrated", "emoji": "😣", "category": "challenging"},
+        {"key": "refusal", "label": "Refusing task", "emoji": "✋", "category": "challenging"},
+        # Positive / regulated
+        {"key": "regulated", "label": "Calm & regulated", "emoji": "😊", "category": "positive"},
+        {"key": "hyperfocus", "label": "Deep focus", "emoji": "🎯", "category": "positive"},
+        {"key": "proud", "label": "Proud / confident", "emoji": "🌟", "category": "positive"},
+        {"key": "creative", "label": "Creative flow", "emoji": "🎨", "category": "positive"},
+        # Neutral / transition
+        {"key": "transition", "label": "Transition struggle", "emoji": "🔁", "category": "neutral"},
+        {"key": "tired", "label": "Tired", "emoji": "😴", "category": "neutral"},
+    ],
+    "triggers": [
+        {"key": "hunger", "label": "Hunger", "emoji": "🍎"},
+        {"key": "tiredness", "label": "Tiredness", "emoji": "😴"},
+        {"key": "sensory_overload", "label": "Sensory overload", "emoji": "🔊"},
+        {"key": "transition", "label": "Transition between tasks", "emoji": "🔁"},
+        {"key": "task_frustration", "label": "Task too hard", "emoji": "😣"},
+        {"key": "time_pressure", "label": "Time pressure", "emoji": "⏰"},
+        {"key": "temperature", "label": "Hot / cold", "emoji": "🥶"},
+        {"key": "boredom", "label": "Boredom", "emoji": "😑"},
+        {"key": "peer_conflict", "label": "Conflict with sibling/peer", "emoji": "🥊"},
+        {"key": "math", "label": "Math", "emoji": "🧮"},
+        {"key": "reading", "label": "Reading", "emoji": "📖"},
+        {"key": "screen_ended", "label": "Screen time ended", "emoji": "📺"},
+        {"key": "medication", "label": "Medication wearing off", "emoji": "💊"},
+        {"key": "sleep_deficit", "label": "Poor sleep last night", "emoji": "🌙"},
+        {"key": "social_demand", "label": "Social demands", "emoji": "👥"},
+        {"key": "unexpected_change", "label": "Unexpected change", "emoji": "🌀"},
+        {"key": "loud_noise", "label": "Loud environment", "emoji": "🔔"},
+        {"key": "homework", "label": "Homework", "emoji": "📝"},
+    ],
+}
+
+
+class MomentCreate(BaseModel):
+    student_id: str
+    timestamp: Optional[str] = None  # ISO; defaults to now
+    moment_type: str  # key from catalog OR free-text custom
+    intensity: int = Field(ge=1, le=5)
+    duration_minutes: Optional[int] = None
+    triggers: List[str] = []  # keys or custom strings
+    context_note: str = ""
+    antecedent: str = ""
+    response: str = ""
+    outcome: str = ""
+    mission_id: Optional[str] = None
+    notes: str = ""
+
+
+class Moment(BaseModel):
+    id: str
+    student_id: str
+    logged_by_user_id: str
+    logged_by_role: str
+    timestamp: str
+    moment_type: str
+    intensity: int
+    duration_minutes: Optional[int] = None
+    triggers: List[str] = []
+    context_note: str = ""
+    antecedent: str = ""
+    response: str = ""
+    outcome: str = ""
+    mission_id: Optional[str] = None
+    notes: str = ""
+
+
+@api.get("/moments/catalog")
+async def moments_catalog(user: dict = Depends(get_current_user)):
+    return MOMENT_CATALOG
+
+
+def _student_id_for(user: dict, supplied: Optional[str]) -> str:
+    """Resolve the student_id the current user is allowed to act on."""
+    if user["role"] == "student":
+        return user["id"]
+    if not supplied:
+        raise HTTPException(status_code=400, detail="student_id is required for parent")
+    if supplied not in user.get("linked_student_ids", []):
+        raise HTTPException(status_code=403, detail="You are not linked to this student")
+    return supplied
+
+
+@api.post("/moments", response_model=Moment)
+async def create_moment(req: MomentCreate, user: dict = Depends(get_current_user)):
+    student_id = _student_id_for(user, req.student_id)
+    ts = req.timestamp or datetime.now(timezone.utc).isoformat()
+    triggers = [t.strip() for t in (req.triggers or []) if t and t.strip()][:20]
+    moment_id = str(uuid.uuid4())
+    doc = {
+        "id": moment_id,
+        "student_id": student_id,
+        "logged_by_user_id": user["id"],
+        "logged_by_role": user["role"],
+        "timestamp": ts,
+        "moment_type": req.moment_type.strip(),
+        "intensity": int(req.intensity),
+        "duration_minutes": req.duration_minutes,
+        "triggers": triggers,
+        "context_note": (req.context_note or "").strip(),
+        "antecedent": (req.antecedent or "").strip(),
+        "response": (req.response or "").strip(),
+        "outcome": (req.outcome or "").strip(),
+        "mission_id": req.mission_id,
+        "notes": (req.notes or "").strip(),
+    }
+    await db.moments.insert_one(doc)
+    doc.pop("_id", None)
+    return Moment(**doc)
+
+
+@api.get("/moments", response_model=List[Moment])
+async def list_moments(
+    student_id: Optional[str] = None,
+    moment_type: Optional[str] = None,
+    trigger: Optional[str] = None,
+    limit: int = 500,
+    user: dict = Depends(get_current_user),
+):
+    query: dict = {}
+    if user["role"] == "student":
+        query["student_id"] = user["id"]
+    else:
+        if student_id:
+            if student_id not in user.get("linked_student_ids", []):
+                raise HTTPException(status_code=403, detail="You are not linked to this student")
+            query["student_id"] = student_id
+        else:
+            query["student_id"] = {"$in": user.get("linked_student_ids", [])}
+    if moment_type:
+        query["moment_type"] = moment_type
+    if trigger:
+        query["triggers"] = trigger
+    moments = await db.moments.find(query, {"_id": 0}).sort("timestamp", -1).to_list(min(max(limit, 1), 2000))
+    return moments
+
+
+@api.delete("/moments/{moment_id}")
+async def delete_moment(moment_id: str, user: dict = Depends(get_current_user)):
+    m = await db.moments.find_one({"id": moment_id}, {"_id": 0})
+    if not m:
+        raise HTTPException(status_code=404, detail="Moment not found")
+    if user["role"] == "student":
+        if m["student_id"] != user["id"]:
+            raise HTTPException(status_code=403, detail="Not yours")
+    else:
+        if m["student_id"] not in user.get("linked_student_ids", []):
+            raise HTTPException(status_code=403, detail="Not your student")
+    await db.moments.delete_one({"id": moment_id})
+    return {"ok": True}
+
+
+class MomentInsights(BaseModel):
+    total: int
+    counts_by_type: dict
+    counts_by_trigger: dict
+    by_hour: List[int]  # 24 ints
+    by_dow: List[int]  # 7 ints (0=Mon)
+    daily_counts: List[dict]  # [{date, count}] last `days`
+    avg_intensity_by_type: dict
+    trigger_to_type: dict  # {trigger: {type: count}}
+    top_triggers: List[dict]
+    top_types: List[dict]
+
+
+@api.get("/moments/insights", response_model=MomentInsights)
+async def moments_insights(
+    student_id: Optional[str] = None,
+    days: int = 30,
+    user: dict = Depends(get_current_user),
+):
+    query: dict = {}
+    if user["role"] == "student":
+        query["student_id"] = user["id"]
+    else:
+        if student_id:
+            if student_id not in user.get("linked_student_ids", []):
+                raise HTTPException(status_code=403, detail="You are not linked to this student")
+            query["student_id"] = student_id
+        else:
+            query["student_id"] = {"$in": user.get("linked_student_ids", [])}
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max(1, min(days, 180)))
+    query["timestamp"] = {"$gte": cutoff.isoformat()}
+
+    moments = await db.moments.find(query, {"_id": 0}).to_list(5000)
+
+    counts_by_type: dict = {}
+    counts_by_trigger: dict = {}
+    by_hour = [0] * 24
+    by_dow = [0] * 7
+    sums_intensity: dict = {}
+    n_intensity: dict = {}
+    trigger_to_type: dict = {}
+    daily_buckets: dict = {}
+
+    for m in moments:
+        t = m.get("moment_type", "other")
+        counts_by_type[t] = counts_by_type.get(t, 0) + 1
+        sums_intensity[t] = sums_intensity.get(t, 0) + int(m.get("intensity", 0))
+        n_intensity[t] = n_intensity.get(t, 0) + 1
+        try:
+            dt = datetime.fromisoformat(m["timestamp"].replace("Z", "+00:00"))
+            by_hour[dt.hour] += 1
+            by_dow[dt.weekday()] += 1
+            d = dt.date().isoformat()
+            daily_buckets[d] = daily_buckets.get(d, 0) + 1
+        except Exception:
+            pass
+        for tg in m.get("triggers", []) or []:
+            counts_by_trigger[tg] = counts_by_trigger.get(tg, 0) + 1
+            trigger_to_type.setdefault(tg, {})
+            trigger_to_type[tg][t] = trigger_to_type[tg].get(t, 0) + 1
+
+    avg_intensity_by_type = {
+        k: round(sums_intensity[k] / max(1, n_intensity[k]), 2) for k in sums_intensity
+    }
+
+    # daily counts for last N days
+    today = datetime.now(timezone.utc).date()
+    daily_counts = []
+    for i in range(max(1, min(days, 180)) - 1, -1, -1):
+        d = (today - timedelta(days=i)).isoformat()
+        daily_counts.append({"date": d, "count": daily_buckets.get(d, 0)})
+
+    top_triggers = sorted(
+        [{"key": k, "count": v} for k, v in counts_by_trigger.items()],
+        key=lambda x: x["count"],
+        reverse=True,
+    )[:8]
+    top_types = sorted(
+        [{"key": k, "count": v} for k, v in counts_by_type.items()],
+        key=lambda x: x["count"],
+        reverse=True,
+    )[:8]
+
+    return MomentInsights(
+        total=len(moments),
+        counts_by_type=counts_by_type,
+        counts_by_trigger=counts_by_trigger,
+        by_hour=by_hour,
+        by_dow=by_dow,
+        daily_counts=daily_counts,
+        avg_intensity_by_type=avg_intensity_by_type,
+        trigger_to_type=trigger_to_type,
+        top_triggers=top_triggers,
+        top_types=top_types,
+    )
+
+
+from fastapi.responses import StreamingResponse  # noqa: E402
+import csv  # noqa: E402
+import io  # noqa: E402
+
+
+@api.get("/moments/export.csv")
+async def moments_export(
+    student_id: Optional[str] = None,
+    user: dict = Depends(get_current_user),
+):
+    query: dict = {}
+    if user["role"] == "student":
+        query["student_id"] = user["id"]
+    else:
+        if student_id:
+            if student_id not in user.get("linked_student_ids", []):
+                raise HTTPException(status_code=403, detail="You are not linked to this student")
+            query["student_id"] = student_id
+        else:
+            query["student_id"] = {"$in": user.get("linked_student_ids", [])}
+    moments = await db.moments.find(query, {"_id": 0}).sort("timestamp", -1).to_list(5000)
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow([
+        "timestamp", "moment_type", "intensity", "duration_minutes",
+        "triggers", "context_note", "antecedent", "response", "outcome",
+        "logged_by_role", "notes",
+    ])
+    for m in moments:
+        w.writerow([
+            m.get("timestamp", ""),
+            m.get("moment_type", ""),
+            m.get("intensity", ""),
+            m.get("duration_minutes", "") if m.get("duration_minutes") is not None else "",
+            "; ".join(m.get("triggers", []) or []),
+            m.get("context_note", ""),
+            m.get("antecedent", ""),
+            m.get("response", ""),
+            m.get("outcome", ""),
+            m.get("logged_by_role", ""),
+            m.get("notes", ""),
+        ])
+    buf.seek(0)
+    filename = f"moments_{datetime.now(timezone.utc).date().isoformat()}.csv"
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 # ---------- Health ----------
 @api.get("/")
 async def root():

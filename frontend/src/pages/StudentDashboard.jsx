@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../lib/api";
-import { Clock, Sparkles, CheckCircle2, Flame } from "lucide-react";
+import { Clock, Sparkles, CheckCircle2, Flame, Heart } from "lucide-react";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const ROCKET_URL = "https://static.prod-images.emergentagent.com/jobs/151314fa-6f88-4a3d-a39f-0044b194f5e9/images/1ec739dfedecb93df2ad320aeb4f02b79070a29d4126c045ddb5fc82ecf1c875.png";
@@ -72,6 +72,11 @@ export default function StudentDashboard() {
                                 <div className="h-full bg-[#06D6A0] transition-all" style={{ width: total ? `${(completed / total) * 100}%` : "0%" }} data-testid="student-progress-bar" />
                             </div>
                             <span className="text-sm font-bold text-[#4A5568]" data-testid="student-progress-label">{completed}/{total}</span>
+                        </div>
+                        <div className="mt-4">
+                            <Link to="/student/checkin" className="btn-pop-secondary inline-flex items-center gap-2 text-sm py-2" data-testid="student-checkin-btn">
+                                <Heart size={14} /> How am I feeling?
+                            </Link>
                         </div>
                     </div>
                 </header>
