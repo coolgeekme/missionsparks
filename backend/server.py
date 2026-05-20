@@ -869,7 +869,7 @@ MOMENT_CATALOG = {
 
 
 class MomentCreate(BaseModel):
-    student_id: str
+    student_id: Optional[str] = None
     timestamp: Optional[str] = None  # ISO; defaults to now
     moment_type: str  # key from catalog OR free-text custom
     intensity: int = Field(ge=1, le=5)
