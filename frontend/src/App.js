@@ -8,6 +8,8 @@ import MissionForm from "./pages/MissionForm";
 import ParentLogs from "./pages/ParentLogs";
 import StudentDashboard from "./pages/StudentDashboard";
 import MissionDetail from "./pages/MissionDetail";
+import GamePicker from "./pages/GamePicker";
+import GamePlay from "./pages/GamePlay";
 import { Toaster } from "./components/ui/sonner";
 import "./App.css";
 
@@ -72,6 +74,22 @@ export default function App() {
                             element={
                                 <ProtectedRoute role="student">
                                     <MissionDetail />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/student/play/:logId"
+                            element={
+                                <ProtectedRoute role="student">
+                                    <GamePicker />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/student/play/:logId/:gameKey"
+                            element={
+                                <ProtectedRoute role="student">
+                                    <GamePlay />
                                 </ProtectedRoute>
                             }
                         />

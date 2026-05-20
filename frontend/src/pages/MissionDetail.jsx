@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import MissionTimer from "../components/MissionTimer";
 import { api, formatApiErrorDetail } from "../lib/api";
-import { ArrowLeft, Clock, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Clock, CheckCircle2, Plus, X, Gamepad2 } from "lucide-react";
 
 const STAR_URL = "https://static.prod-images.emergentagent.com/jobs/151314fa-6f88-4a3d-a39f-0044b194f5e9/images/5f587837e7ac036a02af75fb2b488a2a8b33429167fae318cb66d294e807a889.png";
 
@@ -29,9 +30,14 @@ export default function MissionDetail() {
     const [feeling, setFeeling] = useState(null);
     const [note, setNote] = useState("");
     const [submitted, setSubmitted] = useState(false);
+    const [createdLogId, setCreatedLogId] = useState(null);
     const [postStreak, setPostStreak] = useState(null);
     const [err, setErr] = useState("");
     const [busy, setBusy] = useState(false);
+
+    // Clue captures (works for digital + audio books)
+    const [clueDraft, setClueDraft] = useState("");
+    const [clues, setClues] = useState([]);
 
     const stratMap = useMemo(() => Object.fromEntries(strategies.map((s) => [s.id, s])), [strategies]);
     const skillMap = useMemo(() => Object.fromEntries(skills.map((s) => [s.id, s])), [skills]);
@@ -59,13 +65,15 @@ export default function MissionDetail() {
         setBusy(true);
         setErr("");
         try {
-            await api.post(`/missions/${id}/log`, {
+            const { data: createdLog } = await api.post(`/missions/${id}/log`, {
                 status: "completed",
                 used_strategies: usedStrategies,
                 difficulty_rating: difficulty,
                 feeling,
                 note,
+                clue_captures: clues,
             });
+            setCreatedLogId(createdLog.id);
             try {
                 const { data } = await api.get("/streak");
                 setPostStreak(data);
@@ -103,8 +111,21 @@ export default function MissionDetail() {
                             </span>
                         </div>
                     )}
-                    <div className="mt-6">
-                        <button onClick={() => navigate("/student")} className="btn-pop-primary" data-testid="mission-success-back">
+                    <div className="mt-7 mb-card p-5 bg-gradient-to-br from-white to-[#FFF8E1] border-[#FFD166]">
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Reward unlocked</p>
+                        <h2 className="font-display font-extrabold text-2xl text-[#0B132B] mt-1">Pick a mini-game 🎮</h2>
+                        <p className="text-sm font-semibold text-[#4A5568] mt-1">One game on the house for finishing your mission.</p>
+                        <button
+                            onClick={() => navigate(`/student/play/${createdLogId}`)}
+                            disabled={!createdLogId}
+                            className="btn-pop-secondary mt-4 inline-flex items-center gap-2 disabled:opacity-50"
+                            data-testid="mission-success-play"
+                        >
+                            <Gamepad2 size={16} /> Play now
+                        </button>
+                    </div>
+                    <div className="mt-4">
+                        <button onClick={() => navigate("/student")} className="btn-pop-ghost" data-testid="mission-success-back">
                             Back to missions
                         </button>
                     </div>
@@ -134,6 +155,8 @@ export default function MissionDetail() {
                     </div>
                 </section>
 
+                <MissionTimer estimatedMinutes={mission.estimated_minutes} />
+
                 {mission.strategy_ids.length > 0 && (
                     <section className="mb-card p-6" data-testid="mission-detail-strategies">
                         <h2 className="font-display font-bold text-xl text-[#0B132B] mb-3">Try these strategies</h2>
@@ -152,6 +175,57 @@ export default function MissionDetail() {
                         </div>
                     </section>
                 )}
+
+                <section className="mb-card p-6" data-testid="mission-detail-clues">
+                    <h2 className="font-display font-bold text-xl text-[#0B132B] mb-1">📝 Clue captures</h2>
+                    <p className="text-sm font-semibold text-[#4A5568] mb-3">
+                        Reading on a screen or listening to an audiobook? Type the line or paraphrase what you heard. Paper readers can still underline — both work.
+                    </p>
+                    <div className="flex gap-2">
+                        <input
+                            value={clueDraft}
+                            onChange={(e) => setClueDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && clueDraft.trim()) {
+                                    e.preventDefault();
+                                    setClues([...clues, clueDraft.trim()]);
+                                    setClueDraft("");
+                                }
+                            }}
+                            placeholder="e.g. 'Roz held very still so the geese wouldn't fly away.'"
+                            className="mb-input flex-1"
+                            data-testid="mission-detail-clue-input"
+                        />
+                        <button
+                            type="button"
+                            disabled={!clueDraft.trim()}
+                            onClick={() => { setClues([...clues, clueDraft.trim()]); setClueDraft(""); }}
+                            className="btn-pop-primary px-4 py-3 disabled:opacity-50 flex items-center gap-2"
+                            data-testid="mission-detail-clue-add"
+                        >
+                            <Plus size={16} /> Add
+                        </button>
+                    </div>
+                    {clues.length > 0 && (
+                        <ul className="mt-3 space-y-2" data-testid="mission-detail-clue-list">
+                            {clues.map((c, i) => (
+                                <li key={i} className="flex items-start gap-2 rounded-2xl bg-[#F0F8FF] border-2 border-[#E2E8F0] p-3" data-testid={`mission-detail-clue-${i}`}>
+                                    <span className="mb-chip bg-[#4361EE]/10 text-[#4361EE] flex-shrink-0">#{i + 1}</span>
+                                    <span className="font-semibold text-[#0B132B] flex-1">{c}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setClues(clues.filter((_, idx) => idx !== i))}
+                                        className="p-1 rounded-lg hover:bg-[#EF476F]/10"
+                                        aria-label="remove clue"
+                                        data-testid={`mission-detail-clue-remove-${i}`}
+                                    >
+                                        <X size={14} className="text-[#EF476F]" />
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </section>
 
                 <section className="mb-card p-6">
                     <h2 className="font-display font-bold text-xl text-[#0B132B] mb-3">Steps</h2>

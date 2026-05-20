@@ -150,6 +150,7 @@ class MissionLogCreate(BaseModel):
     difficulty_rating: Optional[Literal["easy", "medium", "hard"]] = None
     feeling: Optional[Literal["bad", "okay", "good"]] = None
     note: Optional[str] = ""
+    clue_captures: List[str] = []
 
 
 class MissionLog(BaseModel):
@@ -161,6 +162,10 @@ class MissionLog(BaseModel):
     difficulty_rating: Optional[str] = None
     feeling: Optional[str] = None
     note: str = ""
+    clue_captures: List[str] = []
+    game_played: bool = False
+    game_key: Optional[str] = None
+    game_score: Optional[int] = None
     timestamp: str
 
 
@@ -451,11 +456,37 @@ async def create_log(mission_id: str, req: MissionLogCreate, user: dict = Depend
         "difficulty_rating": req.difficulty_rating,
         "feeling": req.feeling,
         "note": req.note or "",
+        "clue_captures": [c.strip() for c in (req.clue_captures or []) if c and c.strip()],
+        "game_played": False,
+        "game_key": None,
+        "game_score": None,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     await db.mission_logs.insert_one(doc)
     doc.pop("_id", None)
     return MissionLog(**doc)
+
+
+class GamePlayRequest(BaseModel):
+    game_key: str
+    score: Optional[int] = None
+
+
+@api.post("/logs/{log_id}/game", response_model=MissionLog)
+async def mark_game_played(log_id: str, req: GamePlayRequest, user: dict = Depends(require_role("student"))):
+    log = await db.mission_logs.find_one({"id": log_id}, {"_id": 0})
+    if not log:
+        raise HTTPException(status_code=404, detail="Mission log not found")
+    if log["student_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your log")
+    if log.get("game_played"):
+        raise HTTPException(status_code=409, detail="A game has already been played for this mission.")
+    await db.mission_logs.update_one(
+        {"id": log_id},
+        {"$set": {"game_played": True, "game_key": req.game_key, "game_score": req.score}},
+    )
+    log = await db.mission_logs.find_one({"id": log_id}, {"_id": 0})
+    return MissionLog(**log)
 
 
 @api.get("/logs", response_model=List[MissionLog])
@@ -824,7 +855,8 @@ DEFAULT_SKILLS = [
 
 DEFAULT_STRATEGIES = [
     {"name": "Slow down mode", "emoji": "🐢", "description": "Take a breath, re-read, and move at turtle pace."},
-    {"name": "Underline clues", "emoji": "✏️", "description": "Mark up the text with clues that help you answer."},
+    {"name": "Underline clues", "emoji": "✏️", "description": "Mark up a paper book with clues that help you answer."},
+    {"name": "Jot a clue", "emoji": "📝", "description": "For digital or audio books — type the clue you found or paraphrase what you heard."},
     {"name": "Chunk it", "emoji": "🧩", "description": "Break the task into smaller pieces and check each off."},
     {"name": "Picture it", "emoji": "🎨", "description": "Make a mental picture of what you're reading."},
     {"name": "Timer challenge", "emoji": "⏱️", "description": "Set a kind timer and try to focus until it dings."},
@@ -847,6 +879,12 @@ async def on_startup():
     if await db.strategies.count_documents({}) == 0:
         for s in DEFAULT_STRATEGIES:
             await db.strategies.insert_one({"id": str(uuid.uuid4()), **s})
+    else:
+        # Upsert any new strategies added after initial seed (idempotent by name)
+        existing = {s["name"] for s in await db.strategies.find({}, {"_id": 0, "name": 1}).to_list(1000)}
+        for s in DEFAULT_STRATEGIES:
+            if s["name"] not in existing:
+                await db.strategies.insert_one({"id": str(uuid.uuid4()), **s})
 
     # Seed demo accounts
     parent_email = os.environ.get("DEMO_PARENT_EMAIL", "parent@demo.com").lower()

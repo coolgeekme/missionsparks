@@ -93,7 +93,24 @@ export default function ParentLogs() {
                                         <span className="mb-chip bg-[#06D6A0]/15 text-[#057a5b]">
                                             {l.used_strategies ? "Used strategies ✅" : "No strategies used"}
                                         </span>
+                                        {l.game_played && (
+                                            <span className="mb-chip bg-[#FFD166]/30 text-[#876200]" data-testid={`parent-log-game-${l.id}`}>
+                                                🎮 Played {l.game_key}{l.game_score != null ? ` · ${l.game_score} pts` : ""}
+                                            </span>
+                                        )}
                                     </div>
+                                    {l.clue_captures && l.clue_captures.length > 0 && (
+                                        <div className="mt-3" data-testid={`parent-log-clues-${l.id}`}>
+                                            <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mb-1">Clues captured</p>
+                                            <ul className="space-y-1">
+                                                {l.clue_captures.map((c, i) => (
+                                                    <li key={i} className="text-sm font-semibold text-[#0B132B] rounded-2xl bg-[#4361EE]/5 border-2 border-[#4361EE]/15 p-3">
+                                                        “{c}”
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
                                     {l.note && (
                                         <p className="mt-3 p-3 rounded-2xl bg-[#F0F8FF] text-[#0B132B] font-semibold text-sm">
                                             “{l.note}”
