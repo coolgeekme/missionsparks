@@ -152,7 +152,7 @@ class TestStreakByStudentId:
         email = f"TEST_unlinked_{uuid.uuid4().hex[:8]}@example.com"
         r = s.post(f"{API}/auth/register", json={
             "name": "Unlinked Parent", "email": email, "password": "pw12345", "role": "parent"
-        })
+        , "accept_terms": True})
         assert r.status_code == 200, r.text
         r2 = s.get(f"{API}/streak/{demo_student_id}")
         assert r2.status_code == 403
@@ -168,7 +168,7 @@ class TestStreakByStudentId:
         email = f"TEST_otherstudent_{uuid.uuid4().hex[:8]}@example.com"
         r = s.post(f"{API}/auth/register", json={
             "name": "Other Student", "email": email, "password": "pw12345", "role": "student"
-        })
+        , "accept_terms": True})
         assert r.status_code == 200, r.text
         r2 = s.get(f"{API}/streak/{demo_student_id}")
         assert r2.status_code == 403
@@ -179,7 +179,7 @@ class TestStreakByStudentId:
         email = f"TEST_freshstu_{uuid.uuid4().hex[:8]}@example.com"
         r = s.post(f"{API}/auth/register", json={
             "name": "Fresh Student", "email": email, "password": "pw12345", "role": "student"
-        })
+        , "accept_terms": True})
         assert r.status_code == 200, r.text
         r2 = s.get(f"{API}/streak")
         assert r2.status_code == 200, r2.text

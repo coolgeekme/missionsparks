@@ -153,7 +153,7 @@ class TestGameEndpoint:
         email = f"TEST_student_{uuid.uuid4().hex[:8]}@example.com"
         rr = other.post(f"{API}/auth/register", json={
             "name": "Other", "email": email, "password": "pw12345", "role": "student"
-        })
+        , "accept_terms": True})
         assert rr.status_code == 200
         r3 = other.post(f"{API}/logs/{log_id}/game", json={"game_key": "word-match"})
         assert r3.status_code == 403

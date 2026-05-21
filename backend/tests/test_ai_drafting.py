@@ -65,7 +65,7 @@ class TestProfileNotesShape:
         email = f"TEST_pn_{uuid.uuid4().hex[:6]}@example.com"
         r = s.post(f"{API}/auth/register", json={
             "name": "PN", "email": email, "password": "pw12345", "role": "parent"
-        })
+        , "accept_terms": True})
         assert r.status_code == 200, r.text
         assert "profile_notes" in r.json()
 

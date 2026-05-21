@@ -259,7 +259,7 @@ class TestDelete:
         other_email = f"TEST_iter5_other_{uuid.uuid4().hex[:8]}@demo.com"
         reg = requests.post(
             f"{API}/auth/register",
-            json={"name": "Other", "email": other_email, "password": "demo1234", "role": "student"},
+            json={"name": "Other", "email": other_email, "password": "demo1234", "role": "student", "accept_terms": True},
             timeout=15,
         )
         assert reg.status_code in (200, 201), reg.text

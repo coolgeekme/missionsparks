@@ -77,7 +77,7 @@ class TestAuth:
         email = f"TEST_user_{uuid.uuid4().hex[:8]}@example.com"
         r = s.post(f"{API}/auth/register", json={
             "name": "Test User", "email": email, "password": "pw12345", "role": "parent"
-        })
+        , "accept_terms": True})
         assert r.status_code == 200, r.text
         u = r.json()
         assert u["email"] == email.lower()
@@ -86,7 +86,7 @@ class TestAuth:
         # duplicate
         r2 = requests.post(f"{API}/auth/register", json={
             "name": "X", "email": email, "password": "pw12345", "role": "parent"
-        })
+        , "accept_terms": True})
         assert r2.status_code == 400
 
     def test_logout(self, parent):
@@ -127,13 +127,13 @@ class TestStudents:
 
     def test_link_student_idempotent(self, parent):
         s, _ = parent
-        r = s.post(f"{API}/students/link", json={"student_email": STUDENT_EMAIL})
+        r = s.post(f"{API}/students/link", json={"student_email": STUDENT_EMAIL, "guardian_name": "Test Guardian", "guardian_relationship": "parent", "child_under_13": False, "consent_given": True})
         assert r.status_code == 200
         assert any(True for _ in r.json()["linked_student_ids"])
 
     def test_link_unknown_student(self, parent):
         s, _ = parent
-        r = s.post(f"{API}/students/link", json={"student_email": "nobody@example.com"})
+        r = s.post(f"{API}/students/link", json={"student_email": "nobody@example.com", "guardian_name": "Test Guardian", "guardian_relationship": "parent", "child_under_13": False, "consent_given": True})
         assert r.status_code == 404
 
     def test_student_forbidden_on_students_list(self, student):

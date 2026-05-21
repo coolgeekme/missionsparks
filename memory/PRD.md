@@ -44,23 +44,36 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Mic button on Parent Moments page ("Speak it") and Student check-in ("Talk it out")
 - Auto-prefills the form for parent review before save
 
-## Compliance & privacy backlog (P0 before any paid launch)
-**Current posture: consumer wellness app. NOT HIPAA-covered today. NO BAA in place with any vendor.**
+### Iter 7 — P0 compliance sprint
+- **COPPA consent** at student link-time (guardian name, relationship, under-13 flag, agreement) — stored in `db.consents`. Linking without consent → 400.
+- **Privacy Policy** (`/privacy`) + **Terms of Service** (`/terms`) — plain-English drafts, public routes, linked from Login + Register + Account.
+- **Account settings** page (`/account`) with: "Discard audio after transcription" toggle (default ON), JSON data export, activity-log link, "Delete my account" (typed-confirmation gate).
+- **`DELETE /api/account/me`** — cascade delete: student wipes their missions, mission_logs, moments, removes self from parents' linked_student_ids; parent wipes their logged moments + consents (linked students retained). Clears the auth cookie.
+- **`GET /api/account/export`** — full JSON dump for portability.
+- **Audit log**: `_audit()` helper writes timestamped entries on auth/login/logout/register, students.link, student.profile_update, moment.create, moment.delete, account.preferences_update, account.export, account.delete. Exposed via `GET /api/audit` (student sees own; parent sees own + linked students; optional student_id filter with linked-only enforcement). Surfaced at `/parent/audit`.
+- **`PUT /api/account/preferences`** — `discard_audio` flag honored by both `POST /api/moments/parse-audio` (response) and `POST /api/moments` (persistence). Default ON.
+- **Register** requires `accept_terms=true`; sets `terms_accepted_at`.
 
-### Hard blockers before therapist/clinical sales (P0)
-- ⚠️ **No BAA in place** with OpenAI (Whisper), Anthropic (Claude), or MongoDB. Audio recordings + transcripts + behavior data currently transit and persist on consumer-tier LLM endpoints. Do NOT market to therapists or schools as a clinical tool until BAAs are signed (OpenAI/Anthropic enterprise tier; MongoDB Atlas dedicated cluster).
-- COPPA compliance: kids <13 are users. Need verifiable parental consent flow at signup, posted privacy policy, no behavioral ads, data-minimization audit.
-- Privacy Policy + Terms of Service drafts (link from Login/Register).
-- Right-to-delete endpoint (`DELETE /api/account/me`) cascading to all owned data.
-- Audit log of who accessed which student's records (Moments + logs).
-- Toggle on Moment creation: "Don't keep the audio recording after transcription" (data-minimization knob).
+## Compliance & privacy backlog (P0 → some done)
+**Current posture: consumer wellness app. NOT HIPAA-covered. NO BAA in place with any vendor.**
 
-### Nice-to-have (P1)
-- Encryption-at-rest config doc for production MongoDB Atlas.
+### ✅ Done this sprint
+- COPPA consent capture at student link-time
+- Privacy Policy + Terms of Service drafts (need a real attorney review before launch)
+- Right-to-delete cascade endpoint
+- Audit log + parent-facing activity view
+- Data export endpoint (JSON)
+- Discard-audio data-minimization toggle (privacy-by-default)
+- Terms-of-service acceptance gate at registration
+
+### Still open
+- ⚠️ **Sign BAAs with OpenAI (Whisper) + Anthropic (Claude) + MongoDB Atlas dedicated** before any therapist or clinical-track sale.
+- Legal review of Privacy Policy + Terms by a privacy attorney (drafts are templates).
+- Production hardening: MongoDB encryption-at-rest config, rate limiting, password-reset flow, brute-force throttling.
 - Per-student data export (zip with CSV + JSON + audio clips) on demand.
 - FERPA-aware "school mode" if schools adopt.
 - GDPR/UK-GDPR readiness if EU/UK users.
-- Refactor server.py (~1500 lines) into `routers/` modules.
+- Refactor server.py (~1700 lines) into `routers/` modules.
 
 ## Roadmap (deferred)
 **V1.1**: daily/weekly reflection journal separate from per-mission log; parent encouragement notes on logs; confidence trend graph.
