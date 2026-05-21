@@ -3,8 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { api, formatApiErrorDetail, API } from "../lib/api";
 import {
-    ArrowLeft, Plus, Trash2, Download, BarChart3, X, Filter, Clock, ChevronRight,
+    ArrowLeft, Plus, Trash2, Download, BarChart3, X, Filter, Clock, ChevronRight, Mic,
 } from "lucide-react";
+import AudioRecorder from "../components/AudioRecorder";
 
 const fmtTime = (iso) => {
     try { return new Date(iso).toLocaleString(); } catch { return iso; }
@@ -42,6 +43,10 @@ export default function MomentsTracker() {
         outcome: "",
         notes: "",
     });
+    // Voice mode: when true the modal opens to the recorder first
+    const [voiceMode, setVoiceMode] = useState(false);
+    const [pendingAudio, setPendingAudio] = useState(null); // {audio_data, audio_mime, transcript}
+    const [transcript, setTranscript] = useState("");
 
     const typeMap = useMemo(() => Object.fromEntries(catalog.moment_types.map((t) => [t.key, t])), [catalog]);
     const trigMap = useMemo(() => Object.fromEntries(catalog.triggers.map((t) => [t.key, t])), [catalog]);
@@ -93,18 +98,50 @@ export default function MomentsTracker() {
                 response: form.response,
                 outcome: form.outcome,
                 notes: form.notes,
+                audio_data: pendingAudio?.audio_data || null,
+                audio_mime: pendingAudio?.audio_mime || null,
+                transcript: pendingAudio?.transcript || transcript || null,
             });
-            setFormOpen(false);
-            setForm({
-                timestamp: nowLocalInput(), moment_type: "", intensity: 3, duration_minutes: "",
-                triggers: [], context_note: "", antecedent: "", response: "", outcome: "", notes: "",
-            });
+            closeForm();
             load(selected.id);
         } catch (e2) {
             setErr(formatApiErrorDetail(e2.response?.data?.detail) || e2.message);
         } finally {
             setBusy(false);
         }
+    };
+
+    const closeForm = () => {
+        setFormOpen(false);
+        setVoiceMode(false);
+        setPendingAudio(null);
+        setTranscript("");
+        setForm({
+            timestamp: nowLocalInput(), moment_type: "", intensity: 3, duration_minutes: "",
+            triggers: [], context_note: "", antecedent: "", response: "", outcome: "", notes: "",
+        });
+    };
+
+    const handleParsed = ({ transcript: tx, audio_data, audio_mime, parsed }) => {
+        setTranscript(tx);
+        setPendingAudio({ audio_data, audio_mime, transcript: tx });
+        setForm((f) => ({
+            ...f,
+            moment_type: parsed.moment_type || f.moment_type,
+            intensity: parsed.intensity || f.intensity,
+            triggers: parsed.triggers || [],
+            context_note: parsed.context_note || "",
+            antecedent: parsed.antecedent || "",
+            response: parsed.response || "",
+            outcome: parsed.outcome || "",
+            notes: parsed.notes || "",
+        }));
+        setVoiceMode(false);
+    };
+
+    const openVoice = () => {
+        setVoiceMode(true);
+        setFormOpen(true);
     };
 
     const removeMoment = async (id) => {
@@ -145,6 +182,9 @@ export default function MomentsTracker() {
                         </button>
                         <button onClick={exportCsv} className="btn-pop-ghost flex items-center gap-2" data-testid="moments-export-csv">
                             <Download size={16} /> Export CSV
+                        </button>
+                        <button onClick={openVoice} disabled={!selected} className="btn-pop-secondary flex items-center gap-2 disabled:opacity-50" data-testid="moments-speak">
+                            <Mic size={16} /> Speak it
                         </button>
                         <button onClick={() => setFormOpen(true)} disabled={!selected} className="btn-pop-primary flex items-center gap-2 disabled:opacity-50" data-testid="moments-add">
                             <Plus size={16} /> Log moment
@@ -244,6 +284,20 @@ export default function MomentsTracker() {
                                                 {m.notes && <Detail label="Notes" v={m.notes} />}
                                             </div>
                                         )}
+                                        {m.transcript && (
+                                            <div className="mt-3 rounded-2xl bg-[#FFD166]/15 border-2 border-[#FFD166] p-3" data-testid={`moment-transcript-${m.id}`}>
+                                                <p className="text-[10px] font-bold uppercase tracking-widest text-[#876200]">🎤 Voice note</p>
+                                                <p className="text-sm font-semibold text-[#0B132B] mt-1 italic">"{m.transcript}"</p>
+                                                {m.audio_data && (
+                                                    <audio
+                                                        controls
+                                                        className="mt-2 w-full"
+                                                        src={`data:${m.audio_mime || "audio/webm"};base64,${m.audio_data}`}
+                                                        data-testid={`moment-audio-${m.id}`}
+                                                    />
+                                                )}
+                                            </div>
+                                        )}
                                     </article>
                                 );
                             })}
@@ -253,18 +307,47 @@ export default function MomentsTracker() {
             </main>
 
             {formOpen && (
-                <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-3" data-testid="moments-form-modal" onClick={() => setFormOpen(false)}>
+                <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-3" data-testid="moments-form-modal" onClick={closeForm}>
                     <div className="bg-white rounded-3xl border-2 border-[#E2E8F0] w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                        {voiceMode ? (
+                            <div className="p-6 space-y-5" data-testid="moments-voice-panel">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <h2 className="font-display font-extrabold text-2xl text-[#0B132B]">Speak the moment</h2>
+                                        <p className="text-sm font-semibold text-[#4A5568] mt-1">
+                                            Just describe what happened for {selected?.name}. AI will fill in the form — you'll review before saving.
+                                        </p>
+                                        <p className="text-xs font-bold text-[#A0AEC0] mt-2">
+                                            Try: "Enzo was doing homework and got frustrated when math problems got hard. We did a body break and he came back."
+                                        </p>
+                                    </div>
+                                    <button type="button" onClick={closeForm} className="p-2 rounded-xl hover:bg-[#F7FAFC]" data-testid="moments-voice-close" aria-label="close">
+                                        <X size={18} />
+                                    </button>
+                                </div>
+                                <AudioRecorder onParsed={handleParsed} />
+                                <button type="button" onClick={() => setVoiceMode(false)} className="btn-pop-ghost w-full text-sm py-2" data-testid="moments-voice-skip">
+                                    Or type it instead →
+                                </button>
+                            </div>
+                        ) : (
                         <form onSubmit={submit} className="p-6 space-y-5" data-testid="moments-form">
                             <div className="flex items-start justify-between">
                                 <div>
                                     <h2 className="font-display font-extrabold text-2xl text-[#0B132B]">Log a moment</h2>
                                     <p className="text-sm font-semibold text-[#4A5568] mt-1">For {selected?.name}. The more detail, the better the pattern.</p>
                                 </div>
-                                <button type="button" onClick={() => setFormOpen(false)} className="p-2 rounded-xl hover:bg-[#F7FAFC]" data-testid="moments-form-close" aria-label="close">
+                                <button type="button" onClick={closeForm} className="p-2 rounded-xl hover:bg-[#F7FAFC]" data-testid="moments-form-close" aria-label="close">
                                     <X size={18} />
                                 </button>
                             </div>
+
+                            {transcript && (
+                                <div className="rounded-2xl bg-[#FFD166]/20 border-2 border-[#FFD166] p-3" data-testid="moments-form-transcript">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#876200]">🎤 What you said</p>
+                                    <p className="text-sm font-semibold text-[#0B132B] mt-1 italic">"{transcript}"</p>
+                                </div>
+                            )}
 
                             <div>
                                 <p className="text-sm font-bold text-[#0B132B] mb-2">What happened?</p>
@@ -332,9 +415,10 @@ export default function MomentsTracker() {
                                 <button type="submit" disabled={busy} className="btn-pop-primary flex-1 flex items-center justify-center gap-2" data-testid="moments-form-submit">
                                     {busy ? "Saving…" : (<><ChevronRight size={16} /> Save moment</>)}
                                 </button>
-                                <button type="button" onClick={() => setFormOpen(false)} className="btn-pop-ghost" data-testid="moments-form-cancel">Cancel</button>
+                                <button type="button" onClick={closeForm} className="btn-pop-ghost" data-testid="moments-form-cancel">Cancel</button>
                             </div>
                         </form>
+                        )}
                     </div>
                 </div>
             )}

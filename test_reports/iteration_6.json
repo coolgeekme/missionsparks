@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 6 voice-Moment logging: full backend coverage with 11/11 new pytest tests PASS (real Whisper + Claude calls via Emergent LLM key, error paths, persistence, CSV transcript column, regression). 60/60 prior backend regression (moments/missionboard/streak/games-clues) still PASS. Frontend: parent Moments + student check-in voice UIs render correctly — Speak it opens moments-voice-panel with the AudioRecorder (audio-recorder + audio-record-start visible), voice-skip falls back to moments-form, and existing voice-note moments render moment-transcript-<id> banner + moment-audio-<id> audio element. Student check-in mode picker shows both checkin-mode-voice (recorder loads) and checkin-mode-tap (step 1 still works) — no regression on prior iteration 5 tap flow. All key testids match the spec.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/moments/parse-audio", "issue": "When Whisper raises (e.g. malformed audio bytes), endpoint returns 502 with raw exception string in detail — leaks internal error text. Consider masking with a friendly message and logging the original via logger.exception (already done)."},
+      {"endpoint": "POST /api/moments/parse-audio", "issue": "Whisper transcribed a pure 200Hz sine wave to 'You' — Claude then returned moment_type='frustrated' as fallback, which is correct per spec but means the 422 'empty transcript' branch is effectively unreachable for any non-empty audio. Documented behaviour, not a bug, but the spec's '422 if Whisper returns empty' is therefore largely theoretical."},
+      {"endpoint": "POST /api/moments", "issue": "Carried over from iteration 5: MomentCreate.student_id is now Optional[str]=None (verified — student check-in test_student_self_log passes without supplying the field). Previously flagged critical, now resolved."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Real mic→record→upload→prefill", "issue": "Could not exercise the actual MediaRecorder→upload→Claude→prefill flow end-to-end in headless Chromium because there is no real microphone source. The path was verified piecewise: (a) AudioRecorder mounts with audio-record-start visible, (b) backend /moments/parse-audio returns the correct shape with a real WAV upload from pytest, (c) the form correctly renders transcript + audio playback on existing moments. Main agent should manually verify the full record→preview→auto-upload→onParsed→prefill→submit chain in a real browser with a working mic.", "affected_selectors": ["[data-testid=\"audio-record-start\"]", "[data-testid=\"audio-element\"]", "[data-testid=\"moments-form-transcript\"]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_moments_audio.py",
+    "/app/test_reports/pytest/iter6_audio.xml",
+    "/app/test_reports/pytest/iter6_regression.xml"
+  ],
+  "action_items": [
+    "Manually smoke-test the full voice flow once in a real browser (parent: /parent/moments → Speak it → record 3-5 sec → confirm modal switches to moments-form with prefilled type/intensity/triggers + moments-form-transcript banner → Save → moment appears in list with moment-transcript-<id> + moment-audio-<id>). The pieces are individually verified but the end-to-end record→upload was not exerciseable from headless Chromium.",
+    "(Optional) Mask the raw transcription exception in the 502 detail to avoid leaking internal error strings to the client.",
+    "(Carried) server.py is now ~1473 lines — overdue to split into routers/ (auth, missions, logs, streak, AI, games, moments, voice)."
+  ],
+  "critical_code_review_comments": [
+    "moments_parse_audio correctly clamps intensity to 1-5 and filters triggers to valid catalog keys with fuzzy fallback by label — verified by test_parsed_moment_type_is_valid_catalog_key.",
+    "moment_type fallback chain (exact key → fuzzy label → 'frustrated') is correct and was exercised in the smoke test (sine wave → 'frustrated').",
+    "Audio MIME-to-extension mapping is reasonable (webm/wav/m4a/mp3/ogg). buf.name is set before passing to Whisper — necessary because OpenAI's SDK detects format from filename.",
+    "POST /api/moments enforces 7M-char (~5MB) cap on audio_data and returns 413 — verified by test_post_moment_audio_too_large_413.",
+    "GET /api/moments includes audio_data/audio_mime/transcript on every Moment, with None defaults for older moments — verified by test_get_moments_returns_audio_fields and test_create_moment_without_audio_fields_ok.",
+    "CSV export's 'transcript' column is correctly last in the header and properly quoted — verified by test_csv_header_has_transcript_last.",
+    "Auth: parse-audio uses only get_current_user (no role gate) — both parent and student succeed. Verified by test_student_parse_audio_ok + test_parent_parse_audio_ok.",
+    "AudioRecorder.jsx has all expected testids (recorder, start/stop, elapsed, preview, element, play, discard, uploading, error). State machine: not-supported → idle (record-start) → recording (record-stop + elapsed) → preview (audio + play/discard/upload) → uploading → onParsed callback fires. Verified visually for idle + record-start state.",
+    "MomentsTracker.jsx and StudentCheckIn.jsx correctly use Optional auto-load of the linked student (selected) before the Speak it button enables — initial test failed because I clicked too early; second run with a 2s wait succeeded."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_moments_audio.py (NEW, 11 tests in 5 classes — parse-audio happy/error, persistence, CSV transcript, no-audio regression)"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 iter6 audio + 60/60 prior regression = 71/71 non-AI)",
+    "frontend": "100% on what can be statically verified (modal opens, recorder renders, testids match, transcript/audio render on existing moments, student mode picker + voice panel + tap-path regression). Real record→upload chain not exerciseable from headless."
+  },
+  "test_credentials": "parent@demo.com / demo1234 (linked to Enzo), student@demo.com / demo1234 — verified from /app/memory/test_credentials.md",
+  "seed_data_creation": "Each iter6 test run creates ~3 TEST_iter6 moments on student@demo.com (one with audio fields, one CSV transcript, one regression). All are cleaned up via per-test DELETE calls. The UI test also creates one transient parent-logged moment (immediately deleted) just to confirm the moment-transcript-<id>/moment-audio-<id> selectors render.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: `python -m pytest /app/backend/tests/test_moments_audio.py -v` (expect 11/11 in ~13s; hits live Whisper). Full backend non-AI: `python -m pytest /app/backend/tests/ -v --ignore=/app/backend/tests/test_ai_drafting.py` (expect 71/71). Voice UI testids used: AudioRecorder = audio-recorder, audio-not-supported, audio-record-start, audio-record-stop, audio-elapsed, audio-preview, audio-element, audio-play, audio-discard, audio-upload, audio-uploading, audio-error. MomentsTracker = moments-speak, moments-voice-panel, moments-voice-close, moments-voice-skip, moments-form-transcript, moment-transcript-<id>, moment-audio-<id>. StudentCheckIn = checkin-mode, checkin-mode-voice, checkin-mode-tap, checkin-voice-panel, checkin-voice-back, checkin-transcript. Note: in MomentsTracker the Speak it button is disabled until `selected` student loads — always wait ~1.5-2s after the page mounts before clicking.",
+  "rca of the issue": "No bugs identified that block functionality. The single integration item to call out is that headless Chromium cannot supply a real microphone audio stream, so the full record→upload→Claude→prefill chain can only be smoke-tested manually in a real browser. The backend half of that chain is fully covered by test_moments_audio.py (11 tests, all PASS) and the frontend half (modal mount + transcript/audio rendering on existing moments) is covered by the Playwright run above."
+}

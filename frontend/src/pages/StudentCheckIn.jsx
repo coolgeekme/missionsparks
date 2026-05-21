@@ -2,16 +2,20 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { api, formatApiErrorDetail } from "../lib/api";
-import { ArrowLeft, Heart } from "lucide-react";
+import { ArrowLeft, Heart, Mic, Keyboard } from "lucide-react";
+import AudioRecorder from "../components/AudioRecorder";
 
 export default function StudentCheckIn() {
     const navigate = useNavigate();
     const [catalog, setCatalog] = useState({ moment_types: [], triggers: [] });
+    const [mode, setMode] = useState("choose"); // 'choose' | 'voice' | 'tap'
     const [step, setStep] = useState(1);
     const [type, setType] = useState("");
     const [intensity, setIntensity] = useState(3);
     const [triggers, setTriggers] = useState([]);
     const [note, setNote] = useState("");
+    const [audio, setAudio] = useState(null); // {audio_data, audio_mime, transcript}
+    const [transcript, setTranscript] = useState("");
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
     const [done, setDone] = useState(false);
@@ -39,6 +43,9 @@ export default function StudentCheckIn() {
                 intensity,
                 triggers,
                 notes: note,
+                audio_data: audio?.audio_data || null,
+                audio_mime: audio?.audio_mime || null,
+                transcript: audio?.transcript || transcript || null,
             });
             setDone(true);
         } catch (e) {
@@ -46,6 +53,17 @@ export default function StudentCheckIn() {
         } finally {
             setBusy(false);
         }
+    };
+
+    const handleParsed = ({ transcript: tx, audio_data, audio_mime, parsed }) => {
+        setTranscript(tx);
+        setAudio({ audio_data, audio_mime, transcript: tx });
+        setType(parsed.moment_type || "");
+        setIntensity(parsed.intensity || 3);
+        setTriggers(parsed.triggers || []);
+        setNote(parsed.notes || "");
+        setMode("tap");
+        setStep(2);
     };
 
     if (done) {
@@ -81,8 +99,42 @@ export default function StudentCheckIn() {
                     </div>
                 </header>
 
+                {/* Mode picker */}
+                {mode === "choose" && (
+                    <section className="mb-card p-6" data-testid="checkin-mode">
+                        <p className="text-sm font-semibold text-[#4A5568] mb-4">How do you want to check in?</p>
+                        <div className="grid sm:grid-cols-2 gap-3">
+                            <button onClick={() => setMode("voice")} className="mb-card mb-card-hover p-5 text-left border-[#EF476F]" data-testid="checkin-mode-voice">
+                                <div className="h-12 w-12 rounded-2xl bg-[#EF476F]/15 flex items-center justify-center text-[#EF476F] mb-2">
+                                    <Mic size={24} />
+                                </div>
+                                <p className="font-display font-bold text-[#0B132B]">🎤 Talk it out</p>
+                                <p className="text-sm text-[#4A5568] font-semibold mt-1">Just say how you feel and what set it off.</p>
+                            </button>
+                            <button onClick={() => { setMode("tap"); setStep(1); }} className="mb-card mb-card-hover p-5 text-left border-[#4361EE]" data-testid="checkin-mode-tap">
+                                <div className="h-12 w-12 rounded-2xl bg-[#4361EE]/15 flex items-center justify-center text-[#4361EE] mb-2">
+                                    <Keyboard size={24} />
+                                </div>
+                                <p className="font-display font-bold text-[#0B132B]">👆 Tap to pick</p>
+                                <p className="text-sm text-[#4A5568] font-semibold mt-1">Tap a feeling, then a few options.</p>
+                            </button>
+                        </div>
+                    </section>
+                )}
+
+                {mode === "voice" && (
+                    <section className="mb-card p-6 space-y-4" data-testid="checkin-voice-panel">
+                        <div>
+                            <h2 className="font-display font-bold text-xl text-[#0B132B]">Talk it out</h2>
+                            <p className="text-sm font-semibold text-[#4A5568] mt-1">Try: "I'm frustrated. Math was too hard and I'm tired."</p>
+                        </div>
+                        <AudioRecorder onParsed={handleParsed} maxSeconds={60} />
+                        <button onClick={() => setMode("choose")} className="btn-pop-ghost w-full text-sm py-2" data-testid="checkin-voice-back">Back</button>
+                    </section>
+                )}
+
                 {/* Step 1: pick moment */}
-                {step === 1 && (
+                {mode === "tap" && step === 1 && (
                     <section className="mb-card p-6" data-testid="checkin-step-1">
                         <p className="text-sm font-semibold text-[#4A5568] mb-4">Pick the one that fits best.</p>
                         <div className="grid grid-cols-2 gap-3" data-testid="checkin-types">
@@ -106,9 +158,14 @@ export default function StudentCheckIn() {
                 )}
 
                 {/* Step 2: intensity + triggers */}
-                {step === 2 && (
+                {mode === "tap" && step === 2 && (
                     <section className="mb-card p-6 space-y-5" data-testid="checkin-step-2">
-                        <div>
+                        {transcript && (
+                            <div className="rounded-2xl bg-[#FFD166]/20 border-2 border-[#FFD166] p-3" data-testid="checkin-transcript">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-[#876200]">🎤 What you said</p>
+                                <p className="text-sm font-semibold text-[#0B132B] mt-1 italic">"{transcript}"</p>
+                            </div>
+                        )}        <div>
                             <p className="text-sm font-bold text-[#0B132B] mb-2">How strong is it? (1 = a tiny bit, 5 = a lot)</p>
                             <input type="range" min="1" max="5" value={intensity} onChange={(e) => setIntensity(Number(e.target.value))} className="w-full" data-testid="checkin-intensity" />
                             <p className="text-center font-display font-extrabold text-4xl text-[#EF476F] mt-1" data-testid="checkin-intensity-display">{intensity}</p>

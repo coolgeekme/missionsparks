@@ -881,6 +881,10 @@ class MomentCreate(BaseModel):
     outcome: str = ""
     mission_id: Optional[str] = None
     notes: str = ""
+    # Optional voice attachment (data URL or raw base64)
+    audio_data: Optional[str] = None
+    audio_mime: Optional[str] = None
+    transcript: Optional[str] = None
 
 
 class Moment(BaseModel):
@@ -899,6 +903,9 @@ class Moment(BaseModel):
     outcome: str = ""
     mission_id: Optional[str] = None
     notes: str = ""
+    audio_data: Optional[str] = None
+    audio_mime: Optional[str] = None
+    transcript: Optional[str] = None
 
 
 @api.get("/moments/catalog")
@@ -922,6 +929,10 @@ async def create_moment(req: MomentCreate, user: dict = Depends(get_current_user
     student_id = _student_id_for(user, req.student_id)
     ts = req.timestamp or datetime.now(timezone.utc).isoformat()
     triggers = [t.strip() for t in (req.triggers or []) if t and t.strip()][:20]
+    # Cap audio payload to ~5MB base64 to keep MongoDB documents healthy
+    audio_data = req.audio_data
+    if audio_data and len(audio_data) > 7_000_000:
+        raise HTTPException(status_code=413, detail="Audio recording too large (max ~5MB).")
     moment_id = str(uuid.uuid4())
     doc = {
         "id": moment_id,
@@ -939,6 +950,9 @@ async def create_moment(req: MomentCreate, user: dict = Depends(get_current_user
         "outcome": (req.outcome or "").strip(),
         "mission_id": req.mission_id,
         "notes": (req.notes or "").strip(),
+        "audio_data": audio_data,
+        "audio_mime": (req.audio_mime or "").strip() or None,
+        "transcript": (req.transcript or "").strip() or None,
     }
     await db.moments.insert_one(doc)
     doc.pop("_id", None)
@@ -1085,8 +1099,165 @@ async def moments_insights(
 
 
 from fastapi.responses import StreamingResponse  # noqa: E402
+from fastapi import UploadFile, File  # noqa: E402
+from emergentintegrations.llm.openai import OpenAISpeechToText  # noqa: E402
 import csv  # noqa: E402
 import io  # noqa: E402
+import base64  # noqa: E402
+
+
+# ---------- Voice → Moment extraction ----------
+class ParsedMoment(BaseModel):
+    transcript: str
+    audio_data: str  # base64 of original upload
+    audio_mime: str
+    parsed: dict  # {moment_type, intensity, triggers, context_note, antecedent, response, outcome, notes}
+
+
+def _moment_extraction_system_prompt() -> str:
+    types = "\n".join(
+        f"- key: {t['key']} | label: {t['label']} | category: {t['category']}"
+        for t in MOMENT_CATALOG["moment_types"]
+    )
+    trigs = "\n".join(
+        f"- key: {t['key']} | label: {t['label']}"
+        for t in MOMENT_CATALOG["triggers"]
+    )
+    return (
+        "You are MissionBoard's helper. A parent or kid will narrate a 'moment' — a behavior or "
+        "feeling that just happened — and you must extract a structured record from their narration.\n\n"
+        "Pick moment_type from this catalog (use the KEY, not the label):\n"
+        f"{types}\n\n"
+        "Pick triggers (zero or more) from this catalog (use the KEYS):\n"
+        f"{trigs}\n\n"
+        "Other fields are free-text snippets pulled directly from the narration:\n"
+        "  - context_note: where/what activity was happening\n"
+        "  - antecedent: what happened right BEFORE the moment\n"
+        "  - response: what the parent/kid tried in response\n"
+        "  - outcome: did it help? what changed?\n"
+        "  - notes: anything else worth keeping (parent voice, exact quote, etc.)\n\n"
+        "Intensity is 1 (very mild) through 5 (very intense). Infer from emotional language. "
+        "If unsure, default to 3.\n\n"
+        "If the narration doesn't fit any catalog moment_type, default to the closest match. "
+        "Leave string fields as empty strings and arrays empty if the narration doesn't mention them. "
+        "Never invent details the parent didn't say.\n\n"
+        "Respond with STRICT JSON only, no prose, no code fences."
+    )
+
+
+@api.post("/moments/parse-audio", response_model=ParsedMoment)
+async def moments_parse_audio(
+    audio: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+):
+    """Accept a short audio clip, transcribe with Whisper, and extract Moment fields with Claude."""
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI is not configured. Set EMERGENT_LLM_KEY in backend/.env.")
+
+    raw = await audio.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="No audio data received.")
+    if len(raw) > 24 * 1024 * 1024:  # 24MB, Whisper's hard limit is 25MB
+        raise HTTPException(status_code=413, detail="Audio file too large (max 24MB).")
+
+    mime = audio.content_type or "audio/webm"
+    audio_b64 = base64.b64encode(raw).decode("ascii")
+
+    # 1. Transcribe with Whisper
+    try:
+        stt = OpenAISpeechToText(api_key=EMERGENT_LLM_KEY)
+        # Filename must end with a recognized extension; pick one based on MIME.
+        ext = "webm"
+        if "wav" in mime:
+            ext = "wav"
+        elif "mp4" in mime or "m4a" in mime:
+            ext = "m4a"
+        elif "mpeg" in mime or "mp3" in mime:
+            ext = "mp3"
+        elif "ogg" in mime:
+            ext = "ogg"
+        buf = io.BytesIO(raw)
+        buf.name = f"moment.{ext}"
+        stt_resp = await stt.transcribe(file=buf, model="whisper-1", response_format="json", language="en")
+        transcript = (getattr(stt_resp, "text", "") or "").strip()
+    except Exception as e:
+        logger.exception("Whisper transcription failed")
+        raise HTTPException(status_code=502, detail=f"Transcription failed: {e}") from e
+
+    if not transcript:
+        raise HTTPException(status_code=422, detail="Could not understand the recording. Try again in a quieter spot.")
+
+    # 2. Extract structured fields with Claude
+    raw_ai = await _ai_chat(
+        _moment_extraction_system_prompt(),
+        (
+            f"Parent/kid narration (transcribed):\n\"\"\"{transcript}\"\"\"\n\n"
+            "Return JSON with EXACTLY these keys:\n"
+            "{\n"
+            '  "moment_type": <one catalog key>,\n'
+            '  "intensity": <int 1-5>,\n'
+            '  "triggers": [<catalog keys>],\n'
+            '  "context_note": <string>,\n'
+            '  "antecedent": <string>,\n'
+            '  "response": <string>,\n'
+            '  "outcome": <string>,\n'
+            '  "notes": <string>\n'
+            "}"
+        ),
+    )
+    data = _extract_json(raw_ai) or {}
+
+    valid_type_keys = {t["key"] for t in MOMENT_CATALOG["moment_types"]}
+    valid_trig_keys = {t["key"] for t in MOMENT_CATALOG["triggers"]}
+
+    moment_type = (data.get("moment_type") or "").strip()
+    if moment_type not in valid_type_keys:
+        # fallback: try fuzzy by label
+        target = _norm(moment_type)
+        for t in MOMENT_CATALOG["moment_types"]:
+            if target and (target in _norm(t["label"]) or _norm(t["label"]) in target):
+                moment_type = t["key"]
+                break
+        if moment_type not in valid_type_keys:
+            moment_type = "frustrated"  # safest neutral default
+
+    try:
+        intensity = int(data.get("intensity") or 3)
+    except Exception:
+        intensity = 3
+    intensity = max(1, min(5, intensity))
+
+    triggers_raw = data.get("triggers") or []
+    triggers_clean: List[str] = []
+    for tg in triggers_raw:
+        s = str(tg or "").strip()
+        if s in valid_trig_keys and s not in triggers_clean:
+            triggers_clean.append(s)
+        else:
+            target = _norm(s)
+            for tc in MOMENT_CATALOG["triggers"]:
+                if target and (target in _norm(tc["label"]) or _norm(tc["label"]) in target):
+                    if tc["key"] not in triggers_clean:
+                        triggers_clean.append(tc["key"])
+                    break
+
+    parsed = {
+        "moment_type": moment_type,
+        "intensity": intensity,
+        "triggers": triggers_clean[:10],
+        "context_note": str(data.get("context_note") or "").strip(),
+        "antecedent": str(data.get("antecedent") or "").strip(),
+        "response": str(data.get("response") or "").strip(),
+        "outcome": str(data.get("outcome") or "").strip(),
+        "notes": str(data.get("notes") or "").strip(),
+    }
+
+    return ParsedMoment(
+        transcript=transcript,
+        audio_data=audio_b64,
+        audio_mime=mime,
+        parsed=parsed,
+    )
 
 
 @api.get("/moments/export.csv")
@@ -1111,7 +1282,7 @@ async def moments_export(
     w.writerow([
         "timestamp", "moment_type", "intensity", "duration_minutes",
         "triggers", "context_note", "antecedent", "response", "outcome",
-        "logged_by_role", "notes",
+        "logged_by_role", "notes", "transcript",
     ])
     for m in moments:
         w.writerow([
@@ -1126,6 +1297,7 @@ async def moments_export(
             m.get("outcome", ""),
             m.get("logged_by_role", ""),
             m.get("notes", ""),
+            m.get("transcript", "") or "",
         ])
     buf.seek(0)
     filename = f"moments_{datetime.now(timezone.utc).date().isoformat()}.csv"
