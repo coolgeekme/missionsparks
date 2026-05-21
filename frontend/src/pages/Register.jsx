@@ -9,6 +9,7 @@ export default function Register() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [role, setRole] = useState("parent");
+    const [acceptTerms, setAcceptTerms] = useState(false);
     const [err, setErr] = useState("");
     const [busy, setBusy] = useState(false);
     const navigate = useNavigate();
@@ -16,9 +17,13 @@ export default function Register() {
     const submit = async (e) => {
         e.preventDefault();
         setErr("");
+        if (!acceptTerms) {
+            setErr("Please accept the Terms of Service and Privacy Policy.");
+            return;
+        }
         setBusy(true);
         try {
-            const u = await register({ name, email, password, role });
+            const u = await register({ name, email, password, role, accept_terms: true });
             navigate(u.role === "parent" ? "/parent" : "/student");
         } catch (e2) {
             setErr(e2.message);
@@ -76,6 +81,21 @@ export default function Register() {
                             {err}
                         </div>
                     )}
+                    <label className="flex items-start gap-2 text-sm font-semibold text-[#4A5568] cursor-pointer" data-testid="register-terms-label">
+                        <input
+                            type="checkbox"
+                            checked={acceptTerms}
+                            onChange={(e) => setAcceptTerms(e.target.checked)}
+                            className="mt-0.5 h-4 w-4"
+                            data-testid="register-accept-terms"
+                        />
+                        <span>
+                            I've read and accept the{" "}
+                            <Link to="/terms" target="_blank" className="text-[#4361EE] underline">Terms of Service</Link>{" "}
+                            and{" "}
+                            <Link to="/privacy" target="_blank" className="text-[#4361EE] underline">Privacy Policy</Link>.
+                        </span>
+                    </label>
                     <button type="submit" disabled={busy} className="btn-pop-primary w-full" data-testid="register-submit">
                         {busy ? "Creating…" : "Create account"}
                     </button>

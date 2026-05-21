@@ -13,6 +13,10 @@ import GamePlay from "./pages/GamePlay";
 import MomentsTracker from "./pages/MomentsTracker";
 import MomentsInsights from "./pages/MomentsInsights";
 import StudentCheckIn from "./pages/StudentCheckIn";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Account from "./pages/Account";
+import AuditLog from "./pages/AuditLog";
 import { Toaster } from "./components/ui/sonner";
 import "./App.css";
 
@@ -117,6 +121,24 @@ export default function App() {
                             element={
                                 <ProtectedRoute role="student">
                                     <StudentCheckIn />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route path="/privacy" element={<Privacy />} />
+                        <Route path="/terms" element={<Terms />} />
+                        <Route
+                            path="/account"
+                            element={
+                                <ProtectedRoute>
+                                    <Account />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/parent/audit"
+                            element={
+                                <ProtectedRoute role="parent">
+                                    <AuditLog />
                                 </ProtectedRoute>
                             }
                         />

@@ -76,6 +76,8 @@ class UserPublic(BaseModel):
     email: EmailStr
     linked_student_ids: List[str] = []
     profile_notes: str = ""
+    discard_audio: bool = True  # privacy-by-default: drop audio after transcription
+    terms_accepted_at: Optional[str] = None
 
 
 class RegisterRequest(BaseModel):
@@ -83,6 +85,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     role: Role
+    accept_terms: bool = False
 
 
 class LoginRequest(BaseModel):
@@ -171,6 +174,15 @@ class MissionLog(BaseModel):
 
 class LinkStudentRequest(BaseModel):
     student_email: EmailStr
+    # COPPA-related consent (collected on link)
+    guardian_name: Optional[str] = None
+    guardian_relationship: Optional[str] = None
+    child_under_13: Optional[bool] = None
+    consent_given: Optional[bool] = None
+
+
+class AccountPrefsUpdate(BaseModel):
+    discard_audio: Optional[bool] = None
 
 
 # ---------- App ----------
@@ -180,6 +192,38 @@ api = APIRouter(prefix="/api")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("missionboard")
+
+
+def _user_to_public(u: dict) -> "UserPublic":
+    return UserPublic(
+        id=u["id"],
+        role=u["role"],
+        name=u["name"],
+        email=u["email"],
+        linked_student_ids=u.get("linked_student_ids", []),
+        profile_notes=u.get("profile_notes", ""),
+        discard_audio=u.get("discard_audio", True),
+        terms_accepted_at=u.get("terms_accepted_at"),
+    )
+
+
+# ---------- Audit log ----------
+async def _audit(user: dict, action: str, target_type: Optional[str] = None,
+                 target_id: Optional[str] = None, meta: Optional[dict] = None) -> None:
+    try:
+        await db.audit_log.insert_one({
+            "id": str(uuid.uuid4()),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "user_id": user.get("id"),
+            "user_email": user.get("email"),
+            "user_role": user.get("role"),
+            "action": action,
+            "target_type": target_type,
+            "target_id": target_id,
+            "meta": meta or {},
+        })
+    except Exception:
+        logger.exception("Failed to write audit entry %s", action)
 
 
 # ---------- Auth dep ----------
@@ -218,7 +262,10 @@ async def register(req: RegisterRequest, response: Response):
     email = req.email.lower().strip()
     if await db.users.find_one({"email": email}):
         raise HTTPException(status_code=400, detail="Email already registered")
+    if not req.accept_terms:
+        raise HTTPException(status_code=400, detail="You must accept the Terms of Service and Privacy Policy to register.")
     user_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
     doc = {
         "id": user_id,
         "name": req.name,
@@ -226,19 +273,15 @@ async def register(req: RegisterRequest, response: Response):
         "password_hash": hash_password(req.password),
         "role": req.role,
         "linked_student_ids": [],
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "discard_audio": True,
+        "terms_accepted_at": now,
+        "created_at": now,
     }
     await db.users.insert_one(doc)
     token = create_access_token(user_id, email)
     set_auth_cookie(response, token)
-    return UserPublic(
-        id=user_id,
-        role=req.role,
-        name=req.name,
-        email=email,
-        linked_student_ids=[],
-        profile_notes="",
-    )
+    await _audit(doc, "auth.register", target_type="user", target_id=user_id)
+    return _user_to_public(doc)
 
 
 @api.post("/auth/login", response_model=UserPublic)
@@ -249,32 +292,25 @@ async def login(req: LoginRequest, response: Response):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_access_token(user["id"], email)
     set_auth_cookie(response, token)
-    return UserPublic(
-        id=user["id"],
-        role=user["role"],
-        name=user["name"],
-        email=email,
-        linked_student_ids=user.get("linked_student_ids", []),
-        profile_notes=user.get("profile_notes", ""),
-    )
+    await _audit(user, "auth.login", target_type="user", target_id=user["id"])
+    return _user_to_public(user)
 
 
 @api.post("/auth/logout")
-async def logout(response: Response):
+async def logout(response: Response, request: Request):
+    # best-effort audit
+    try:
+        u = await get_current_user(request)
+        await _audit(u, "auth.logout")
+    except Exception:
+        pass
     response.delete_cookie("access_token", path="/")
     return {"ok": True}
 
 
 @api.get("/auth/me", response_model=UserPublic)
 async def me(user: dict = Depends(get_current_user)):
-    return UserPublic(
-        id=user["id"],
-        role=user["role"],
-        name=user["name"],
-        email=user["email"],
-        linked_student_ids=user.get("linked_student_ids", []),
-        profile_notes=user.get("profile_notes", ""),
-    )
+    return _user_to_public(user)
 
 
 # ---------- Skills & Strategies ----------
@@ -295,17 +331,32 @@ async def link_student(req: LinkStudentRequest, user: dict = Depends(require_rol
     student = await db.users.find_one({"email": student_email, "role": "student"})
     if not student:
         raise HTTPException(status_code=404, detail="Student with that email not found")
+    if not req.consent_given or not req.guardian_name or not req.guardian_relationship:
+        raise HTTPException(
+            status_code=400,
+            detail="Parental consent is required. Please complete the consent form (your name, relationship, age check, and agreement).",
+        )
+    consent = {
+        "id": str(uuid.uuid4()),
+        "parent_user_id": user["id"],
+        "student_user_id": student["id"],
+        "guardian_name": req.guardian_name.strip(),
+        "guardian_relationship": req.guardian_relationship.strip(),
+        "child_under_13": bool(req.child_under_13),
+        "consent_given_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.consents.update_one(
+        {"parent_user_id": user["id"], "student_user_id": student["id"]},
+        {"$set": consent},
+        upsert=True,
+    )
     linked = set(user.get("linked_student_ids", []))
     linked.add(student["id"])
     await db.users.update_one({"id": user["id"]}, {"$set": {"linked_student_ids": list(linked)}})
-    return UserPublic(
-        id=user["id"],
-        role=user["role"],
-        name=user["name"],
-        email=user["email"],
-        linked_student_ids=list(linked),
-        profile_notes=user.get("profile_notes", ""),
-    )
+    updated = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+    await _audit(user, "students.link", target_type="student", target_id=student["id"],
+                 meta={"under_13": consent["child_under_13"]})
+    return _user_to_public(updated)
 
 
 @api.get("/students", response_model=List[UserPublic])
@@ -314,17 +365,7 @@ async def list_my_students(user: dict = Depends(require_role("parent"))):
     if not ids:
         return []
     students = await db.users.find({"id": {"$in": ids}}, {"_id": 0, "password_hash": 0}).to_list(1000)
-    return [
-        UserPublic(
-            id=s["id"],
-            role=s["role"],
-            name=s["name"],
-            email=s["email"],
-            linked_student_ids=s.get("linked_student_ids", []),
-            profile_notes=s.get("profile_notes", ""),
-        )
-        for s in students
-    ]
+    return [_user_to_public(s) for s in students]
 
 
 class StudentProfileUpdate(BaseModel):
@@ -343,14 +384,99 @@ async def update_student_profile(
         {"$set": {"profile_notes": req.profile_notes or ""}},
     )
     s = await db.users.find_one({"id": student_id}, {"_id": 0, "password_hash": 0})
-    return UserPublic(
-        id=s["id"],
-        role=s["role"],
-        name=s["name"],
-        email=s["email"],
-        linked_student_ids=s.get("linked_student_ids", []),
-        profile_notes=s.get("profile_notes", ""),
-    )
+    await _audit(user, "student.profile_update", target_type="student", target_id=student_id)
+    return _user_to_public(s)
+
+
+# ---------- Account preferences / right-to-delete / export / audit ----------
+@api.get("/account/consents")
+async def list_consents(user: dict = Depends(require_role("parent"))):
+    return await db.consents.find({"parent_user_id": user["id"]}, {"_id": 0}).to_list(100)
+
+
+@api.put("/account/preferences", response_model=UserPublic)
+async def update_preferences(req: AccountPrefsUpdate, user: dict = Depends(get_current_user)):
+    updates: dict = {}
+    if req.discard_audio is not None:
+        updates["discard_audio"] = bool(req.discard_audio)
+    if updates:
+        await db.users.update_one({"id": user["id"]}, {"$set": updates})
+        await _audit(user, "account.preferences_update", meta=updates)
+    fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+    return _user_to_public(fresh)
+
+
+@api.get("/account/export")
+async def export_my_data(user: dict = Depends(get_current_user)):
+    user_id = user["id"]
+    out: dict = {"account": {k: v for k, v in user.items() if k != "password_hash"}}
+    out["consents"] = await db.consents.find(
+        {"$or": [{"parent_user_id": user_id}, {"student_user_id": user_id}]}, {"_id": 0}
+    ).to_list(1000)
+    if user["role"] == "student":
+        out["missions"] = await db.missions.find({"student_id": user_id}, {"_id": 0}).to_list(2000)
+        out["mission_logs"] = await db.mission_logs.find({"student_id": user_id}, {"_id": 0}).to_list(5000)
+        out["moments"] = await db.moments.find({"student_id": user_id}, {"_id": 0}).to_list(5000)
+    else:
+        linked = user.get("linked_student_ids", [])
+        out["linked_students"] = await db.users.find(
+            {"id": {"$in": linked}}, {"_id": 0, "password_hash": 0}
+        ).to_list(100)
+        out["moments_logged_by_me"] = await db.moments.find(
+            {"logged_by_user_id": user_id}, {"_id": 0}
+        ).to_list(5000)
+    out["audit"] = await db.audit_log.find({"user_id": user_id}, {"_id": 0}).sort("timestamp", -1).to_list(2000)
+    await _audit(user, "account.export")
+    return out
+
+
+@api.delete("/account/me")
+async def delete_my_account(response: Response, user: dict = Depends(get_current_user)):
+    user_id = user["id"]
+    role = user["role"]
+    if role == "student":
+        await db.missions.delete_many({"student_id": user_id})
+        await db.mission_logs.delete_many({"student_id": user_id})
+        await db.moments.delete_many({"student_id": user_id})
+        await db.users.update_many(
+            {"linked_student_ids": user_id},
+            {"$pull": {"linked_student_ids": user_id}},
+        )
+    else:
+        await db.moments.delete_many({"logged_by_user_id": user_id})
+    await db.consents.delete_many({"$or": [{"parent_user_id": user_id}, {"student_user_id": user_id}]})
+    await db.users.delete_one({"id": user_id})
+    await _audit({"id": None, "email": user.get("email"), "role": role}, "account.delete",
+                 target_type="user", target_id=user_id)
+    response.delete_cookie("access_token", path="/")
+    return {"ok": True, "deleted_user_id": user_id}
+
+
+@api.get("/audit")
+async def list_audit(
+    student_id: Optional[str] = None,
+    limit: int = 200,
+    user: dict = Depends(get_current_user),
+):
+    limit = max(1, min(500, int(limit or 200)))
+    if user["role"] == "student":
+        return await db.audit_log.find({"user_id": user["id"]}, {"_id": 0}).sort("timestamp", -1).to_list(limit)
+    linked = user.get("linked_student_ids", [])
+    if student_id:
+        if student_id not in linked:
+            raise HTTPException(status_code=403, detail="Not your student")
+        q = {"$or": [
+            {"user_id": user["id"], "target_id": student_id},
+            {"user_id": student_id},
+            {"target_id": student_id},
+        ]}
+    else:
+        q = {"$or": [
+            {"user_id": user["id"]},
+            {"user_id": {"$in": linked}},
+            {"target_id": {"$in": linked + [user["id"]]}},
+        ]}
+    return await db.audit_log.find(q, {"_id": 0}).sort("timestamp", -1).to_list(limit)
 
 
 # ---------- Missions ----------
@@ -929,8 +1055,12 @@ async def create_moment(req: MomentCreate, user: dict = Depends(get_current_user
     student_id = _student_id_for(user, req.student_id)
     ts = req.timestamp or datetime.now(timezone.utc).isoformat()
     triggers = [t.strip() for t in (req.triggers or []) if t and t.strip()][:20]
-    # Cap audio payload to ~5MB base64 to keep MongoDB documents healthy
+    # Honor user-level "discard audio" preference at write time
     audio_data = req.audio_data
+    audio_mime = req.audio_mime
+    if user.get("discard_audio", True):
+        audio_data = None
+        audio_mime = None
     if audio_data and len(audio_data) > 7_000_000:
         raise HTTPException(status_code=413, detail="Audio recording too large (max ~5MB).")
     moment_id = str(uuid.uuid4())
@@ -951,11 +1081,13 @@ async def create_moment(req: MomentCreate, user: dict = Depends(get_current_user
         "mission_id": req.mission_id,
         "notes": (req.notes or "").strip(),
         "audio_data": audio_data,
-        "audio_mime": (req.audio_mime or "").strip() or None,
+        "audio_mime": (audio_mime or "").strip() or None,
         "transcript": (req.transcript or "").strip() or None,
     }
     await db.moments.insert_one(doc)
     doc.pop("_id", None)
+    await _audit(user, "moment.create", target_type="student", target_id=student_id,
+                 meta={"moment_type": doc["moment_type"], "has_audio": bool(audio_data)})
     return Moment(**doc)
 
 
@@ -997,6 +1129,7 @@ async def delete_moment(moment_id: str, user: dict = Depends(get_current_user)):
         if m["student_id"] not in user.get("linked_student_ids", []):
             raise HTTPException(status_code=403, detail="Not your student")
     await db.moments.delete_one({"id": moment_id})
+    await _audit(user, "moment.delete", target_type="student", target_id=m["student_id"], meta={"moment_id": moment_id})
     return {"ok": True}
 
 
@@ -1186,6 +1319,11 @@ async def moments_parse_audio(
 
     if not transcript:
         raise HTTPException(status_code=422, detail="Could not understand the recording. Try again in a quieter spot.")
+
+    # Honor data-minimization preference — drop the audio bytes from the response.
+    if user.get("discard_audio", True):
+        audio_b64 = ""
+        mime = ""
 
     # 2. Extract structured fields with Claude
     raw_ai = await _ai_chat(

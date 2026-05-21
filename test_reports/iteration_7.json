@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 7 P0 compliance sprint validated end-to-end. Wrote /app/backend/tests/test_iter7_compliance.py (19 tests across 8 classes) covering accept_terms register gate, discard_audio + terms_accepted_at exposure, students/link consent gate + db.consents upsert + audit, /account/consents parent-only, /account/preferences toggle + audit, parse-audio respecting discard_audio (both ON and OFF), POST /moments respecting discard_audio (both ON and OFF), /account/export shape for student vs parent, /account/me DELETE cascade for both roles (incl. parent's linked_student_ids pull verified for student-delete), /audit scoping (student own / parent own+linked / unlinked student_id 403), and demo-parent regression. ALL 19/19 PASS. Frontend Playwright run: /privacy + /terms render unauth, login-legal-links present, register-without-terms shows inline error, register-with-terms succeeds, /account toggle flips ON->OFF and persists, audit link visible for parent, delete-account button correctly disabled until exactly 'DELETE' is typed (verified with empty, 'wrong', and 'DELETE'), export button present, /parent/audit lists audit rows (2 entries seen right after register), parent-link-consent details block present on /parent dashboard.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/register", "issue": "Audit row for 'auth.register' is written with the new user's dict, but at that moment user has no 'created_at' on the audit payload itself; the audit row is correct, just noting target_id=user_id is also user.id which is the same — harmless."},
+      {"endpoint": "GET /api/account/export", "issue": "The 'account.export' audit row is written AFTER the response payload is assembled, so the freshly-written row is not in the JSON 'audit' array of THAT response (visible on next call). Acceptable behaviour, but worth documenting in the UI."},
+      {"endpoint": "DELETE /api/account/me", "issue": "When a student deletes, the parent's linked_student_ids is pulled correctly server-side, but the parent's currently-cached AuthContext (in their browser session) will still show the stale ID until they refresh /auth/me. Minor UX note."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter7_compliance.py",
+    "/app/test_reports/pytest/iter7.xml",
+    "/app/test_reports/pytest/iter7_full.xml"
+  ],
+  "action_items": [
+    "Update legacy backend tests (test_missionboard.py, test_moments.py, test_moments_audio.py, test_streak.py, test_games_clues.py) to include accept_terms=true on every /auth/register call and consent_given/guardian_name/guardian_relationship on every /students/link call. Also flip discard_audio=False before tests that assert audio persistence (test_moments_audio.py TestParseAudioHappy + TestMomentAudioPersistence). 10 such failures observed — none are functional bugs; all are stale assumptions from iter1-6. The new iter7 logic is correct as specified.",
+    "(Carried from iter6) server.py is now 1612 lines — overdue for split into routers/."
+  ],
+  "critical_code_review_comments": [
+    "_audit() helper is correctly best-effort (try/except + logger.exception) — won't break a request if Mongo audit insert fails. Good defensive design.",
+    "students/link uses upsert on (parent_user_id, student_user_id) — re-linking the same student does not create duplicate consent rows. Verified by inspection.",
+    "DELETE /api/account/me correctly removes consents from BOTH sides (parent_user_id OR student_user_id) — verified test_student_delete_cascade.",
+    "Audit scoping for parent with student_id is conservative but correct: must be in linked_student_ids — verified test_parent_unlinked_student_id_403.",
+    "Account.jsx delete button is correctly double-gated (disabled until text === 'DELETE' AND deleting flag) — verified UI.",
+    "Privacy/Terms pages are public routes (no Navbar / no auth check) — confirmed by direct nav while logged out.",
+    "Frontend Register sends accept_terms: true only when the checkbox is checked (good — server is the source of truth; client merely short-circuits with inline error if missing).",
+    "parse-audio + POST /moments both apply user.discard_audio at the response/persistence layer; the upload size cap on POST /moments is checked BEFORE the strip, which is correct (don't accept oversized uploads even if they'd be discarded)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter7_compliance.py (NEW, 19 tests)"
+  ],
+  "success_rate": {
+    "backend": "100% (19/19 iter7 PASS). Legacy regression: 80/90 — 10 failures are stale-test issues (missing accept_terms / consent_given / default discard_audio assumption), not iter7 bugs.",
+    "frontend": "100% on iter7 flows tested (Privacy/Terms render, Register terms-gate, Account page toggle + delete-gate + export + audit-link, /parent/audit list, ParentDashboard consent block, login-legal-links)."
+  },
+  "test_credentials": "parent@demo.com / demo1234, student@demo.com / demo1234 — both still functional after iter7. Note: demo users were created pre-iter7 so their terms_accepted_at is null (legacy) — acceptable. Newly-registered users (via UI or API) get terms_accepted_at set to ISO timestamp.",
+  "seed_data_creation": "Each iter7 test class creates a fresh throwaway parent and/or student account (iter7_<role>_<hex>@test.com) and deletes itself at end via DELETE /api/account/me — no orphan data. UI Playwright run also created one throwaway parent (ui_iter7_<ts>@test.com) which was NOT cleaned up; main agent may want to purge or it will stay until next prune.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run: `python -m pytest /app/backend/tests/test_iter7_compliance.py -v` (expect 19/19 in ~15s). The full backend suite (`pytest /app/backend/tests/ --ignore=test_ai_drafting.py`) shows 80/90; the 10 failures are stale tests that need accept_terms=true / consent_given=true added — not iter7 bugs. Iter7 testids verified: register-accept-terms, register-error, login-legal-links, nav-settings (present in Navbar.jsx), account-page, account-discard-audio-toggle, account-discard-audio-state, account-export-btn, account-audit-link, account-delete-confirm, account-delete-btn, audit-page, audit-row-<id>, privacy-page, terms-page, parent-link-consent. The discard-audio toggle is optimistic (saves on every click); audio strip happens server-side on both /moments/parse-audio (response) and POST /moments (persistence). DELETE /account/me cascade for students includes missions/mission_logs/moments + pull from any parent's linked_student_ids; for parents, only their own moments + consents are removed (linked students remain — verified).",
+  "rca of the issue": "No iter7 functional bugs found. The 10 legacy-test failures all share the same root cause: tests written against iter1-6 contracts now violate iter7's stricter validators. Mitigation: either (a) update legacy tests to set accept_terms/consent_given (preferred), or (b) keep them as deprecated and re-baseline against test_iter7_compliance.py going forward."
+}

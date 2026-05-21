@@ -96,6 +96,11 @@ export default function Login() {
                         </button>
                     </div>
                 </div>
+                <p className="text-xs font-semibold text-[#A0AEC0] mt-5 text-center" data-testid="login-legal-links">
+                    <Link to="/privacy" className="underline hover:text-[#4361EE]">Privacy</Link>
+                    {" · "}
+                    <Link to="/terms" className="underline hover:text-[#4361EE]">Terms</Link>
+                </p>
             </div>
         </div>
     );

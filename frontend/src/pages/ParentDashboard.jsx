@@ -18,6 +18,12 @@ export default function ParentDashboard() {
     const [linkEmail, setLinkEmail] = useState("");
     const [linkErr, setLinkErr] = useState("");
     const [busy, setBusy] = useState(false);
+    const [consent, setConsent] = useState({
+        guardian_name: "",
+        guardian_relationship: "parent",
+        child_under_13: true,
+        consent_given: false,
+    });
 
     // Profile notes editor
     const [profileNotes, setProfileNotes] = useState("");
@@ -94,10 +100,21 @@ export default function ParentDashboard() {
     const handleLink = async (e) => {
         e.preventDefault();
         setLinkErr("");
+        if (!consent.consent_given || !consent.guardian_name.trim()) {
+            setLinkErr("Please complete the parental consent form (your name + check the agreement).");
+            return;
+        }
         setBusy(true);
         try {
-            await api.post("/students/link", { student_email: linkEmail });
+            await api.post("/students/link", {
+                student_email: linkEmail,
+                guardian_name: consent.guardian_name.trim(),
+                guardian_relationship: consent.guardian_relationship,
+                child_under_13: consent.child_under_13,
+                consent_given: true,
+            });
             setLinkEmail("");
+            setConsent({ ...consent, consent_given: false });
             await loadStudents();
         } catch (e2) {
             setLinkErr(formatApiErrorDetail(e2.response?.data?.detail) || e2.message);
@@ -235,16 +252,72 @@ export default function ParentDashboard() {
                         </div>
                     )}
 
-                    <form onSubmit={handleLink} className="flex flex-col sm:flex-row gap-3" data-testid="parent-link-form">
-                        <input
-                            type="email"
-                            placeholder="student@email.com"
-                            value={linkEmail}
-                            onChange={(e) => setLinkEmail(e.target.value)}
-                            className="mb-input sm:max-w-sm"
-                            required
-                            data-testid="parent-link-email"
-                        />
+                    <form onSubmit={handleLink} className="space-y-3" data-testid="parent-link-form">
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <input
+                                type="email"
+                                placeholder="student@email.com"
+                                value={linkEmail}
+                                onChange={(e) => setLinkEmail(e.target.value)}
+                                className="mb-input sm:max-w-sm"
+                                required
+                                data-testid="parent-link-email"
+                            />
+                        </div>
+                        <details className="rounded-2xl border-2 border-[#FFD166] bg-[#FFD166]/10 p-4" data-testid="parent-link-consent">
+                            <summary className="cursor-pointer font-display font-bold text-[#876200]">
+                                🛡️ Parental consent (required)
+                            </summary>
+                            <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-sm font-bold text-[#0B132B] mb-1">Your name (guardian)</label>
+                                    <input
+                                        value={consent.guardian_name}
+                                        onChange={(e) => setConsent({ ...consent, guardian_name: e.target.value })}
+                                        className="mb-input"
+                                        data-testid="parent-link-guardian-name"
+                                        placeholder="Pat Smith"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-[#0B132B] mb-1">Relationship</label>
+                                    <select
+                                        value={consent.guardian_relationship}
+                                        onChange={(e) => setConsent({ ...consent, guardian_relationship: e.target.value })}
+                                        className="mb-input"
+                                        data-testid="parent-link-relationship"
+                                    >
+                                        <option value="parent">Parent</option>
+                                        <option value="legal_guardian">Legal guardian</option>
+                                        <option value="grandparent">Grandparent</option>
+                                        <option value="foster_parent">Foster parent</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <label className="flex items-center gap-2 mt-3 text-sm font-semibold text-[#0B132B]" data-testid="parent-link-under13-label">
+                                <input
+                                    type="checkbox"
+                                    checked={consent.child_under_13}
+                                    onChange={(e) => setConsent({ ...consent, child_under_13: e.target.checked })}
+                                    data-testid="parent-link-under13"
+                                />
+                                This child is under 13 (COPPA applies)
+                            </label>
+                            <label className="flex items-start gap-2 mt-3 text-sm font-semibold text-[#0B132B]" data-testid="parent-link-consent-label">
+                                <input
+                                    type="checkbox"
+                                    checked={consent.consent_given}
+                                    onChange={(e) => setConsent({ ...consent, consent_given: e.target.checked })}
+                                    className="mt-0.5"
+                                    data-testid="parent-link-consent-checkbox"
+                                />
+                                <span>
+                                    I am the parent or legal guardian and consent to MissionBoard processing my child's information as described in the{" "}
+                                    <Link to="/privacy" className="text-[#4361EE] underline" target="_blank">Privacy Policy</Link>.
+                                </span>
+                            </label>
+                        </details>
                         <button type="submit" disabled={busy} className="btn-pop-accent flex items-center gap-2" data-testid="parent-link-submit">
                             <UserPlus size={16} /> {busy ? "Linking…" : "Link student"}
                         </button>
