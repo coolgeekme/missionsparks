@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import EvidenceBadge from "../components/EvidenceBadge";
 import { api, formatApiErrorDetail } from "../lib/api";
 import { Save, Trash2, Plus, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 
@@ -264,15 +265,22 @@ export default function MissionForm() {
                             {skills.map((s) => {
                                 const sel = form.skill_ids.includes(s.id);
                                 return (
-                                    <button
-                                        type="button"
-                                        key={s.id}
-                                        onClick={() => toggle("skill_ids", s.id)}
-                                        className={`mb-chip border-2 ${sel ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white border-[#E2E8F0] text-[#0B132B] hover:border-[#4361EE]"}`}
-                                        data-testid={`mission-form-skill-${s.id}`}
-                                    >
-                                        {s.name}
-                                    </button>
+                                    <span key={s.id} className="inline-flex items-center">
+                                        <button
+                                            type="button"
+                                            onClick={() => toggle("skill_ids", s.id)}
+                                            className={`mb-chip border-2 inline-flex items-center gap-1 ${sel ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white border-[#E2E8F0] text-[#0B132B] hover:border-[#4361EE]"}`}
+                                            data-testid={`mission-form-skill-${s.id}`}
+                                        >
+                                            {s.name}
+                                        </button>
+                                        <EvidenceBadge
+                                            citationIds={s.evidence_refs}
+                                            tone={sel ? "muted" : "indigo"}
+                                            size={11}
+                                            testId={`mission-form-skill-evidence-${s.id}`}
+                                        />
+                                    </span>
                                 );
                             })}
                         </div>
@@ -284,15 +292,21 @@ export default function MissionForm() {
                             {strategies.map((s) => {
                                 const sel = form.strategy_ids.includes(s.id);
                                 return (
-                                    <button
-                                        type="button"
-                                        key={s.id}
-                                        onClick={() => toggle("strategy_ids", s.id)}
-                                        className={`mb-chip border-2 ${sel ? "bg-[#FFD166] text-[#0B132B] border-[#E5BC5C]" : "bg-white border-[#E2E8F0] text-[#0B132B] hover:border-[#FFD166]"}`}
-                                        data-testid={`mission-form-strategy-${s.id}`}
-                                    >
-                                        {s.emoji} {s.name}
-                                    </button>
+                                    <span key={s.id} className="inline-flex items-center">
+                                        <button
+                                            type="button"
+                                            onClick={() => toggle("strategy_ids", s.id)}
+                                            className={`mb-chip border-2 inline-flex items-center gap-1 ${sel ? "bg-[#FFD166] text-[#0B132B] border-[#E5BC5C]" : "bg-white border-[#E2E8F0] text-[#0B132B] hover:border-[#FFD166]"}`}
+                                            data-testid={`mission-form-strategy-${s.id}`}
+                                        >
+                                            {s.emoji} {s.name}
+                                        </button>
+                                        <EvidenceBadge
+                                            citationIds={s.evidence_refs}
+                                            size={11}
+                                            testId={`mission-form-strategy-evidence-${s.id}`}
+                                        />
+                                    </span>
                                 );
                             })}
                         </div>

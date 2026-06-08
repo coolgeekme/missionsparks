@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import EvidenceBadge from "../components/EvidenceBadge";
 import { api, formatApiErrorDetail, API } from "../lib/api";
 import {
     ArrowLeft, Plus, Trash2, Download, BarChart3, X, Filter, Clock, ChevronRight, Mic,
@@ -353,18 +354,26 @@ export default function MomentsTracker() {
                                 <p className="text-sm font-bold text-[#0B132B] mb-2">What happened?</p>
                                 <div className="flex flex-wrap gap-2" data-testid="moments-form-types">
                                     {catalog.moment_types.map((t) => (
-                                        <button
-                                            key={t.key} type="button"
-                                            onClick={() => setForm({ ...form, moment_type: t.key })}
-                                            className={`mb-chip border-2 ${form.moment_type === t.key
-                                                ? (t.category === "challenging" ? "bg-[#EF476F] text-white border-[#EF476F]"
-                                                    : t.category === "positive" ? "bg-[#06D6A0] text-white border-[#06D6A0]"
-                                                    : "bg-[#4361EE] text-white border-[#4361EE]")
-                                                : "bg-white border-[#E2E8F0] text-[#0B132B] hover:border-[#4361EE]"}`}
-                                            data-testid={`moments-form-type-${t.key}`}
-                                        >
-                                            {t.emoji} {t.label}
-                                        </button>
+                                        <span key={t.key} className="inline-flex items-center">
+                                            <button
+                                                type="button"
+                                                onClick={() => setForm({ ...form, moment_type: t.key })}
+                                                className={`mb-chip border-2 inline-flex items-center gap-1 ${form.moment_type === t.key
+                                                    ? (t.category === "challenging" ? "bg-[#EF476F] text-white border-[#EF476F]"
+                                                        : t.category === "positive" ? "bg-[#06D6A0] text-white border-[#06D6A0]"
+                                                        : "bg-[#4361EE] text-white border-[#4361EE]")
+                                                    : "bg-white border-[#E2E8F0] text-[#0B132B] hover:border-[#4361EE]"}`}
+                                                data-testid={`moments-form-type-${t.key}`}
+                                            >
+                                                {t.emoji} {t.label}
+                                            </button>
+                                            <EvidenceBadge
+                                                citationIds={t.evidence_refs}
+                                                tone={form.moment_type === t.key ? "muted" : "amber"}
+                                                size={11}
+                                                testId={`moments-form-type-evidence-${t.key}`}
+                                            />
+                                        </span>
                                     ))}
                                 </div>
                             </div>
@@ -387,14 +396,22 @@ export default function MomentsTracker() {
                                     {catalog.triggers.map((t) => {
                                         const sel = form.triggers.includes(t.key);
                                         return (
-                                            <button
-                                                key={t.key} type="button"
-                                                onClick={() => toggleTrigger(t.key)}
-                                                className={`mb-chip border-2 ${sel ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white border-[#E2E8F0] hover:border-[#4361EE]"}`}
-                                                data-testid={`moments-form-trigger-${t.key}`}
-                                            >
-                                                {t.emoji} {t.label}
-                                            </button>
+                                            <span key={t.key} className="inline-flex items-center">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleTrigger(t.key)}
+                                                    className={`mb-chip border-2 inline-flex items-center gap-1 ${sel ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white border-[#E2E8F0] hover:border-[#4361EE]"}`}
+                                                    data-testid={`moments-form-trigger-${t.key}`}
+                                                >
+                                                    {t.emoji} {t.label}
+                                                </button>
+                                                <EvidenceBadge
+                                                    citationIds={t.evidence_refs}
+                                                    tone={sel ? "muted" : "indigo"}
+                                                    size={11}
+                                                    testId={`moments-form-trigger-evidence-${t.key}`}
+                                                />
+                                            </span>
                                         );
                                     })}
                                 </div>

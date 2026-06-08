@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { ResearchProvider } from "./contexts/ResearchContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -17,6 +18,7 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Account from "./pages/Account";
 import AuditLog from "./pages/AuditLog";
+import Research from "./pages/Research";
 import { Toaster } from "./components/ui/sonner";
 import "./App.css";
 
@@ -31,7 +33,8 @@ export default function App() {
     return (
         <div className="App">
             <AuthProvider>
-                <BrowserRouter>
+                <ResearchProvider>
+                    <BrowserRouter>
                     <Routes>
                         <Route path="/" element={<RootRedirect />} />
                         <Route path="/login" element={<Login />} />
@@ -142,10 +145,19 @@ export default function App() {
                                 </ProtectedRoute>
                             }
                         />
+                        <Route
+                            path="/parent/research"
+                            element={
+                                <ProtectedRoute role="parent">
+                                    <Research />
+                                </ProtectedRoute>
+                            }
+                        />
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                     <Toaster />
                 </BrowserRouter>
+                </ResearchProvider>
             </AuthProvider>
         </div>
     );

@@ -1,0 +1,38 @@
+{
+  "summary": "Iter8 validated the research-backed citations feature end-to-end. Backend: 13/14 pytest in test_research.py PASS (1 SKIPPED — AI-draft test requires EMERGENT_LLM_KEY); full regression (excluding test_ai_drafting + known-stale test_moments_audio) is 92/92 PASS. Frontend Playwright: Parent dashboard exposes both parent-go-research (header) and nav-research (Navbar) testids; clicking either navigates to /parent/research. The Research page (data-testid=research-page) renders 31 citations with correct stats (23 peer-reviewed, 3 authoritative orgs, 5 guidelines), search filters live ('Klingberg' → 1 item), source chip 'peer_reviewed' filters to 23, source chip 'all' resets, the topic chip 'adhd' and item 'cdc_adhd' both render. Parent dashboard saved-mission cards expose mission-skill-evidence-* (4) and mission-strat-evidence-* (4) badges; clicking opens evidence-popover with title/authors/year/source/summary and a working 'Read source' link. MissionForm exposes mission-form-skill-evidence-* (8) and mission-form-strategy-evidence-* (9) badges, popover opens correctly. MomentsTracker form (after clicking 'Log moment') exposes moments-form-type-evidence-* (14) and moments-form-trigger-evidence-* (18) badges, popover opens. AI draft day → Generate 3 missions produced 3 cards in ~15s; each card has ai-skill-evidence-* (4 total) + ai-strat-evidence-* (6 total) + ai-draft-evidence-badge-* (3 total) with 'Backed by' footers. Evidence_tags strings ('working memory', etc.) visible. Student dashboard at /student shows ZERO evidence badges and ZERO Research links (both nav-research and parent-go-research = 0) — privacy isolation confirmed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_research.py",
+    "/app/test_reports/pytest/iter8_research.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Research page stats card derived counts (23/3/5/31) match the backend seed counts exactly — no double-counting.",
+    "EvidenceBadge popover correctly stops propagation on the 'Read source' link (verified — popover stays open after click; new tab opens). data-testid=evidence-popover present on the popover content.",
+    "ResearchContext loads citations once per session — confirmed no repeated /api/citations calls on each badge click (network panel quiet after first load).",
+    "Student dashboard genuinely hides all evidence-* testids (queried with [data-testid*='-evidence-']) — not just CSS-hidden. Good privacy posture.",
+    "AI draft response includes evidence_tags + evidence_refs as documented; UI aggregates per-draft evidence into ai-draft-evidence-badge-* footer correctly (3 drafts → 3 aggregate badges).",
+    "server.py is now even larger with the citation endpoints + _resolve_evidence_for_mission helper; iter7's split-server.py action item remains open and is more pressing now (~1700+ lines).",
+    "research_data.py cleanly separates data from logic — easy to extend. Mappings (SKILL/STRATEGY/MOMENT_TYPE/TRIGGER/GAME/AI_TAG) cover every clinical surface in the app.",
+    "Citation seeding is idempotent on startup (keyed by 'key'), so re-seeding doesn't duplicate."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (13/13 PASS in test_research.py, 1 SKIPPED requires LLM key; 92/92 PASS on broader regression excluding known-stale test_moments_audio carried from iter7)",
+    "frontend": "100% on all 8 in-scope flows (Research nav x2, Research page rendering+filters, mission card badges+popover, MissionForm badges+popover, Moments form badges+popover, AI draft 3-card flow with aggregate footers, Student isolation)"
+  },
+  "test_credentials": "parent@demo.com / demo1234, student@demo.com / demo1234 — both functional.",
+  "seed_data_creation": "None — used existing demo data; no throwaway accounts created this iteration.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Research feature is fully wired. Reuse /app/backend/tests/test_research.py (set EMERGENT_LLM_KEY in env to also run the AI-draft evidence test). Frontend testids confirmed: parent-go-research, nav-research, research-page, research-search, research-source-all, research-source-peer_reviewed, research-source-org, research-source-guideline, research-tag-<tag>, research-item-<citation_key>, mission-skill-evidence-<id>, mission-strat-evidence-<id>, mission-form-skill-evidence-<id>, mission-form-strategy-evidence-<id>, moments-form-type-evidence-<key>, moments-form-trigger-evidence-<key>, ai-skill-evidence-<id>, ai-strat-evidence-<id>, ai-draft-evidence-badge-<idx>, evidence-popover. AI draft flow: click 'AI draft day' (opens panel) → click 'Generate 3 missions' (LLM call, ~15s). Student view at /student is correctly stripped of all evidence badges + Research link. Iter7 stale audio tests still fail as documented in iteration_7.json — out of scope here.",
+  "rca of the issue": "No issues found. Feature meets all 8 acceptance criteria from the review_request."
+}

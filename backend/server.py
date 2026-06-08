@@ -21,6 +21,17 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage
 import json
 import re
 
+from research_data import (
+    CITATIONS,
+    SKILL_EVIDENCE,
+    STRATEGY_EVIDENCE,
+    MOMENT_TYPE_EVIDENCE,
+    TRIGGER_EVIDENCE,
+    GAME_EVIDENCE,
+    AI_TAG_EVIDENCE,
+    all_known_tags,
+)
+
 
 # ---------- DB ----------
 mongo_url = os.environ["MONGO_URL"]
@@ -98,6 +109,7 @@ class Skill(BaseModel):
     name: str
     category: Literal["Reading", "Executive Function"]
     description: str
+    evidence_refs: List[str] = []  # citation ids
 
 
 class Strategy(BaseModel):
@@ -105,6 +117,20 @@ class Strategy(BaseModel):
     name: str
     description: str
     emoji: str = "✨"
+    evidence_refs: List[str] = []  # citation ids
+
+
+class Citation(BaseModel):
+    id: str
+    key: str
+    title: str
+    authors: str
+    year: int
+    source: str
+    source_type: Literal["peer_reviewed", "org", "book", "guideline"]
+    url: Optional[str] = None
+    summary: str
+    tags: List[str] = []
 
 
 class MissionStep(BaseModel):
@@ -322,6 +348,84 @@ async def list_skills(user: dict = Depends(get_current_user)):
 @api.get("/strategies", response_model=List[Strategy])
 async def list_strategies(user: dict = Depends(get_current_user)):
     return await db.strategies.find({}, {"_id": 0}).to_list(1000)
+
+
+# ---------- Research / citations ----------
+@api.get("/citations", response_model=List[Citation])
+async def list_citations(user: dict = Depends(get_current_user)):
+    """All citations in the research library. Parent/student both allowed
+    (student UI does not surface them, but the endpoint is read-only and safe)."""
+    return await db.citations.find({}, {"_id": 0}).sort("year", -1).to_list(2000)
+
+
+@api.get("/citations/{citation_id}", response_model=Citation)
+async def get_citation(citation_id: str, user: dict = Depends(get_current_user)):
+    c = await db.citations.find_one({"id": citation_id}, {"_id": 0})
+    if not c:
+        raise HTTPException(status_code=404, detail="Citation not found")
+    return c
+
+
+@api.get("/games/catalog")
+async def games_catalog(user: dict = Depends(get_current_user)):
+    """Mini-game registry with research backing for each game."""
+    games = [
+        {"key": "word_match", "label": "Word Match", "emoji": "📝", "category": "Reading",
+         "description": "Match words to definitions to grow vocabulary in context."},
+        {"key": "memory_cards", "label": "Memory Cards", "emoji": "🃏", "category": "Working Memory",
+         "description": "Flip pairs from memory — short working-memory training reps."},
+        {"key": "reaction_tap", "label": "Reaction Tap", "emoji": "⚡", "category": "Attention",
+         "description": "Tap the target when it appears — sustained-attention training."},
+        {"key": "breathing_bubble", "label": "Breathing Bubble", "emoji": "🫧", "category": "Self-Regulation",
+         "description": "Inhale and exhale with the bubble — diaphragmatic breathing practice."},
+        {"key": "dot_connect", "label": "Dot Connect", "emoji": "🔗", "category": "Planning",
+         "description": "Connect dots in order — sequencing and planning practice."},
+        {"key": "sentence_builder", "label": "Sentence Builder", "emoji": "🧩", "category": "Reading",
+         "description": "Arrange words into a sentence — syntax and comprehension practice."},
+    ]
+    keys = await _citation_id_lookup()
+    for g in games:
+        g["evidence_refs"] = [keys[k] for k in GAME_EVIDENCE.get(g["key"], []) if k in keys]
+    return games
+
+
+async def _citation_id_lookup() -> dict:
+    """Map citation `key` → mongo `id`."""
+    rows = await db.citations.find({}, {"_id": 0, "id": 1, "key": 1}).to_list(2000)
+    return {r["key"]: r["id"] for r in rows if r.get("key") and r.get("id")}
+
+
+async def _resolve_evidence_for_mission(skill_ids: List[str], strategy_ids: List[str],
+                                         evidence_tags: List[str]) -> List[str]:
+    """Combine evidence_refs from selected skills/strategies + AI tag mapping,
+    de-duplicated, capped at 6 citations."""
+    refs: List[str] = []
+
+    if skill_ids:
+        sk = await db.skills.find({"id": {"$in": skill_ids}}, {"_id": 0, "evidence_refs": 1}).to_list(50)
+        for s in sk:
+            refs.extend(s.get("evidence_refs") or [])
+    if strategy_ids:
+        st = await db.strategies.find({"id": {"$in": strategy_ids}}, {"_id": 0, "evidence_refs": 1}).to_list(50)
+        for s in st:
+            refs.extend(s.get("evidence_refs") or [])
+
+    if evidence_tags:
+        keys = await _citation_id_lookup()
+        for tag in evidence_tags:
+            for citation_key in AI_TAG_EVIDENCE.get(tag, []):
+                cid = keys.get(citation_key)
+                if cid:
+                    refs.append(cid)
+
+    # de-dupe while keeping order
+    seen = set()
+    deduped: List[str] = []
+    for r in refs:
+        if r and r not in seen:
+            seen.add(r)
+            deduped.append(r)
+    return deduped[:6]
 
 
 # ---------- Parent: students ----------
@@ -776,6 +880,8 @@ class AIDraftedMission(BaseModel):
     strategy_ids: List[str] = []
     skill_names: List[str] = []
     strategy_names: List[str] = []
+    evidence_tags: List[str] = []
+    evidence_refs: List[str] = []  # citation ids
 
 
 def _norm(s: str) -> str:
@@ -852,6 +958,7 @@ async def _ai_chat(system_message: str, user_text: str) -> str:
 def _system_prompt(skills: List[dict], strategies: List[dict]) -> str:
     skill_lines = "\n".join([f"- {s['name']} ({s['category']}): {s['description']}" for s in skills])
     strat_lines = "\n".join([f"- {s['name']} {s.get('emoji','')}: {s['description']}" for s in strategies])
+    evidence_tags = ", ".join(all_known_tags())
     return (
         "You are MissionBoard's assistant. You help a busy parent draft small, kid-friendly daily "
         "learning 'missions' for their child. Missions focus on Reading and Executive Function. "
@@ -860,6 +967,12 @@ def _system_prompt(skills: List[dict], strategies: List[dict]) -> str:
         "Pick skill_names and strategy_names ONLY from the lists below — copy the names exactly.\n\n"
         f"AVAILABLE SKILLS:\n{skill_lines}\n\n"
         f"AVAILABLE STRATEGIES:\n{strat_lines}\n\n"
+        "Every mission you draft MUST also include an 'evidence_tags' array of 1–3 tags chosen "
+        "ONLY from this controlled vocabulary, identifying the research areas the mission is grounded in:\n"
+        f"  {evidence_tags}\n\n"
+        "Pick the tags that most directly justify the chosen skills/strategies (e.g. a chunked "
+        "planning task = 'task_chunking', 'executive_function'; a re-read for evidence = "
+        "'annotation', 'reading_fluency'). Do not invent tags.\n\n"
         "Always respond with STRICT JSON only — no prose, no code fences."
     )
 
@@ -886,7 +999,8 @@ async def ai_draft_mission(req: AIDraftRequest, user: dict = Depends(require_rol
         + '{ "title": str, "description": str, "steps": [str, ...] (2-5 items), '
         + '"estimated_minutes": int (5-25), '
         + '"skill_names": [str, ...] (1-2 items, copied exactly from AVAILABLE SKILLS), '
-        + '"strategy_names": [str, ...] (1-2 items, copied exactly from AVAILABLE STRATEGIES) }'
+        + '"strategy_names": [str, ...] (1-2 items, copied exactly from AVAILABLE STRATEGIES), '
+        + '"evidence_tags": [str, ...] (1-3 items, copied exactly from the controlled vocabulary) }'
     )
 
     raw = await _ai_chat(_system_prompt(skills, strategies), user_text)
@@ -902,15 +1016,21 @@ async def ai_draft_mission(req: AIDraftRequest, user: dict = Depends(require_rol
     minutes = max(5, min(60, minutes))
     skill_names = [str(x).strip() for x in (data.get("skill_names") or []) if str(x).strip()]
     strategy_names = [str(x).strip() for x in (data.get("strategy_names") or []) if str(x).strip()]
+    skill_ids = _match_ids(skill_names, skills)
+    strategy_ids = _match_ids(strategy_names, strategies)
+    evidence_tags = [str(x).strip() for x in (data.get("evidence_tags") or []) if str(x).strip()]
+    evidence_refs = await _resolve_evidence_for_mission(skill_ids, strategy_ids, evidence_tags)
     return AIDraftedMission(
         title=title,
         description=description,
         steps=steps,
         estimated_minutes=minutes,
-        skill_ids=_match_ids(skill_names, skills),
-        strategy_ids=_match_ids(strategy_names, strategies),
+        skill_ids=skill_ids,
+        strategy_ids=strategy_ids,
         skill_names=skill_names,
         strategy_names=strategy_names,
+        evidence_tags=evidence_tags,
+        evidence_refs=evidence_refs,
     )
 
 
@@ -931,7 +1051,8 @@ async def ai_draft_day(req: AIDayDraftRequest, user: dict = Depends(require_role
         + '{ "title": str, "description": str, "steps": [str, ...] (2-5 items), '
         + '"estimated_minutes": int (5-25), '
         + '"skill_names": [str, ...] (1-2, copied exactly), '
-        + '"strategy_names": [str, ...] (1-2, copied exactly) }'
+        + '"strategy_names": [str, ...] (1-2, copied exactly), '
+        + '"evidence_tags": [str, ...] (1-3, copied exactly from the controlled vocabulary) }'
     )
 
     raw = await _ai_chat(_system_prompt(skills, strategies), user_text)
@@ -951,15 +1072,21 @@ async def ai_draft_day(req: AIDayDraftRequest, user: dict = Depends(require_role
         minutes = max(5, min(60, minutes))
         sk_names = [str(x).strip() for x in (d.get("skill_names") or []) if str(x).strip()]
         st_names = [str(x).strip() for x in (d.get("strategy_names") or []) if str(x).strip()]
+        sk_ids = _match_ids(sk_names, skills)
+        st_ids = _match_ids(st_names, strategies)
+        ev_tags = [str(x).strip() for x in (d.get("evidence_tags") or []) if str(x).strip()]
+        ev_refs = await _resolve_evidence_for_mission(sk_ids, st_ids, ev_tags)
         out.append(AIDraftedMission(
             title=title,
             description=(d.get("description") or "").strip(),
             steps=steps,
             estimated_minutes=minutes,
-            skill_ids=_match_ids(sk_names, skills),
-            strategy_ids=_match_ids(st_names, strategies),
+            skill_ids=sk_ids,
+            strategy_ids=st_ids,
             skill_names=sk_names,
             strategy_names=st_names,
+            evidence_tags=ev_tags,
+            evidence_refs=ev_refs,
         ))
     return out
 
@@ -1050,7 +1177,19 @@ class Moment(BaseModel):
 
 @api.get("/moments/catalog")
 async def moments_catalog(user: dict = Depends(get_current_user)):
-    return MOMENT_CATALOG
+    keys = await _citation_id_lookup()
+    # Hydrate each catalog entry with evidence_refs
+    out = {
+        "moment_types": [],
+        "triggers": [],
+    }
+    for t in MOMENT_CATALOG["moment_types"]:
+        refs = [keys[k] for k in MOMENT_TYPE_EVIDENCE.get(t["key"], []) if k in keys]
+        out["moment_types"].append({**t, "evidence_refs": refs})
+    for t in MOMENT_CATALOG["triggers"]:
+        refs = [keys[k] for k in TRIGGER_EVIDENCE.get(t["key"], []) if k in keys]
+        out["triggers"].append({**t, "evidence_refs": refs})
+    return out
 
 
 def _student_id_for(user: dict, supplied: Optional[str]) -> str:
@@ -1507,20 +1646,66 @@ async def on_startup():
     await db.users.create_index("email", unique=True)
     await db.missions.create_index([("student_id", 1), ("due_date", 1)])
     await db.mission_logs.create_index([("student_id", 1), ("timestamp", -1)])
+    await db.citations.create_index("key", unique=True)
+
+    # Seed citations (idempotent by `key`)
+    citation_key_to_id: dict = {}
+    for c in CITATIONS:
+        existing = await db.citations.find_one({"key": c["key"]}, {"_id": 0, "id": 1})
+        if existing:
+            citation_key_to_id[c["key"]] = existing["id"]
+            # Idempotent update of mutable fields
+            await db.citations.update_one(
+                {"key": c["key"]},
+                {"$set": {k: v for k, v in c.items() if k != "key"}},
+            )
+        else:
+            cid = str(uuid.uuid4())
+            doc = {"id": cid, **c}
+            await db.citations.insert_one(doc)
+            citation_key_to_id[c["key"]] = cid
+
+    def _ev_for(name: str, mapping: dict) -> List[str]:
+        return [citation_key_to_id[k] for k in mapping.get(name, []) if k in citation_key_to_id]
 
     # Seed skills/strategies
     if await db.skills.count_documents({}) == 0:
         for s in DEFAULT_SKILLS:
-            await db.skills.insert_one({"id": str(uuid.uuid4()), **s})
+            await db.skills.insert_one({
+                "id": str(uuid.uuid4()),
+                **s,
+                "evidence_refs": _ev_for(s["name"], SKILL_EVIDENCE),
+            })
+    else:
+        # Patch any skill missing evidence_refs (covers existing DBs)
+        for s in DEFAULT_SKILLS:
+            await db.skills.update_one(
+                {"name": s["name"]},
+                {"$set": {"evidence_refs": _ev_for(s["name"], SKILL_EVIDENCE)}},
+            )
+
     if await db.strategies.count_documents({}) == 0:
         for s in DEFAULT_STRATEGIES:
-            await db.strategies.insert_one({"id": str(uuid.uuid4()), **s})
+            await db.strategies.insert_one({
+                "id": str(uuid.uuid4()),
+                **s,
+                "evidence_refs": _ev_for(s["name"], STRATEGY_EVIDENCE),
+            })
     else:
         # Upsert any new strategies added after initial seed (idempotent by name)
         existing = {s["name"] for s in await db.strategies.find({}, {"_id": 0, "name": 1}).to_list(1000)}
         for s in DEFAULT_STRATEGIES:
             if s["name"] not in existing:
-                await db.strategies.insert_one({"id": str(uuid.uuid4()), **s})
+                await db.strategies.insert_one({
+                    "id": str(uuid.uuid4()),
+                    **s,
+                    "evidence_refs": _ev_for(s["name"], STRATEGY_EVIDENCE),
+                })
+            else:
+                await db.strategies.update_one(
+                    {"name": s["name"]},
+                    {"$set": {"evidence_refs": _ev_for(s["name"], STRATEGY_EVIDENCE)}},
+                )
 
     # Seed demo accounts
     parent_email = os.environ.get("DEMO_PARENT_EMAIL", "parent@demo.com").lower()

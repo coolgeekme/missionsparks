@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import EvidenceBadge from "../components/EvidenceBadge";
 import { api, formatApiErrorDetail } from "../lib/api";
 import {
     Plus, ClipboardList, Users, Pencil, Trash2, UserPlus, Clock,
-    Sparkles, Save, Loader2, Wand2, X, Flame, Activity,
+    Sparkles, Save, Loader2, Wand2, X, Flame, Activity, BookOpen,
 } from "lucide-react";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -200,6 +201,9 @@ export default function ParentDashboard() {
                         <p className="text-[#4A5568] font-semibold mt-2">Build small, doable wins for your learner.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
+                        <Link to="/parent/research" className="btn-pop-ghost flex items-center gap-2" data-testid="parent-go-research">
+                            <BookOpen size={16} /> Research
+                        </Link>
                         <Link to="/parent/moments" className="btn-pop-ghost flex items-center gap-2" data-testid="parent-go-moments">
                             <Activity size={16} /> Moments
                         </Link>
@@ -405,14 +409,31 @@ export default function ParentDashboard() {
                                         <ol className="text-sm text-[#0B132B] font-semibold mt-2 space-y-1 list-decimal pl-5">
                                             {d.steps.map((s, j) => <li key={j}>{s}</li>)}
                                         </ol>
-                                        <div className="flex flex-wrap gap-1.5 mt-3">
+                                        <div className="flex flex-wrap gap-1.5 mt-3 items-center">
                                             {d.skill_ids.map((sid) => skillMap[sid] && (
-                                                <span key={sid} className="mb-chip bg-[#4361EE]/10 text-[#4361EE] text-xs py-0.5 px-2">{skillMap[sid].name}</span>
+                                                <span key={sid} className="mb-chip bg-[#4361EE]/10 text-[#4361EE] text-xs py-0.5 px-2 inline-flex items-center gap-1">
+                                                    {skillMap[sid].name}
+                                                    <EvidenceBadge citationIds={skillMap[sid].evidence_refs} tone="indigo" size={10} testId={`ai-skill-evidence-${i}-${sid}`} />
+                                                </span>
                                             ))}
                                             {d.strategy_ids.map((sid) => stratMap[sid] && (
-                                                <span key={sid} className="mb-chip bg-[#FFD166]/40 text-[#876200] text-xs py-0.5 px-2">{stratMap[sid].emoji} {stratMap[sid].name}</span>
+                                                <span key={sid} className="mb-chip bg-[#FFD166]/40 text-[#876200] text-xs py-0.5 px-2 inline-flex items-center gap-1">
+                                                    {stratMap[sid].emoji} {stratMap[sid].name}
+                                                    <EvidenceBadge citationIds={stratMap[sid].evidence_refs} size={10} testId={`ai-strat-evidence-${i}-${sid}`} />
+                                                </span>
                                             ))}
                                         </div>
+                                        {d.evidence_refs && d.evidence_refs.length > 0 && (
+                                            <div className="mt-3 pt-3 border-t border-[#E2E8F0] flex items-center gap-2" data-testid={`ai-draft-evidence-${i}`}>
+                                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#4A5568]">Backed by</span>
+                                                <EvidenceBadge citationIds={d.evidence_refs} label="Research supporting this mission" testId={`ai-draft-evidence-badge-${i}`} />
+                                                {d.evidence_tags && d.evidence_tags.length > 0 && (
+                                                    <span className="text-[10px] font-bold text-[#4A5568]">
+                                                        {d.evidence_tags.map((t) => t.replaceAll("_", " ")).join(" · ")}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                         <button
                                             onClick={() => saveDraft(i)}
                                             disabled={savedIdx[i] || savingIdx === i}
@@ -462,10 +483,16 @@ export default function ParentDashboard() {
                                     </div>
                                     <div className="flex flex-wrap gap-2">
                                         {m.skill_ids.map((sid) => skillMap[sid] && (
-                                            <span key={sid} className="mb-chip bg-[#4361EE]/10 text-[#4361EE]">{skillMap[sid].name}</span>
+                                            <span key={sid} className="mb-chip bg-[#4361EE]/10 text-[#4361EE] inline-flex items-center gap-1">
+                                                {skillMap[sid].name}
+                                                <EvidenceBadge citationIds={skillMap[sid].evidence_refs} tone="indigo" size={11} testId={`mission-skill-evidence-${m.id}-${sid}`} />
+                                            </span>
                                         ))}
                                         {m.strategy_ids.map((sid) => stratMap[sid] && (
-                                            <span key={sid} className="mb-chip bg-[#FFD166]/30 text-[#876200]">{stratMap[sid].emoji} {stratMap[sid].name}</span>
+                                            <span key={sid} className="mb-chip bg-[#FFD166]/30 text-[#876200] inline-flex items-center gap-1">
+                                                {stratMap[sid].emoji} {stratMap[sid].name}
+                                                <EvidenceBadge citationIds={stratMap[sid].evidence_refs} size={11} testId={`mission-strat-evidence-${m.id}-${sid}`} />
+                                            </span>
                                         ))}
                                     </div>
                                 </article>

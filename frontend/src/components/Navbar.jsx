@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Rocket, LogOut, Settings } from "lucide-react";
+import { Rocket, LogOut, Settings, BookOpen } from "lucide-react";
 
 export default function Navbar() {
     const { user, logout } = useAuth();
@@ -25,6 +25,11 @@ export default function Navbar() {
                         <span className="hidden sm:inline text-sm font-bold text-[#4A5568]" data-testid="nav-user-name">
                             {user.name} · {user.role === "parent" ? "Parent" : "Student"}
                         </span>
+                        {user.role === "parent" && (
+                            <Link to="/parent/research" className="btn-pop-ghost flex items-center gap-2" data-testid="nav-research">
+                                <BookOpen size={16} /> Research
+                            </Link>
+                        )}
                         <Link to="/account" className="btn-pop-ghost flex items-center gap-2" data-testid="nav-settings">
                             <Settings size={16} /> Settings
                         </Link>
