@@ -644,7 +644,8 @@ class StreakResponse(BaseModel):
     completed_today_count: int
     missions_today_count: int
     last_completed_date: Optional[str] = None
-    week: List[dict] = []  # [{date: 'YYYY-MM-DD', completed: bool, is_today: bool}, ... 7 days ending today]
+    week: List[dict] = []
+    freeze_used_in_run: bool = False  # "kind day off" applied to keep current streak alive
 
 
 def _date_from_iso(ts: str) -> str:
@@ -680,13 +681,25 @@ async def _compute_streak(student_id: str) -> StreakResponse:
         longest = max(longest, cur)
         prev = dt
 
-    # current streak — count consecutive days ending today or yesterday
+    # current streak — count consecutive days ending today or yesterday, forgiving ONE missed day
+    # per run (the "kind day off"). This avoids shame when an ADHD-leaning kid misses a single day.
     date_set = set(completed_dates)
     current = 0
+    freeze_total = 1
+    freeze_used_in_run = False
     anchor = today if today_iso in date_set else (today - timedelta(days=1))
-    while anchor.isoformat() in date_set:
-        current += 1
-        anchor = anchor - timedelta(days=1)
+    cursor = anchor
+    while True:
+        if cursor.isoformat() in date_set:
+            current += 1
+            cursor = cursor - timedelta(days=1)
+        else:
+            if freeze_total > 0 and current > 0:
+                freeze_total -= 1
+                freeze_used_in_run = True
+                cursor = cursor - timedelta(days=1)
+            else:
+                break
 
     # today's mission counts
     todays_missions = await db.missions.count_documents({"student_id": student_id, "due_date": today_iso})
@@ -716,6 +729,7 @@ async def _compute_streak(student_id: str) -> StreakResponse:
         missions_today_count=todays_missions,
         last_completed_date=(completed_dates[-1] if completed_dates else None),
         week=week,
+        freeze_used_in_run=freeze_used_in_run,
     )
 
 
