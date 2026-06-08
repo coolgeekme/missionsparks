@@ -66,6 +66,17 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Discard-audio data-minimization toggle (privacy-by-default)
 - Terms-of-service acceptance gate at registration
 
+### Iter 8 — Research-backed evidence library (2026-02)
+- New `Citation` collection with 31 curated peer-reviewed papers, CDC/AAP/NIMH/CHADD guidance, and reading-research guidelines.
+- `/api/citations` + `/api/citations/{id}` (read-only, auth-gated) and `/api/games/catalog` with evidence_refs per game.
+- `evidence_refs` added to Skills, Strategies, Moment types, Triggers, Games, and AI-drafted missions.
+- AI mission drafting prompt now requires `evidence_tags` from a controlled vocabulary; backend resolves tags → citation ids. Transitive citations also collected from chosen skills/strategies.
+- New parent-only Research page (`/parent/research`) with search, source-type filter (peer-reviewed / org / guideline), and topic tag filter.
+- `<EvidenceBadge>` popover component surfaces citations next to every clinical chip in Parent Dashboard, Mission Form, and Moments tracker.
+- Privacy: evidence badges are **not** shown to the student role (parent/therapist surface only).
+- 14 new pytest cases (`test_research.py`) — all passing.
+- E2E (testing agent iter8): 100% pass on all 8 acceptance criteria.
+
 ### Still open
 - ⚠️ **Sign BAAs with OpenAI (Whisper) + Anthropic (Claude) + MongoDB Atlas dedicated** before any therapist or clinical-track sale.
 - Legal review of Privacy Policy + Terms by a privacy attorney (drafts are templates).
@@ -73,7 +84,8 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Per-student data export (zip with CSV + JSON + audio clips) on demand.
 - FERPA-aware "school mode" if schools adopt.
 - GDPR/UK-GDPR readiness if EU/UK users.
-- Refactor server.py (~1700 lines) into `routers/` modules.
+- Refactor server.py (~1800 lines) into `routers/` modules — increasingly urgent after iter8.
+- App rename from "MissionBoard" (Quest-themed shortlist proposed; deferred per user).
 
 ## Roadmap (deferred)
 **V1.1**: daily/weekly reflection journal separate from per-mission log; parent encouragement notes on logs; confidence trend graph.
