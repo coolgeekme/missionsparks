@@ -1,0 +1,52 @@
+{
+  "summary": "Tested Family Games System (Feature A) — both backend (17/17 pytest pass) and frontend Playwright flows (parent + student). Backend endpoints, validation, role-based visibility, approve/reject, and delete rules all behave per spec. Frontend nav, catalog, parent pack editor (create + edit), pending tab (approve/reject), student studio (locked + unlocked), kid-submit, and play-with-packId all work. Found one UX bug: kid's just-submitted pending pack does not appear under 'Your packs' in Kid Studio (Waiting chip never shows) because the backend list endpoint filters students to status=approved.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/game-packs (student role)",
+        "issue": "Filter restricts to status='approved' for ALL packs including the student's own. Spec says creator-kid should see their pending pack with a 'Waiting' chip — currently the pack disappears from KidStudio 'Your packs' until parent approves. Recommend allowing {created_by_user_id == user.id} regardless of status (kid sees own pending/rejected) while still hiding sibling non-approved."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "KidStudio 'Your packs' list",
+        "issue": "Pending pack just submitted by the kid does not appear in 'Your packs', so the 'Waiting' chip flow described in the spec is unobservable. Toast 'Pack sent to your grown-up for a thumbs-up!' does fire, and the pack does land in the parent's Pending tab — so the data is saved correctly; only the kid-side list is missing it.",
+        "selector": "[data-testid=studio-packs-list]",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_family_games.py",
+    "/app/test_reports/pytest/iter14_family_games.xml"
+  ],
+  "action_items": [
+    "Allow student GET /api/game-packs to also return the student's OWN packs in pending/rejected status (currently only approved are returned). Keep sibling visibility restricted to approved. This will make KidStudio 'Your packs' show the just-submitted pack with a 'Waiting' chip, matching the spec.",
+    "Optional: doc-align — the test-id list in the review mentions 'sentence-input-{i}' as a Kid Studio testid, but KidStudio.jsx actually uses 'kid-sent-{i}' (and 'kid-pair-word/meaning-{i}', 'kid-mem-{i}'). Either fine, but update the testid list to avoid confusion for future testers."
+  ],
+  "critical_code_review_comments": [
+    "server.py list_game_packs: students cannot see their own non-approved packs — breaks the 'Waiting' UX contract.",
+    "server.py _validate_pack_content for memory_cards truncates items at 8 chars (`[:8]`). Long emoji or accented chars could be split; consider using grapheme-aware length or character count instead of byte slice if multi-codepoint emojis are expected.",
+    "server.py `get_game_pack` returns 403 for a student fetching their OWN pending pack (status != 'approved' short-circuits before owner check). If KidStudio ever wants to deep-link to a pending pack for the creator, this will block it.",
+    "GamePack.creator_name is freely stored from user.name without sanitization; minor XSS surface if rendered without escaping (React escapes by default — OK, but worth a note).",
+    "Front-end ParentPackEditor uses /games redirect with `replace` — good. No loading skeleton on initial fetch; minor UX nit."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_family_games.py (NEW)"
+  ],
+  "success_rate": {
+    "backend": "100% (17/17 pytest)",
+    "frontend": "~95% (one UX bug; all other flows pass)"
+  },
+  "test_credentials": "parent@demo.com / demo1234, student@demo.com / demo1234 (Enzo)",
+  "seed_data_creation": "Created multiple TEST_ prefixed packs during runs; all cleaned up at end of UI test. Threshold restored to 7 at end of test. Pre-existing 'Animals' (Word Match) and 'My pack' (Sentence Builder, approved) packs from prior smoke test were preserved.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend pytest is in /app/backend/tests/test_family_games.py and is fully self-contained (creates+cleans up). It mutates the demo student's game_studio_unlock_streak during the locked/unlocked test and restores to 7 at the end. If the parent-side list test fails with 'approved not in statuses', another test may have already cleaned up packs — re-run the suite from scratch. The frontend bug requires backend change to truly fix.",
+  "rca of the issue": "BUG: KidStudio 'Your packs' missing Waiting chip after kid submits a pack. ROOT CAUSE: server.py GET /api/game-packs filters {status: 'approved'} unconditionally for students, so the kid's own pending pack is excluded. REPRODUCTION: (1) login parent, set student threshold to 1 via PUT /api/students/{id}/intake, (2) login student@demo.com, go to /student/studio, (3) tap 'New pack', create any pack, submit -> toast appears but 'Your packs' below remains empty/unchanged. FIX: change the student branch of list_game_packs to OR-in {created_by_user_id == user.id} without the approved gate (or split into two queries: own packs any status + sibling/parent packs approved-only)."
+}

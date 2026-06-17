@@ -7,7 +7,7 @@ import { api, formatApiErrorDetail } from "../lib/api";
 import {
     Plus, ClipboardList, Users, Pencil, Trash2, UserPlus, Clock,
     Sparkles, Save, Loader2, Wand2, X, Zap, Activity, BookOpen,
-    HelpCircle, Copy, Repeat,
+    HelpCircle, Copy, Repeat, Gamepad2,
 } from "lucide-react";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -236,6 +236,9 @@ export default function ParentDashboard() {
                     <div className="flex flex-wrap items-center gap-3">
                         <Link to="/parent/research" className="btn-pop-ghost flex items-center gap-2" data-testid="parent-go-research">
                             <BookOpen size={16} /> Research
+                        </Link>
+                        <Link to="/games" className="btn-pop-ghost flex items-center gap-2" data-testid="parent-go-games">
+                            <Gamepad2 size={16} /> Games
                         </Link>
                         <Link to="/parent/moments" className="btn-pop-ghost flex items-center gap-2" data-testid="parent-go-moments">
                             <Activity size={16} /> Moments

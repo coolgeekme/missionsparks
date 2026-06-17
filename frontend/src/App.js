@@ -11,6 +11,9 @@ import StudentDashboard from "./pages/StudentDashboard";
 import MissionDetail from "./pages/MissionDetail";
 import GamePicker from "./pages/GamePicker";
 import GamePlay from "./pages/GamePlay";
+import GameCatalog from "./pages/GameCatalog";
+import ParentPackEditor from "./pages/ParentPackEditor";
+import KidStudio from "./pages/KidStudio";
 import MomentsTracker from "./pages/MomentsTracker";
 import MomentsInsights from "./pages/MomentsInsights";
 import StudentCheckIn from "./pages/StudentCheckIn";
@@ -48,152 +51,31 @@ export default function App() {
                         <Route path="/sub-processors" element={<SubProcessors />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />
-                        <Route
-                            path="/parent"
-                            element={
-                                <ProtectedRoute role="parent">
-                                    <ParentDashboard />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/parent/missions/new"
-                            element={
-                                <ProtectedRoute role="parent">
-                                    <MissionForm />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/parent/missions/:id/edit"
-                            element={
-                                <ProtectedRoute role="parent">
-                                    <MissionForm />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/parent/logs"
-                            element={
-                                <ProtectedRoute role="parent">
-                                    <ParentLogs />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/parent/students/:studentId/intake"
-                            element={
-                                <ProtectedRoute role="parent">
-                                    <StudentIntake />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/student"
-                            element={
-                                <ProtectedRoute role="student">
-                                    <StudentDashboard />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/student/missions/:id"
-                            element={
-                                <ProtectedRoute role="student">
-                                    <MissionDetail />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/student/play/:logId"
-                            element={
-                                <ProtectedRoute role="student">
-                                    <GamePicker />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/student/play/:logId/:gameKey"
-                            element={
-                                <ProtectedRoute role="student">
-                                    <GamePlay />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/parent/moments"
-                            element={
-                                <ProtectedRoute role="parent">
-                                    <MomentsTracker />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/parent/moments/insights"
-                            element={
-                                <ProtectedRoute role="parent">
-                                    <MomentsInsights />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/student/checkin"
-                            element={
-                                <ProtectedRoute role="student">
-                                    <StudentCheckIn />
-                                </ProtectedRoute>
-                            }
-                        />
+                        <Route path="/parent" element={<ProtectedRoute role="parent"><ParentDashboard /></ProtectedRoute>} />
+                        <Route path="/parent/missions/new" element={<ProtectedRoute role="parent"><MissionForm /></ProtectedRoute>} />
+                        <Route path="/parent/missions/:id/edit" element={<ProtectedRoute role="parent"><MissionForm /></ProtectedRoute>} />
+                        <Route path="/parent/logs" element={<ProtectedRoute role="parent"><ParentLogs /></ProtectedRoute>} />
+                        <Route path="/parent/students/:studentId/intake" element={<ProtectedRoute role="parent"><StudentIntake /></ProtectedRoute>} />
+                        <Route path="/parent/games/new" element={<ProtectedRoute role="parent"><ParentPackEditor mode="create" /></ProtectedRoute>} />
+                        <Route path="/parent/games/:id/edit" element={<ProtectedRoute role="parent"><ParentPackEditor mode="edit" /></ProtectedRoute>} />
+                        <Route path="/games" element={<ProtectedRoute><GameCatalog /></ProtectedRoute>} />
+                        <Route path="/student/studio" element={<ProtectedRoute role="student"><KidStudio /></ProtectedRoute>} />
+                        <Route path="/play/:logId/:gameKey" element={<ProtectedRoute><GamePlay /></ProtectedRoute>} />
+                        <Route path="/student" element={<ProtectedRoute role="student"><StudentDashboard /></ProtectedRoute>} />
+                        <Route path="/student/missions/:id" element={<ProtectedRoute role="student"><MissionDetail /></ProtectedRoute>} />
+                        <Route path="/student/play/:logId" element={<ProtectedRoute role="student"><GamePicker /></ProtectedRoute>} />
+                        <Route path="/student/play/:logId/:gameKey" element={<ProtectedRoute role="student"><GamePlay /></ProtectedRoute>} />
+                        <Route path="/parent/moments" element={<ProtectedRoute role="parent"><MomentsTracker /></ProtectedRoute>} />
+                        <Route path="/parent/moments/insights" element={<ProtectedRoute role="parent"><MomentsInsights /></ProtectedRoute>} />
+                        <Route path="/student/checkin" element={<ProtectedRoute role="student"><StudentCheckIn /></ProtectedRoute>} />
                         <Route path="/privacy" element={<Privacy />} />
                         <Route path="/terms" element={<Terms />} />
-                        <Route
-                            path="/account"
-                            element={
-                                <ProtectedRoute>
-                                    <Account />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/parent/audit"
-                            element={
-                                <ProtectedRoute role="parent">
-                                    <AuditLog />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/parent/research"
-                            element={
-                                <ProtectedRoute role="parent">
-                                    <Research />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/parent/students/:studentId/portfolio"
-                            element={
-                                <ProtectedRoute role="parent">
-                                    <Portfolio />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/student/practice/reading/:passageId"
-                            element={
-                                <ProtectedRoute>
-                                    <ReadingPractice />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/student/practice/writing/:pieceId"
-                            element={
-                                <ProtectedRoute>
-                                    <WritingPractice />
-                                </ProtectedRoute>
-                            }
-                        />
+                        <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
+                        <Route path="/parent/audit" element={<ProtectedRoute role="parent"><AuditLog /></ProtectedRoute>} />
+                        <Route path="/parent/research" element={<ProtectedRoute role="parent"><Research /></ProtectedRoute>} />
+                        <Route path="/parent/students/:studentId/portfolio" element={<ProtectedRoute role="parent"><Portfolio /></ProtectedRoute>} />
+                        <Route path="/student/practice/reading/:passageId" element={<ProtectedRoute><ReadingPractice /></ProtectedRoute>} />
+                        <Route path="/student/practice/writing/:pieceId" element={<ProtectedRoute><WritingPractice /></ProtectedRoute>} />
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                     <Toaster />

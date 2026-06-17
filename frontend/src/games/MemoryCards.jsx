@@ -1,10 +1,14 @@
 import { useMemo, useState, useEffect } from "react";
 
-const EMOJIS = ["🚀", "🦊", "🌈", "🐢", "⭐", "🍀"];
+const DEFAULT_EMOJIS = ["🚀", "🦊", "🌈", "🐢", "⭐", "🍀"];
 const shuffle = (arr) => arr.map((v) => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
 
-export default function MemoryCards({ onComplete }) {
-    const initial = useMemo(() => shuffle([...EMOJIS, ...EMOJIS]).map((e, i) => ({ id: i, emoji: e })), []);
+export default function MemoryCards({ onComplete, content }) {
+    const EMOJIS = useMemo(
+        () => (content?.items?.length ? content.items.slice(0, 8) : DEFAULT_EMOJIS),
+        [content],
+    );
+    const initial = useMemo(() => shuffle([...EMOJIS, ...EMOJIS]).map((e, i) => ({ id: i, emoji: e })), [EMOJIS]);
     const [revealed, setRevealed] = useState({}); // id -> true
     const [matched, setMatched] = useState({}); // id -> true
     const [pair, setPair] = useState([]); // [id, id]

@@ -73,9 +73,12 @@ export default function StudentDashboard() {
                             </div>
                             <span className="text-sm font-bold text-[#4A5568]" data-testid="student-progress-label">{completed}/{total}</span>
                         </div>
-                        <div className="mt-4">
+                        <div className="mt-4 flex flex-wrap items-center gap-2">
                             <Link to="/student/checkin" className="btn-pop-secondary inline-flex items-center gap-2 text-sm py-2" data-testid="student-checkin-btn">
                                 <Heart size={14} /> How am I feeling?
+                            </Link>
+                            <Link to="/games" className="btn-pop-ghost inline-flex items-center gap-2 text-sm py-2" data-testid="student-games-btn">
+                                <Sparkles size={14} /> Mini-games
                             </Link>
                         </div>
                     </div>

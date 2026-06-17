@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-const PAIRS = [
+const DEFAULT_PAIRS = [
     { word: "Brave", meaning: "Ready to face something scary" },
     { word: "Curious", meaning: "Wanting to learn or know more" },
     { word: "Sturdy", meaning: "Strong and not easy to break" },
@@ -11,12 +11,16 @@ const PAIRS = [
 
 const shuffle = (arr) => arr.map((v) => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
 
-export default function WordMatch({ onComplete }) {
+export default function WordMatch({ onComplete, content }) {
+    const PAIRS = useMemo(
+        () => (content?.pairs?.length ? content.pairs.slice(0, 12) : DEFAULT_PAIRS),
+        [content],
+    );
     const initial = useMemo(() => ({
         words: shuffle(PAIRS.map((p) => p.word)),
         meanings: shuffle(PAIRS.map((p) => p.meaning)),
         lookup: Object.fromEntries(PAIRS.map((p) => [p.word, p.meaning])),
-    }), []);
+    }), [PAIRS]);
     const [pickedWord, setPickedWord] = useState(null);
     const [pickedMeaning, setPickedMeaning] = useState(null);
     const [matched, setMatched] = useState({}); // word -> true

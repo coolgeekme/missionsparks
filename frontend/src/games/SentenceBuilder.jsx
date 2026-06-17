@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-const PUZZLES = [
+const DEFAULT_PUZZLES = [
     "The brave dragon flew over the mountain",
     "Roz watched the tiny bird build a nest",
     "We can solve hard problems one step at a time",
@@ -8,13 +8,17 @@ const PUZZLES = [
 
 const shuffle = (arr) => arr.map((v) => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
 
-export default function SentenceBuilder({ onComplete }) {
+export default function SentenceBuilder({ onComplete, content }) {
+    const PUZZLES = useMemo(
+        () => (content?.sentences?.length ? content.sentences.slice(0, 5) : DEFAULT_PUZZLES),
+        [content],
+    );
     const puzzles = useMemo(
         () => PUZZLES.map((s) => ({
             target: s.split(" "),
             bank: shuffle(s.split(" ").map((w, i) => ({ w, id: i }))),
         })),
-        [],
+        [PUZZLES],
     );
     const [idx, setIdx] = useState(0);
     const [placed, setPlaced] = useState([]); // array of ids in order

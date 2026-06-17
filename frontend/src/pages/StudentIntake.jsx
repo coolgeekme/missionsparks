@@ -23,6 +23,7 @@ const EMPTY_PROFILE = {
     vanderbilt_taken_at: null,
     interview_summary: null, interview_completed_at: null,
     parent_notes: null,
+    game_studio_unlock_streak: 7,
 };
 
 const STEPS = [
@@ -380,6 +381,21 @@ function PeakStep({ profile, setProfile }) {
                 </div>
             </Field>
             <ChipMulti field="motivators" label="What encouragement actually works?" suggestions={SUGGESTED_MOTIVATORS} profile={profile} setProfile={setProfile} testId="intake-motivators" />
+            <Field label="Kid Studio: unlock at how many days of spark streak?">
+                <p className="text-xs font-semibold text-[#4A5568] mb-2">
+                    Your kid can build their own mini-game packs (Word Match, Memory Cards, Sentence Builder) once they hit this streak. You'll still review every pack before siblings can play it.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                    {[3, 5, 7, 10, 14, 21].map((n) => (
+                        <button
+                            key={n}
+                            onClick={() => setProfile({ ...profile, game_studio_unlock_streak: n })}
+                            className={`mb-chip border-2 ${(profile.game_studio_unlock_streak ?? 7) === n ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white text-[#0B132B] border-[#E2E8F0]"}`}
+                            data-testid={`intake-studio-${n}`}
+                        >{n} days</button>
+                    ))}
+                </div>
+            </Field>
             <Field label="Anything else worth knowing? (free notes)">
                 <textarea
                     className="mb-input min-h-[100px]"

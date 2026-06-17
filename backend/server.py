@@ -257,6 +257,7 @@ class PracticeMissionRequest(BaseModel):
     estimated_minutes: int = 15
 
 
+# ---------- Mission Log ----------
 class MissionLogCreate(BaseModel):
     status: Literal["not_started", "in_progress", "completed", "skipped"]
     used_strategies: bool = False
@@ -329,6 +330,10 @@ class StudentProfile(BaseModel):
 
     # Free notes
     parent_notes: Optional[str] = None
+
+    # Kid Studio unlock: minimum current-streak (Sparks) the kid must have to
+    # unlock game-pack authoring. Default 7 days.
+    game_studio_unlock_streak: int = 7
 
     updated_at: Optional[str] = None
 
@@ -1414,6 +1419,363 @@ async def get_student_streak(student_id: str, user: dict = Depends(get_current_u
     else:
         await _assert_parent_owns_student(user, student_id)
     return await _compute_streak(student_id)
+
+
+# ---------- Family Games: custom game packs ----------
+GAME_PACK_TYPES = ("word_match", "memory_cards", "sentence_builder")
+GAME_PACK_TYPE_LABEL = {
+    "word_match": "Word Match",
+    "memory_cards": "Memory Cards",
+    "sentence_builder": "Sentence Builder",
+}
+
+
+class GamePackCreate(BaseModel):
+    """Parent or kid pack submission."""
+    name: str
+    game_type: Literal["word_match", "memory_cards", "sentence_builder"]
+    content: dict
+    # Parent-only: who this pack should be visible to once approved. Empty = all linked students.
+    share_with_student_ids: List[str] = []
+    # Kid-only: optional sibling list to share with (parent can edit on approval).
+    requested_share_with_student_ids: List[str] = []
+
+
+class GamePackApprove(BaseModel):
+    share_with_student_ids: Optional[List[str]] = None
+
+
+class GamePackReject(BaseModel):
+    reason: Optional[str] = None
+
+
+class GamePack(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    id: str
+    name: str
+    game_type: str
+    content: dict
+    created_by_user_id: str
+    created_by_role: Role
+    creator_name: Optional[str] = None
+    student_id: Optional[str] = None  # owner-student if pack was created by a kid
+    family_parent_id: str  # parent who owns the family this pack belongs to
+    status: Literal["pending", "approved", "rejected"]
+    rejection_reason: Optional[str] = None
+    share_with_student_ids: List[str] = []
+    created_at: str
+    reviewed_at: Optional[str] = None
+
+
+def _validate_pack_content(game_type: str, content: dict) -> dict:
+    """Normalize and validate game-pack content. Returns sanitized content
+    or raises 400."""
+    if not isinstance(content, dict):
+        raise HTTPException(status_code=400, detail="content must be an object")
+
+    if game_type == "word_match":
+        pairs = content.get("pairs") or []
+        if not isinstance(pairs, list) or not (4 <= len(pairs) <= 12):
+            raise HTTPException(status_code=400, detail="Word Match needs 4–12 word/meaning pairs.")
+        cleaned = []
+        for p in pairs:
+            if not isinstance(p, dict):
+                raise HTTPException(status_code=400, detail="Each pair must have a word and meaning.")
+            w = str(p.get("word", "")).strip()[:60]
+            m = str(p.get("meaning", "")).strip()[:160]
+            if not w or not m:
+                raise HTTPException(status_code=400, detail="Every pair needs both a word and a meaning.")
+            cleaned.append({"word": w, "meaning": m})
+        return {"pairs": cleaned}
+
+    if game_type == "memory_cards":
+        items = content.get("items") or []
+        if not isinstance(items, list) or not (4 <= len(items) <= 8):
+            raise HTTPException(status_code=400, detail="Memory Cards needs 4–8 unique items.")
+        cleaned = []
+        seen = set()
+        for it in items:
+            s = str(it).strip()[:8]  # emoji or short char
+            if not s:
+                raise HTTPException(status_code=400, detail="Memory item cannot be blank.")
+            if s in seen:
+                raise HTTPException(status_code=400, detail=f"Memory items must be unique. '{s}' is repeated.")
+            seen.add(s)
+            cleaned.append(s)
+        return {"items": cleaned}
+
+    if game_type == "sentence_builder":
+        sentences = content.get("sentences") or []
+        if not isinstance(sentences, list) or not (1 <= len(sentences) <= 5):
+            raise HTTPException(status_code=400, detail="Sentence Builder needs 1–5 sentences.")
+        cleaned = []
+        for s in sentences:
+            t = str(s).strip()
+            words = [w for w in t.split() if w]
+            if not (3 <= len(words) <= 12):
+                raise HTTPException(status_code=400, detail="Each sentence must have 3–12 words.")
+            cleaned.append(" ".join(words))
+        return {"sentences": cleaned}
+
+    raise HTTPException(status_code=400, detail=f"Unsupported game_type: {game_type}")
+
+
+async def _parent_id_of_student(student_id: str) -> Optional[str]:
+    """The first parent linked to this student is treated as the family owner."""
+    parent = await db.users.find_one(
+        {"role": "parent", "linked_student_ids": student_id}, {"_id": 0, "id": 1}
+    )
+    return parent["id"] if parent else None
+
+
+@api.get("/game-packs", response_model=List[GamePack])
+async def list_game_packs(user: dict = Depends(get_current_user)):
+    """Parent: every pack in their family (regardless of status).
+       Student: approved packs created by their parent OR explicitly shared with them
+       (created by themselves or a sibling and approved)."""
+    if user["role"] == "parent":
+        rows = await db.game_packs.find(
+            {"family_parent_id": user["id"]}, {"_id": 0}
+        ).sort("created_at", -1).to_list(500)
+        return rows
+
+    # student
+    parent_id = await _parent_id_of_student(user["id"])
+    if not parent_id:
+        return []
+    rows = await db.game_packs.find(
+        {
+            "family_parent_id": parent_id,
+            "status": "approved",
+            "$or": [
+                {"created_by_user_id": user["id"]},
+                {"share_with_student_ids": user["id"]},
+                # Parent-authored packs without an explicit share-list go to all kids
+                {"created_by_role": "parent", "share_with_student_ids": []},
+            ],
+        },
+        {"_id": 0},
+    ).sort("created_at", -1).to_list(500)
+    return rows
+
+
+@api.get("/game-packs/{pack_id}", response_model=GamePack)
+async def get_game_pack(pack_id: str, user: dict = Depends(get_current_user)):
+    p = await db.game_packs.find_one({"id": pack_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="Pack not found")
+    if user["role"] == "parent":
+        if p["family_parent_id"] != user["id"]:
+            raise HTTPException(status_code=403, detail="Not your family's pack")
+        return p
+    # student: must be approved and visible
+    if p["status"] != "approved":
+        raise HTTPException(status_code=403, detail="Pack not available")
+    parent_id = await _parent_id_of_student(user["id"])
+    if p["family_parent_id"] != parent_id:
+        raise HTTPException(status_code=403, detail="Not your family's pack")
+    visible = (
+        p["created_by_user_id"] == user["id"]
+        or user["id"] in (p.get("share_with_student_ids") or [])
+        or (p["created_by_role"] == "parent" and not (p.get("share_with_student_ids") or []))
+    )
+    if not visible:
+        raise HTTPException(status_code=403, detail="Pack not shared with you")
+    return p
+
+
+@api.post("/game-packs", response_model=GamePack)
+async def create_game_pack_parent(req: GamePackCreate, user: dict = Depends(require_role("parent"))):
+    """Parent-authored pack — instantly approved."""
+    if req.game_type not in GAME_PACK_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported game_type")
+    content = _validate_pack_content(req.game_type, req.content)
+    name = req.name.strip()[:80] or GAME_PACK_TYPE_LABEL[req.game_type]
+    linked = set(user.get("linked_student_ids", []))
+    share = [sid for sid in (req.share_with_student_ids or []) if sid in linked]
+    now = datetime.now(timezone.utc).isoformat()
+    pack = {
+        "id": str(uuid.uuid4()),
+        "name": name,
+        "game_type": req.game_type,
+        "content": content,
+        "created_by_user_id": user["id"],
+        "created_by_role": "parent",
+        "creator_name": user.get("name") or "Parent",
+        "student_id": None,
+        "family_parent_id": user["id"],
+        "status": "approved",
+        "rejection_reason": None,
+        "share_with_student_ids": share,
+        "created_at": now,
+        "reviewed_at": now,
+    }
+    await db.game_packs.insert_one(dict(pack))
+    await _audit(user, "game_pack.create", target_type="game_pack", target_id=pack["id"],
+                 meta={"game_type": req.game_type, "by": "parent"})
+    return pack
+
+
+@api.post("/game-packs/student-submit", response_model=GamePack)
+async def create_game_pack_student(req: GamePackCreate, user: dict = Depends(require_role("student"))):
+    """Kid Studio: child submits a pack; parent must approve before siblings see it."""
+    if req.game_type not in GAME_PACK_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported game_type")
+    parent_id = await _parent_id_of_student(user["id"])
+    if not parent_id:
+        raise HTTPException(status_code=400, detail="You need to be linked to a parent to share games.")
+    # Streak gate
+    streak = await _compute_streak(user["id"])
+    threshold = int(((await db.users.find_one({"id": user["id"]}, {"_id": 0, "student_profile": 1}) or {})
+                     .get("student_profile") or {}).get("game_studio_unlock_streak", 7))
+    if streak.current_streak < threshold:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Kid Studio unlocks at a {threshold}-day spark streak. You're at {streak.current_streak}.",
+        )
+    content = _validate_pack_content(req.game_type, req.content)
+    name = req.name.strip()[:80] or GAME_PACK_TYPE_LABEL[req.game_type]
+    # Requested siblings (parent can rewrite on approval)
+    parent_user = await db.users.find_one({"id": parent_id}, {"_id": 0, "linked_student_ids": 1})
+    siblings = set((parent_user or {}).get("linked_student_ids", [])) - {user["id"]}
+    requested = [sid for sid in (req.requested_share_with_student_ids or []) if sid in siblings]
+    now = datetime.now(timezone.utc).isoformat()
+    pack = {
+        "id": str(uuid.uuid4()),
+        "name": name,
+        "game_type": req.game_type,
+        "content": content,
+        "created_by_user_id": user["id"],
+        "created_by_role": "student",
+        "creator_name": user.get("name") or "Student",
+        "student_id": user["id"],
+        "family_parent_id": parent_id,
+        "status": "pending",
+        "rejection_reason": None,
+        "share_with_student_ids": requested,
+        "created_at": now,
+        "reviewed_at": None,
+    }
+    await db.game_packs.insert_one(dict(pack))
+    await _audit(user, "game_pack.submit", target_type="game_pack", target_id=pack["id"],
+                 meta={"game_type": req.game_type})
+    return pack
+
+
+@api.put("/game-packs/{pack_id}", response_model=GamePack)
+async def update_game_pack(pack_id: str, req: GamePackCreate, user: dict = Depends(require_role("parent"))):
+    """Parent edits a pack they own. Keeps status as-is for approved parent packs;
+    pending packs (kid-authored) cannot be edited via this endpoint."""
+    p = await db.game_packs.find_one({"id": pack_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="Pack not found")
+    if p["family_parent_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your family's pack")
+    if p["created_by_role"] == "student":
+        raise HTTPException(status_code=400, detail="Kid-authored packs can be approved or rejected, not edited.")
+    content = _validate_pack_content(req.game_type, req.content)
+    linked = set(user.get("linked_student_ids", []))
+    share = [sid for sid in (req.share_with_student_ids or []) if sid in linked]
+    updates = {
+        "name": req.name.strip()[:80] or p["name"],
+        "game_type": req.game_type,
+        "content": content,
+        "share_with_student_ids": share,
+    }
+    await db.game_packs.update_one({"id": pack_id}, {"$set": updates})
+    fresh = await db.game_packs.find_one({"id": pack_id}, {"_id": 0})
+    return fresh
+
+
+@api.put("/game-packs/{pack_id}/approve", response_model=GamePack)
+async def approve_game_pack(pack_id: str, req: GamePackApprove,
+                             user: dict = Depends(require_role("parent"))):
+    p = await db.game_packs.find_one({"id": pack_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="Pack not found")
+    if p["family_parent_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your family's pack")
+    if p["status"] == "approved":
+        return p
+    linked = set(user.get("linked_student_ids", []))
+    if req.share_with_student_ids is not None:
+        share = [sid for sid in req.share_with_student_ids if sid in linked]
+    else:
+        share = [sid for sid in (p.get("share_with_student_ids") or []) if sid in linked]
+    now = datetime.now(timezone.utc).isoformat()
+    await db.game_packs.update_one(
+        {"id": pack_id},
+        {"$set": {
+            "status": "approved",
+            "share_with_student_ids": share,
+            "rejection_reason": None,
+            "reviewed_at": now,
+        }},
+    )
+    fresh = await db.game_packs.find_one({"id": pack_id}, {"_id": 0})
+    await _audit(user, "game_pack.approve", target_type="game_pack", target_id=pack_id)
+    return fresh
+
+
+@api.put("/game-packs/{pack_id}/reject", response_model=GamePack)
+async def reject_game_pack(pack_id: str, req: GamePackReject,
+                            user: dict = Depends(require_role("parent"))):
+    p = await db.game_packs.find_one({"id": pack_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="Pack not found")
+    if p["family_parent_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your family's pack")
+    now = datetime.now(timezone.utc).isoformat()
+    reason = (req.reason or "").strip()[:280] or None
+    await db.game_packs.update_one(
+        {"id": pack_id},
+        {"$set": {"status": "rejected", "rejection_reason": reason, "reviewed_at": now}},
+    )
+    fresh = await db.game_packs.find_one({"id": pack_id}, {"_id": 0})
+    await _audit(user, "game_pack.reject", target_type="game_pack", target_id=pack_id,
+                 meta={"reason": reason} if reason else None)
+    return fresh
+
+
+@api.delete("/game-packs/{pack_id}")
+async def delete_game_pack(pack_id: str, user: dict = Depends(get_current_user)):
+    p = await db.game_packs.find_one({"id": pack_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="Pack not found")
+    if user["role"] == "parent":
+        if p["family_parent_id"] != user["id"]:
+            raise HTTPException(status_code=403, detail="Not your family's pack")
+    else:
+        # students can only delete their own pending or rejected packs
+        if p["created_by_user_id"] != user["id"]:
+            raise HTTPException(status_code=403, detail="Not your pack")
+        if p["status"] == "approved":
+            raise HTTPException(status_code=400, detail="Ask a parent to remove an approved pack.")
+    await db.game_packs.delete_one({"id": pack_id})
+    await _audit(user, "game_pack.delete", target_type="game_pack", target_id=pack_id)
+    return {"ok": True}
+
+
+@api.get("/me/studio-status")
+async def my_studio_status(user: dict = Depends(require_role("student"))):
+    """Tells the student whether Kid Studio is unlocked, and the threshold."""
+    streak = await _compute_streak(user["id"])
+    fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "student_profile": 1})
+    threshold = int(((fresh or {}).get("student_profile") or {}).get("game_studio_unlock_streak", 7))
+    parent_id = await _parent_id_of_student(user["id"])
+    siblings: List[dict] = []
+    if parent_id:
+        parent = await db.users.find_one({"id": parent_id}, {"_id": 0, "linked_student_ids": 1})
+        sib_ids = [sid for sid in (parent or {}).get("linked_student_ids", []) if sid != user["id"]]
+        if sib_ids:
+            rows = await db.users.find({"id": {"$in": sib_ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(20)
+            siblings = rows
+    return {
+        "current_streak": streak.current_streak,
+        "unlock_threshold": threshold,
+        "unlocked": streak.current_streak >= threshold,
+        "siblings": siblings,
+    }
 
 
 # ---------- AI Mission Drafting ----------
