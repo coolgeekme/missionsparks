@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
+import { toast } from "sonner";
 import Navbar from "../components/Navbar";
 import EvidenceBadge from "../components/EvidenceBadge";
 import { api, formatApiErrorDetail } from "../lib/api";
@@ -97,11 +98,23 @@ export default function MissionForm() {
             if (editing) {
                 const { student_id, ...editRest } = payload; // eslint-disable-line no-unused-vars
                 await api.put(`/missions/${id}`, editRest);
+                toast.success("Mission updated.");
             } else {
                 if (recurrence_pattern && recurrence_pattern !== "none") {
                     payload.recurrence = { pattern: recurrence_pattern };
                 }
                 await api.post("/missions", payload);
+                if (recurrence_pattern && recurrence_pattern !== "none") {
+                    const labelMap = {
+                        daily: "every day",
+                        weekdays: "weekdays (Mon–Fri)",
+                        weekends: "weekends (Sat–Sun)",
+                        weekly: "weekly",
+                    };
+                    toast.success(`Recurring mission created for the next 30 days · ${labelMap[recurrence_pattern]}`);
+                } else {
+                    toast.success("Mission created.");
+                }
             }
             navigate("/parent");
         } catch (e2) {

@@ -927,11 +927,17 @@ def _recurrence_dates(start_iso: str, pattern: str, end_iso: Optional[str]) -> L
     """Return all dates after `start_iso` (exclusive) up through `end_iso`
     that match the given recurrence pattern. Defaults to a 30-day window."""
     from datetime import date, timedelta
-    start = date.fromisoformat(start_iso)
+    # Normalize to YYYY-MM-DD so callers can pass a date or a datetime ISO.
+    start_str = (start_iso or "").split("T")[0][:10]
+    try:
+        start = date.fromisoformat(start_str)
+    except ValueError:
+        return []
     if end_iso:
+        end_str = (end_iso or "").split("T")[0][:10]
         try:
-            end = date.fromisoformat(end_iso)
-        except Exception:
+            end = date.fromisoformat(end_str)
+        except ValueError:
             end = start + timedelta(days=30)
     else:
         end = start + timedelta(days=30)
