@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Zap, ArrowLeft } from "lucide-react";
 
@@ -10,6 +10,8 @@ export default function Login() {
     const [err, setErr] = useState("");
     const [busy, setBusy] = useState(false);
     const navigate = useNavigate();
+    const [params] = useSearchParams();
+    const redirect = params.get("redirect");
 
     const submit = async (e) => {
         e.preventDefault();
@@ -17,7 +19,8 @@ export default function Login() {
         setBusy(true);
         try {
             const u = await login(email, password);
-            navigate(u.role === "parent" ? "/parent" : "/student");
+            if (redirect) navigate(redirect);
+            else navigate(u.role === "parent" ? "/parent" : "/student");
         } catch (e2) {
             setErr(e2.message);
         } finally {

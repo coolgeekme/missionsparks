@@ -6,6 +6,7 @@ load_dotenv(ROOT_DIR / ".env")
 
 import os
 import uuid
+import secrets
 import logging
 import bcrypt
 import jwt
@@ -89,6 +90,10 @@ class UserPublic(BaseModel):
     profile_notes: str = ""
     discard_audio: bool = True  # privacy-by-default: drop audio after transcription
     terms_accepted_at: Optional[str] = None
+    # Family group context (Iter 15)
+    families: List[dict] = []  # [{id, name, role: 'owner'|'co_parent'|'viewer'}]
+    active_family_id: Optional[str] = None
+    active_family_role: Optional[str] = None
 
 
 class RegisterRequest(BaseModel):
@@ -367,7 +372,22 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger("missionsparks")
 
 
-def _user_to_public(u: dict) -> "UserPublic":
+async def _user_to_public(u: dict) -> "UserPublic":
+    families_list: List[dict] = []
+    active_id: Optional[str] = u.get("active_family_id")
+    active_role: Optional[str] = None
+    if u["role"] == "parent":
+        cursor = db.families.find({"members.user_id": u["id"]}, {"_id": 0, "id": 1, "name": 1, "members": 1})
+        async for fam in cursor:
+            m = next((mm for mm in fam.get("members", []) if mm["user_id"] == u["id"]), None)
+            role = (m or {}).get("role") or "co_parent"
+            families_list.append({"id": fam["id"], "name": fam["name"], "role": role})
+            if fam["id"] == active_id:
+                active_role = role
+        # If active_family_id missing/stale, fall back to first
+        if families_list and (not active_id or not active_role):
+            active_id = families_list[0]["id"]
+            active_role = families_list[0]["role"]
     return UserPublic(
         id=u["id"],
         role=u["role"],
@@ -377,7 +397,173 @@ def _user_to_public(u: dict) -> "UserPublic":
         profile_notes=u.get("profile_notes", ""),
         discard_audio=u.get("discard_audio", True),
         terms_accepted_at=u.get("terms_accepted_at"),
+        families=families_list,
+        active_family_id=active_id,
+        active_family_role=active_role,
     )
+
+
+# ---------- Family Group System (Iter 15) ----------
+FAMILY_ROLES = ("owner", "co_parent", "viewer")
+INVITE_TTL_DAYS = 14
+
+
+class FamilyMember(BaseModel):
+    user_id: str
+    role: Literal["owner", "co_parent", "viewer"]
+    joined_at: str
+    invited_by_user_id: Optional[str] = None
+
+
+class Family(BaseModel):
+    id: str
+    name: str
+    owner_user_id: str
+    created_at: str
+    members: List[FamilyMember] = []
+    student_ids: List[str] = []
+
+
+class FamilyCreate(BaseModel):
+    name: str
+
+
+class FamilyUpdate(BaseModel):
+    name: Optional[str] = None
+
+
+class FamilyInviteCreate(BaseModel):
+    email: EmailStr
+    role: Literal["co_parent", "viewer"] = "co_parent"
+
+
+class FamilyInvitePublic(BaseModel):
+    id: str
+    family_id: str
+    family_name: str
+    email: str
+    role: str
+    invited_by_name: Optional[str] = None
+    expires_at: str
+    status: str
+
+
+class MemberRoleUpdate(BaseModel):
+    role: Literal["owner", "co_parent", "viewer"]
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+async def _user_role_in_family(user: dict, family_id: str) -> Optional[str]:
+    fam = await db.families.find_one(
+        {"id": family_id, "members.user_id": user["id"]},
+        {"_id": 0, "members": 1},
+    )
+    if not fam:
+        return None
+    m = next((m for m in fam["members"] if m["user_id"] == user["id"]), None)
+    return m["role"] if m else None
+
+
+async def _user_role_for_student(user: dict, student_id: str) -> Optional[str]:
+    """Returns 'owner'|'co_parent'|'viewer' if user belongs to any family that
+    contains this student, else None. Picks highest privilege if member of
+    multiple families containing the student."""
+    cursor = db.families.find(
+        {"student_ids": student_id, "members.user_id": user["id"]},
+        {"_id": 0, "members": 1},
+    )
+    rank = {"owner": 3, "co_parent": 2, "viewer": 1}
+    best = None
+    async for fam in cursor:
+        m = next((m for m in fam["members"] if m["user_id"] == user["id"]), None)
+        if m and (best is None or rank[m["role"]] > rank[best]):
+            best = m["role"]
+    return best
+
+
+async def _accessible_student_ids(user: dict) -> List[str]:
+    """Every student the user can access via any family they belong to."""
+    if user["role"] == "student":
+        return [user["id"]]
+    cursor = db.families.find({"members.user_id": user["id"]}, {"_id": 0, "student_ids": 1})
+    ids: set = set()
+    async for fam in cursor:
+        ids.update(fam.get("student_ids") or [])
+    return list(ids)
+
+
+async def _accessible_family_ids(user: dict) -> List[str]:
+    cursor = db.families.find({"members.user_id": user["id"]}, {"_id": 0, "id": 1})
+    return [f["id"] async for f in cursor]
+
+
+async def _families_containing_student(student_id: str) -> List[dict]:
+    return await db.families.find({"student_ids": student_id}, {"_id": 0}).to_list(50)
+
+
+async def _sync_user_linked_students(user_id: str) -> None:
+    """Keep the legacy linked_student_ids field on the user in sync with their
+    family memberships (used by older code paths and tests)."""
+    cursor = db.families.find({"members.user_id": user_id}, {"_id": 0, "student_ids": 1})
+    ids: set = set()
+    async for fam in cursor:
+        ids.update(fam.get("student_ids") or [])
+    await db.users.update_one({"id": user_id}, {"$set": {"linked_student_ids": list(ids)}})
+
+
+async def _ensure_personal_family(parent_user: dict) -> str:
+    """If parent has no family, create one (auto-migration). Returns active_family_id."""
+    existing = await db.families.find_one({"members.user_id": parent_user["id"]}, {"_id": 0, "id": 1})
+    if existing:
+        if not parent_user.get("active_family_id"):
+            await db.users.update_one({"id": parent_user["id"]}, {"$set": {"active_family_id": existing["id"]}})
+        return existing["id"]
+    fid = str(uuid.uuid4())
+    now = _now_iso()
+    fam = {
+        "id": fid,
+        "name": f"{parent_user.get('name') or 'My'} Family",
+        "owner_user_id": parent_user["id"],
+        "created_at": now,
+        "members": [{
+            "user_id": parent_user["id"],
+            "role": "owner",
+            "joined_at": now,
+            "invited_by_user_id": None,
+        }],
+        "student_ids": list(parent_user.get("linked_student_ids", [])),
+    }
+    await db.families.insert_one(dict(fam))
+    await db.users.update_one({"id": parent_user["id"]}, {"$set": {"active_family_id": fid}})
+    return fid
+
+
+async def _migrate_existing_parents() -> None:
+    """One-time idempotent migration: ensure every parent has at least one family."""
+    cursor = db.users.find({"role": "parent"}, {"_id": 0})
+    async for p in cursor:
+        await _ensure_personal_family(p)
+
+
+def _assert_family_write_role(role: Optional[str]) -> None:
+    if role is None:
+        raise HTTPException(status_code=403, detail="Not a member of this family")
+    if role == "viewer":
+        raise HTTPException(status_code=403, detail="Viewers can read but not modify family data.")
+
+
+def _assert_family_owner(role: Optional[str]) -> None:
+    if role != "owner":
+        raise HTTPException(status_code=403, detail="Only the family owner can do this.")
+
+
+def _strip_id(d: Optional[dict]) -> Optional[dict]:
+    if d and "_id" in d:
+        d = {k: v for k, v in d.items() if k != "_id"}
+    return d
 
 
 # ---------- Audit log ----------
@@ -501,7 +687,10 @@ async def register(req: RegisterRequest, response: Response):
     token = create_access_token(user_id, email)
     set_auth_cookie(response, token)
     await _audit(doc, "auth.register", target_type="user", target_id=user_id)
-    return _user_to_public(doc)
+    if doc["role"] == "parent":
+        await _ensure_personal_family(doc)
+        doc = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    return await _user_to_public(doc)
 
 
 @api.post("/auth/login", response_model=UserPublic)
@@ -513,7 +702,10 @@ async def login(req: LoginRequest, response: Response):
     token = create_access_token(user["id"], email)
     set_auth_cookie(response, token)
     await _audit(user, "auth.login", target_type="user", target_id=user["id"])
-    return _user_to_public(user)
+    if user["role"] == "parent":
+        await _ensure_personal_family(user)
+        user = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+    return await _user_to_public(user)
 
 
 @api.post("/auth/logout")
@@ -530,7 +722,7 @@ async def logout(response: Response, request: Request):
 
 @api.get("/auth/me", response_model=UserPublic)
 async def me(user: dict = Depends(get_current_user)):
-    return _user_to_public(user)
+    return await _user_to_public(user)
 
 
 # ---------- Skills & Strategies ----------
@@ -868,19 +1060,29 @@ async def link_student(req: LinkStudentRequest, user: dict = Depends(require_rol
     linked = set(user.get("linked_student_ids", []))
     linked.add(student["id"])
     await db.users.update_one({"id": user["id"]}, {"$set": {"linked_student_ids": list(linked)}})
+    # Add student to user's active family (auto-create if needed)
+    active_fid = user.get("active_family_id") or await _ensure_personal_family(user)
+    await db.families.update_one(
+        {"id": active_fid},
+        {"$addToSet": {"student_ids": student["id"]}},
+    )
+    # Resync legacy linked_student_ids for ALL members of that family
+    fam = await db.families.find_one({"id": active_fid}, {"_id": 0, "members": 1})
+    for m in (fam or {}).get("members", []):
+        await _sync_user_linked_students(m["user_id"])
     updated = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
     await _audit(user, "students.link", target_type="student", target_id=student["id"],
                  meta={"under_13": consent["child_under_13"]})
-    return _user_to_public(updated)
+    return await _user_to_public(updated)
 
 
 @api.get("/students", response_model=List[UserPublic])
 async def list_my_students(user: dict = Depends(require_role("parent"))):
-    ids = user.get("linked_student_ids", [])
+    ids = await _accessible_student_ids(user)
     if not ids:
         return []
     students = await db.users.find({"id": {"$in": ids}}, {"_id": 0, "password_hash": 0}).to_list(1000)
-    return [_user_to_public(s) for s in students]
+    return [await _user_to_public(s) for s in students]
 
 
 class StudentProfileUpdate(BaseModel):
@@ -900,7 +1102,7 @@ async def update_student_profile(
     )
     s = await db.users.find_one({"id": student_id}, {"_id": 0, "password_hash": 0})
     await _audit(user, "student.profile_update", target_type="student", target_id=student_id)
-    return _user_to_public(s)
+    return await _user_to_public(s)
 
 
 # ---------- Account preferences / right-to-delete / export / audit ----------
@@ -918,7 +1120,7 @@ async def update_preferences(req: AccountPrefsUpdate, user: dict = Depends(get_c
         await db.users.update_one({"id": user["id"]}, {"$set": updates})
         await _audit(user, "account.preferences_update", meta=updates)
     fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
-    return _user_to_public(fresh)
+    return await _user_to_public(fresh)
 
 
 @api.get("/account/export")
@@ -976,7 +1178,7 @@ async def list_audit(
     limit = max(1, min(500, int(limit or 200)))
     if user["role"] == "student":
         return await db.audit_log.find({"user_id": user["id"]}, {"_id": 0}).sort("timestamp", -1).to_list(limit)
-    linked = user.get("linked_student_ids", [])
+    linked = await _accessible_student_ids(user)
     if student_id:
         if student_id not in linked:
             raise HTTPException(status_code=403, detail="Not your student")
@@ -994,10 +1196,389 @@ async def list_audit(
     return await db.audit_log.find(q, {"_id": 0}).sort("timestamp", -1).to_list(limit)
 
 
+# ---------- Family group endpoints (Iter 15) ----------
+@api.get("/families", response_model=List[Family])
+async def list_my_families(user: dict = Depends(require_role("parent"))):
+    rows = await db.families.find(
+        {"members.user_id": user["id"]}, {"_id": 0},
+    ).sort("created_at", 1).to_list(50)
+    return rows
+
+
+@api.get("/families/{family_id}")
+async def get_family(family_id: str, user: dict = Depends(require_role("parent"))):
+    role = await _user_role_in_family(user, family_id)
+    if role is None:
+        raise HTTPException(status_code=403, detail="Not a member of this family")
+    fam = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not fam:
+        raise HTTPException(status_code=404, detail="Family not found")
+    # Enrich member rows with name/email/avatar (best-effort)
+    member_ids = [m["user_id"] for m in fam.get("members", [])]
+    members_meta = await db.users.find(
+        {"id": {"$in": member_ids}}, {"_id": 0, "id": 1, "name": 1, "email": 1},
+    ).to_list(50)
+    by_id = {u["id"]: u for u in members_meta}
+    enriched_members = []
+    for m in fam.get("members", []):
+        u = by_id.get(m["user_id"], {})
+        enriched_members.append({
+            **m,
+            "name": u.get("name"),
+            "email": u.get("email"),
+        })
+    fam["members"] = enriched_members
+    return fam
+
+
+@api.post("/families", response_model=Family)
+async def create_family(req: FamilyCreate, user: dict = Depends(require_role("parent"))):
+    name = (req.name or "").strip()[:80]
+    if not name:
+        raise HTTPException(status_code=400, detail="Family name is required.")
+    now = _now_iso()
+    fid = str(uuid.uuid4())
+    fam = {
+        "id": fid,
+        "name": name,
+        "owner_user_id": user["id"],
+        "created_at": now,
+        "members": [{
+            "user_id": user["id"],
+            "role": "owner",
+            "joined_at": now,
+            "invited_by_user_id": None,
+        }],
+        "student_ids": [],
+    }
+    await db.families.insert_one(dict(fam))
+    await db.users.update_one({"id": user["id"]}, {"$set": {"active_family_id": fid}})
+    await _audit(user, "family.create", target_type="family", target_id=fid,
+                 meta={"name": name})
+    return fam
+
+
+@api.put("/families/{family_id}", response_model=Family)
+async def update_family(family_id: str, req: FamilyUpdate, user: dict = Depends(require_role("parent"))):
+    role = await _user_role_in_family(user, family_id)
+    _assert_family_write_role(role)
+    updates = {}
+    if req.name is not None:
+        n = req.name.strip()[:80]
+        if not n:
+            raise HTTPException(status_code=400, detail="Name cannot be empty.")
+        updates["name"] = n
+    if updates:
+        await db.families.update_one({"id": family_id}, {"$set": updates})
+        await _audit(user, "family.update", target_type="family", target_id=family_id, meta=updates)
+    fam = await db.families.find_one({"id": family_id}, {"_id": 0})
+    return fam
+
+
+@api.delete("/families/{family_id}")
+async def delete_family(family_id: str, user: dict = Depends(require_role("parent"))):
+    role = await _user_role_in_family(user, family_id)
+    _assert_family_owner(role)
+    fam = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not fam:
+        raise HTTPException(status_code=404, detail="Family not found")
+    # Don't delete if this would orphan students. Owner must remove students first.
+    if fam.get("student_ids"):
+        raise HTTPException(status_code=400, detail="Remove all students from this family before deleting it.")
+    # Cascade-cancel pending invites
+    await db.family_invites.delete_many({"family_id": family_id})
+    member_ids = [m["user_id"] for m in fam.get("members", [])]
+    await db.families.delete_one({"id": family_id})
+    # Resync linked_student_ids and active_family for all members
+    for mid in member_ids:
+        await _sync_user_linked_students(mid)
+        u = await db.users.find_one({"id": mid}, {"_id": 0, "active_family_id": 1})
+        if u and u.get("active_family_id") == family_id:
+            other = await db.families.find_one({"members.user_id": mid}, {"_id": 0, "id": 1})
+            await db.users.update_one(
+                {"id": mid},
+                {"$set": {"active_family_id": (other or {}).get("id")}},
+            )
+    await _audit(user, "family.delete", target_type="family", target_id=family_id)
+    return {"ok": True}
+
+
+@api.put("/families/{family_id}/active")
+async def set_active_family(family_id: str, user: dict = Depends(require_role("parent"))):
+    role = await _user_role_in_family(user, family_id)
+    if role is None:
+        raise HTTPException(status_code=403, detail="Not a member of this family")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"active_family_id": family_id}})
+    return {"ok": True, "active_family_id": family_id}
+
+
+@api.post("/families/{family_id}/leave")
+async def leave_family(family_id: str, user: dict = Depends(require_role("parent"))):
+    role = await _user_role_in_family(user, family_id)
+    if role is None:
+        raise HTTPException(status_code=404, detail="Not a member of this family")
+    if role == "owner":
+        raise HTTPException(status_code=400, detail="Owner cannot leave. Transfer ownership first or delete the family.")
+    await db.families.update_one(
+        {"id": family_id},
+        {"$pull": {"members": {"user_id": user["id"]}}},
+    )
+    await _sync_user_linked_students(user["id"])
+    # If this was active, switch to another
+    if user.get("active_family_id") == family_id:
+        other = await db.families.find_one({"members.user_id": user["id"]}, {"_id": 0, "id": 1})
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"active_family_id": (other or {}).get("id")}},
+        )
+    await _audit(user, "family.leave", target_type="family", target_id=family_id)
+    return {"ok": True}
+
+
+@api.put("/families/{family_id}/members/{user_id}")
+async def update_family_member(family_id: str, user_id: str, req: MemberRoleUpdate,
+                                user: dict = Depends(require_role("parent"))):
+    """Owner-only. If promoting another member to 'owner', the current owner
+    is demoted to 'co_parent' (single-owner invariant)."""
+    role = await _user_role_in_family(user, family_id)
+    _assert_family_owner(role)
+    fam = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not fam:
+        raise HTTPException(status_code=404, detail="Family not found")
+    target = next((m for m in fam.get("members", []) if m["user_id"] == user_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Member not found")
+    if req.role == "owner" and user_id != user["id"]:
+        # transfer ownership
+        await db.families.update_one(
+            {"id": family_id, "members.user_id": user["id"]},
+            {"$set": {"members.$.role": "co_parent"}},
+        )
+        await db.families.update_one(
+            {"id": family_id, "members.user_id": user_id},
+            {"$set": {"members.$.role": "owner"}},
+        )
+        await db.families.update_one({"id": family_id}, {"$set": {"owner_user_id": user_id}})
+        await _audit(user, "family.transfer_ownership", target_type="family", target_id=family_id,
+                     meta={"to": user_id})
+    else:
+        await db.families.update_one(
+            {"id": family_id, "members.user_id": user_id},
+            {"$set": {"members.$.role": req.role}},
+        )
+        await _audit(user, "family.member_role_change", target_type="user", target_id=user_id,
+                     meta={"family_id": family_id, "role": req.role})
+    fresh = await db.families.find_one({"id": family_id}, {"_id": 0})
+    return fresh
+
+
+@api.delete("/families/{family_id}/members/{user_id}")
+async def remove_family_member(family_id: str, user_id: str,
+                                user: dict = Depends(require_role("parent"))):
+    """Owner removes a member. Reassigns any audit-bearing data on their behalf
+    to the family owner. Owner cannot remove themselves; use /leave."""
+    role = await _user_role_in_family(user, family_id)
+    _assert_family_owner(role)
+    if user_id == user["id"]:
+        raise HTTPException(status_code=400, detail="Owner cannot remove themselves. Transfer ownership first.")
+    fam = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not fam or not any(m["user_id"] == user_id for m in fam.get("members", [])):
+        raise HTTPException(status_code=404, detail="Member not found")
+    await db.families.update_one(
+        {"id": family_id},
+        {"$pull": {"members": {"user_id": user_id}}},
+    )
+    # Reassign authored resources to the owner (per product spec)
+    student_ids = fam.get("student_ids") or []
+    owner_id = user["id"]
+    if student_ids:
+        await db.missions.update_many(
+            {"student_id": {"$in": student_ids}, "created_by_user_id": user_id},
+            {"$set": {"created_by_user_id": owner_id}},
+        )
+        await db.moments.update_many(
+            {"student_id": {"$in": student_ids}, "logged_by_user_id": user_id},
+            {"$set": {"logged_by_user_id": owner_id}},
+        )
+    await _sync_user_linked_students(user_id)
+    # If the removed user had this as active, switch
+    removed_user = await db.users.find_one({"id": user_id}, {"_id": 0, "active_family_id": 1})
+    if removed_user and removed_user.get("active_family_id") == family_id:
+        other = await db.families.find_one({"members.user_id": user_id}, {"_id": 0, "id": 1})
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"active_family_id": (other or {}).get("id")}},
+        )
+    await _audit(user, "family.member_remove", target_type="user", target_id=user_id,
+                 meta={"family_id": family_id})
+    fresh = await db.families.find_one({"id": family_id}, {"_id": 0})
+    return fresh
+
+
+# ---------- Family invites ----------
+@api.post("/families/{family_id}/invites")
+async def create_family_invite(family_id: str, req: FamilyInviteCreate,
+                                user: dict = Depends(require_role("parent"))):
+    role = await _user_role_in_family(user, family_id)
+    _assert_family_write_role(role)
+    # Only owners can invite owners (not allowed via this endpoint) — viewer/co_parent allowed via co_parent+ role
+    email = req.email.lower().strip()
+    fam = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not fam:
+        raise HTTPException(status_code=404, detail="Family not found")
+    # Already a member?
+    existing_user = await db.users.find_one({"email": email}, {"_id": 0, "id": 1, "role": 1})
+    if existing_user:
+        already = any(m["user_id"] == existing_user["id"] for m in fam.get("members", []))
+        if already:
+            raise HTTPException(status_code=400, detail="That person is already a member.")
+        if existing_user.get("role") != "parent":
+            raise HTTPException(status_code=400, detail="Co-parents must have a parent account.")
+    # Pending invite to same email already?
+    dup = await db.family_invites.find_one(
+        {"family_id": family_id, "email": email, "status": "pending"},
+        {"_id": 0, "id": 1},
+    )
+    if dup:
+        raise HTTPException(status_code=400, detail="A pending invite already exists for that email.")
+    token = secrets.token_urlsafe(24)
+    now = datetime.now(timezone.utc)
+    invite = {
+        "id": str(uuid.uuid4()),
+        "family_id": family_id,
+        "family_name": fam["name"],
+        "email": email,
+        "role": req.role,
+        "token": token,
+        "invited_by_user_id": user["id"],
+        "invited_by_name": user.get("name"),
+        "status": "pending",
+        "created_at": now.isoformat(),
+        "expires_at": (now + timedelta(days=INVITE_TTL_DAYS)).isoformat(),
+        "accepted_at": None,
+    }
+    await db.family_invites.insert_one(dict(invite))
+    await _audit(user, "family.invite_create", target_type="family", target_id=family_id,
+                 meta={"email": email, "role": req.role})
+    # Build invite URL using public app origin
+    origin = os.environ.get("PUBLIC_APP_URL") or os.environ.get("FRONTEND_URL") or ""
+    invite_url = f"{origin.rstrip('/')}/invite/accept?token={token}" if origin else f"/invite/accept?token={token}"
+    out = {k: v for k, v in invite.items() if k != "_id"}
+    out["invite_url"] = invite_url
+    return out
+
+
+@api.get("/families/{family_id}/invites")
+async def list_family_invites(family_id: str, user: dict = Depends(require_role("parent"))):
+    role = await _user_role_in_family(user, family_id)
+    if role is None:
+        raise HTTPException(status_code=403, detail="Not a member of this family")
+    rows = await db.family_invites.find(
+        {"family_id": family_id, "status": "pending"},
+        {"_id": 0, "token": 0},
+    ).sort("created_at", -1).to_list(100)
+    return rows
+
+
+@api.delete("/invites/{invite_id}")
+async def cancel_invite(invite_id: str, user: dict = Depends(require_role("parent"))):
+    inv = await db.family_invites.find_one({"id": invite_id}, {"_id": 0})
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    role = await _user_role_in_family(user, inv["family_id"])
+    _assert_family_write_role(role)
+    await db.family_invites.update_one(
+        {"id": invite_id},
+        {"$set": {"status": "cancelled", "cancelled_at": _now_iso()}},
+    )
+    await _audit(user, "family.invite_cancel", target_type="family", target_id=inv["family_id"])
+    return {"ok": True}
+
+
+@api.get("/invites/preview")
+async def preview_invite(token: str):
+    """Public preview: doesn't require auth; just returns family + role + status."""
+    inv = await db.family_invites.find_one({"token": token}, {"_id": 0})
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invite not found or expired")
+    if inv["status"] != "pending":
+        return {"status": inv["status"], "family_name": inv.get("family_name"), "role": inv.get("role")}
+    if inv["expires_at"] < _now_iso():
+        await db.family_invites.update_one({"id": inv["id"]}, {"$set": {"status": "expired"}})
+        return {"status": "expired", "family_name": inv.get("family_name"), "role": inv.get("role")}
+    return {
+        "status": "pending",
+        "family_name": inv["family_name"],
+        "role": inv["role"],
+        "email": inv["email"],
+        "invited_by_name": inv.get("invited_by_name"),
+        "expires_at": inv["expires_at"],
+    }
+
+
+class InviteAccept(BaseModel):
+    token: str
+
+
+@api.post("/invites/accept")
+async def accept_invite(req: InviteAccept, user: dict = Depends(require_role("parent"))):
+    inv = await db.family_invites.find_one({"token": req.token}, {"_id": 0})
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if inv["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Invite is {inv['status']}")
+    if inv["expires_at"] < _now_iso():
+        await db.family_invites.update_one({"id": inv["id"]}, {"$set": {"status": "expired"}})
+        raise HTTPException(status_code=400, detail="Invite has expired.")
+    # The accepting user's email must match the invited email
+    if user["email"].lower() != inv["email"].lower():
+        raise HTTPException(
+            status_code=403,
+            detail=f"This invite is for {inv['email']}. Sign in with that account first.",
+        )
+    # Add member
+    now = _now_iso()
+    fam = await db.families.find_one({"id": inv["family_id"]}, {"_id": 0})
+    if not fam:
+        raise HTTPException(status_code=404, detail="Family no longer exists.")
+    if any(m["user_id"] == user["id"] for m in fam.get("members", [])):
+        await db.family_invites.update_one({"id": inv["id"]}, {"$set": {"status": "accepted", "accepted_at": now}})
+        return {"ok": True, "family_id": inv["family_id"], "already_member": True}
+    await db.families.update_one(
+        {"id": inv["family_id"]},
+        {"$push": {"members": {
+            "user_id": user["id"],
+            "role": inv["role"],
+            "joined_at": now,
+            "invited_by_user_id": inv.get("invited_by_user_id"),
+        }}},
+    )
+    await db.family_invites.update_one(
+        {"id": inv["id"]},
+        {"$set": {"status": "accepted", "accepted_at": now, "accepted_by_user_id": user["id"]}},
+    )
+    # Sync legacy linked_student_ids
+    await _sync_user_linked_students(user["id"])
+    # Set this as active family
+    await db.users.update_one({"id": user["id"]}, {"$set": {"active_family_id": inv["family_id"]}})
+    await _audit(user, "family.invite_accept", target_type="family", target_id=inv["family_id"])
+    return {"ok": True, "family_id": inv["family_id"], "role": inv["role"]}
+
+
 # ---------- Missions ----------
-async def _assert_parent_owns_student(parent: dict, student_id: str):
-    if student_id not in parent.get("linked_student_ids", []):
-        raise HTTPException(status_code=403, detail="You are not linked to this student")
+async def _assert_parent_owns_student(parent: dict, student_id: str, write: bool = True):
+    """Family-group authz: parent must be a member of a family containing the
+    student. If write=True, viewer role is rejected. Falls back to legacy
+    linked_student_ids for pre-migration data."""
+    role = await _user_role_for_student(parent, student_id)
+    if role:
+        if write and role == "viewer":
+            raise HTTPException(status_code=403, detail="Viewers can read but not modify family data.")
+        return
+    # Legacy fallback (pre-migration)
+    if student_id in parent.get("linked_student_ids", []):
+        return
+    raise HTTPException(status_code=403, detail="You are not linked to this student")
 
 
 def _recurrence_dates(start_iso: str, pattern: str, end_iso: Optional[str]) -> List[str]:
@@ -1192,7 +1773,7 @@ async def list_missions(
             await _assert_parent_owns_student(user, student_id)
             query["student_id"] = student_id
         else:
-            query["student_id"] = {"$in": user.get("linked_student_ids", [])}
+            query["student_id"] = {"$in": await _accessible_student_ids(user)}
     if due_date:
         query["due_date"] = due_date
     missions = await db.missions.find(query, {"_id": 0}).sort("due_date", 1).to_list(1000)
@@ -1206,8 +1787,8 @@ async def get_mission(mission_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Mission not found")
     if user["role"] == "student" and mission["student_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="Not your mission")
-    if user["role"] == "parent" and mission["student_id"] not in user.get("linked_student_ids", []):
-        raise HTTPException(status_code=403, detail="Not your student's mission")
+    if user["role"] == "parent":
+        await _assert_parent_owns_student(user, mission["student_id"], write=False)
     return mission
 
 
@@ -1300,7 +1881,7 @@ async def list_logs(
             await _assert_parent_owns_student(user, student_id)
             query["student_id"] = student_id
         else:
-            query["student_id"] = {"$in": user.get("linked_student_ids", [])}
+            query["student_id"] = {"$in": await _accessible_student_ids(user)}
     if mission_id:
         query["mission_id"] = mission_id
     logs = await db.mission_logs.find(query, {"_id": 0}).sort("timestamp", -1).to_list(1000)
@@ -1520,32 +2101,52 @@ def _validate_pack_content(game_type: str, content: dict) -> dict:
     raise HTTPException(status_code=400, detail=f"Unsupported game_type: {game_type}")
 
 
+async def _family_id_of_student(student_id: str) -> Optional[str]:
+    """Returns the family.id this student belongs to (first match if multiple)."""
+    fam = await db.families.find_one({"student_ids": student_id}, {"_id": 0, "id": 1})
+    return fam["id"] if fam else None
+
+
 async def _parent_id_of_student(student_id: str) -> Optional[str]:
-    """The first parent linked to this student is treated as the family owner."""
+    """Legacy: returns owner-user-id of the first family containing this student.
+    Kept for backward compat with tests; family_id is the preferred key."""
+    fam = await db.families.find_one({"student_ids": student_id}, {"_id": 0, "owner_user_id": 1})
+    if fam:
+        return fam.get("owner_user_id")
+    # Fallback to legacy pre-migration link
     parent = await db.users.find_one(
         {"role": "parent", "linked_student_ids": student_id}, {"_id": 0, "id": 1}
     )
     return parent["id"] if parent else None
 
 
+async def _student_ids_in_family(family_id: str) -> List[str]:
+    fam = await db.families.find_one({"id": family_id}, {"_id": 0, "student_ids": 1})
+    return list((fam or {}).get("student_ids") or [])
+
+
 @api.get("/game-packs", response_model=List[GamePack])
 async def list_game_packs(user: dict = Depends(get_current_user)):
-    """Parent: every pack in their family (regardless of status).
-       Student: approved packs created by their parent OR explicitly shared with them
-       (created by themselves or a sibling and approved)."""
+    """Parent: every pack in any family they belong to (regardless of status).
+       Student: approved packs in their family that are visible to them, plus
+       their own packs (any status — so the Waiting chip shows)."""
     if user["role"] == "parent":
+        fam_ids = await _accessible_family_ids(user)
+        if not fam_ids:
+            return []
         rows = await db.game_packs.find(
-            {"family_parent_id": user["id"]}, {"_id": 0}
+            {"$or": [{"family_id": {"$in": fam_ids}}, {"family_parent_id": user["id"]}]},
+            {"_id": 0},
         ).sort("created_at", -1).to_list(500)
         return rows
 
     # student
-    parent_id = await _parent_id_of_student(user["id"])
-    if not parent_id:
+    family_id = await _family_id_of_student(user["id"])
+    if not family_id:
         return []
     rows = await db.game_packs.find(
         {
-            "family_parent_id": parent_id,
+            "family_id": family_id,
             "$or": [
                 # Student always sees their own packs (any status — so the Waiting chip shows)
                 {"created_by_user_id": user["id"]},
@@ -1565,13 +2166,15 @@ async def get_game_pack(pack_id: str, user: dict = Depends(get_current_user)):
     p = await db.game_packs.find_one({"id": pack_id}, {"_id": 0})
     if not p:
         raise HTTPException(status_code=404, detail="Pack not found")
+    pack_fid = p.get("family_id")
     if user["role"] == "parent":
-        if p["family_parent_id"] != user["id"]:
+        fam_ids = set(await _accessible_family_ids(user))
+        if pack_fid not in fam_ids and p.get("family_parent_id") != user["id"]:
             raise HTTPException(status_code=403, detail="Not your family's pack")
         return p
     # student: must belong to same family
-    parent_id = await _parent_id_of_student(user["id"])
-    if p["family_parent_id"] != parent_id:
+    student_fid = await _family_id_of_student(user["id"])
+    if pack_fid and pack_fid != student_fid:
         raise HTTPException(status_code=403, detail="Not your family's pack")
     # creator-student can always read their own pack regardless of status
     if p["created_by_user_id"] == user["id"]:
@@ -1590,13 +2193,16 @@ async def get_game_pack(pack_id: str, user: dict = Depends(get_current_user)):
 
 @api.post("/game-packs", response_model=GamePack)
 async def create_game_pack_parent(req: GamePackCreate, user: dict = Depends(require_role("parent"))):
-    """Parent-authored pack — instantly approved."""
+    """Parent-authored pack — instantly approved. Created in the active family."""
     if req.game_type not in GAME_PACK_TYPES:
         raise HTTPException(status_code=400, detail="Unsupported game_type")
+    family_id = user.get("active_family_id") or await _ensure_personal_family(user)
+    role = await _user_role_in_family(user, family_id)
+    _assert_family_write_role(role)
     content = _validate_pack_content(req.game_type, req.content)
     name = req.name.strip()[:80] or GAME_PACK_TYPE_LABEL[req.game_type]
-    linked = set(user.get("linked_student_ids", []))
-    share = [sid for sid in (req.share_with_student_ids or []) if sid in linked]
+    family_students = set(await _student_ids_in_family(family_id))
+    share = [sid for sid in (req.share_with_student_ids or []) if sid in family_students]
     now = datetime.now(timezone.utc).isoformat()
     pack = {
         "id": str(uuid.uuid4()),
@@ -1607,7 +2213,8 @@ async def create_game_pack_parent(req: GamePackCreate, user: dict = Depends(requ
         "created_by_role": "parent",
         "creator_name": user.get("name") or "Parent",
         "student_id": None,
-        "family_parent_id": user["id"],
+        "family_id": family_id,
+        "family_parent_id": user["id"],  # legacy
         "status": "approved",
         "rejection_reason": None,
         "share_with_student_ids": share,
@@ -1625,9 +2232,10 @@ async def create_game_pack_student(req: GamePackCreate, user: dict = Depends(req
     """Kid Studio: child submits a pack; parent must approve before siblings see it."""
     if req.game_type not in GAME_PACK_TYPES:
         raise HTTPException(status_code=400, detail="Unsupported game_type")
+    family_id = await _family_id_of_student(user["id"])
+    if not family_id:
+        raise HTTPException(status_code=400, detail="You need to be linked to a family to share games.")
     parent_id = await _parent_id_of_student(user["id"])
-    if not parent_id:
-        raise HTTPException(status_code=400, detail="You need to be linked to a parent to share games.")
     # Streak gate
     streak = await _compute_streak(user["id"])
     threshold = int(((await db.users.find_one({"id": user["id"]}, {"_id": 0, "student_profile": 1}) or {})
@@ -1639,9 +2247,8 @@ async def create_game_pack_student(req: GamePackCreate, user: dict = Depends(req
         )
     content = _validate_pack_content(req.game_type, req.content)
     name = req.name.strip()[:80] or GAME_PACK_TYPE_LABEL[req.game_type]
-    # Requested siblings (parent can rewrite on approval)
-    parent_user = await db.users.find_one({"id": parent_id}, {"_id": 0, "linked_student_ids": 1})
-    siblings = set((parent_user or {}).get("linked_student_ids", [])) - {user["id"]}
+    # Requested siblings (parent can rewrite on approval) — siblings in the same family
+    siblings = set(await _student_ids_in_family(family_id)) - {user["id"]}
     requested = [sid for sid in (req.requested_share_with_student_ids or []) if sid in siblings]
     now = datetime.now(timezone.utc).isoformat()
     pack = {
@@ -1653,7 +2260,8 @@ async def create_game_pack_student(req: GamePackCreate, user: dict = Depends(req
         "created_by_role": "student",
         "creator_name": user.get("name") or "Student",
         "student_id": user["id"],
-        "family_parent_id": parent_id,
+        "family_id": family_id,
+        "family_parent_id": parent_id,  # legacy
         "status": "pending",
         "rejection_reason": None,
         "share_with_student_ids": requested,
@@ -1668,18 +2276,22 @@ async def create_game_pack_student(req: GamePackCreate, user: dict = Depends(req
 
 @api.put("/game-packs/{pack_id}", response_model=GamePack)
 async def update_game_pack(pack_id: str, req: GamePackCreate, user: dict = Depends(require_role("parent"))):
-    """Parent edits a pack they own. Keeps status as-is for approved parent packs;
-    pending packs (kid-authored) cannot be edited via this endpoint."""
+    """Parent edits a pack in any family they belong to (write role required).
+    Kid-submitted packs cannot be edited via this endpoint."""
     p = await db.game_packs.find_one({"id": pack_id}, {"_id": 0})
     if not p:
         raise HTTPException(status_code=404, detail="Pack not found")
-    if p["family_parent_id"] != user["id"]:
+    pack_fid = p.get("family_id")
+    role = await _user_role_in_family(user, pack_fid) if pack_fid else None
+    if role is None and p.get("family_parent_id") != user["id"]:
         raise HTTPException(status_code=403, detail="Not your family's pack")
+    if role:
+        _assert_family_write_role(role)
     if p["created_by_role"] == "student":
         raise HTTPException(status_code=400, detail="Kid-authored packs can be approved or rejected, not edited.")
     content = _validate_pack_content(req.game_type, req.content)
-    linked = set(user.get("linked_student_ids", []))
-    share = [sid for sid in (req.share_with_student_ids or []) if sid in linked]
+    family_students = set(await _student_ids_in_family(pack_fid)) if pack_fid else set()
+    share = [sid for sid in (req.share_with_student_ids or []) if sid in family_students]
     updates = {
         "name": req.name.strip()[:80] or p["name"],
         "game_type": req.game_type,
@@ -1697,15 +2309,19 @@ async def approve_game_pack(pack_id: str, req: GamePackApprove,
     p = await db.game_packs.find_one({"id": pack_id}, {"_id": 0})
     if not p:
         raise HTTPException(status_code=404, detail="Pack not found")
-    if p["family_parent_id"] != user["id"]:
+    pack_fid = p.get("family_id")
+    role = await _user_role_in_family(user, pack_fid) if pack_fid else None
+    if role is None and p.get("family_parent_id") != user["id"]:
         raise HTTPException(status_code=403, detail="Not your family's pack")
+    if role:
+        _assert_family_write_role(role)
     if p["status"] == "approved":
         return p
-    linked = set(user.get("linked_student_ids", []))
+    family_students = set(await _student_ids_in_family(pack_fid)) if pack_fid else set()
     if req.share_with_student_ids is not None:
-        share = [sid for sid in req.share_with_student_ids if sid in linked]
+        share = [sid for sid in req.share_with_student_ids if sid in family_students]
     else:
-        share = [sid for sid in (p.get("share_with_student_ids") or []) if sid in linked]
+        share = [sid for sid in (p.get("share_with_student_ids") or []) if sid in family_students]
     now = datetime.now(timezone.utc).isoformat()
     await db.game_packs.update_one(
         {"id": pack_id},
@@ -1727,8 +2343,12 @@ async def reject_game_pack(pack_id: str, req: GamePackReject,
     p = await db.game_packs.find_one({"id": pack_id}, {"_id": 0})
     if not p:
         raise HTTPException(status_code=404, detail="Pack not found")
-    if p["family_parent_id"] != user["id"]:
+    pack_fid = p.get("family_id")
+    role = await _user_role_in_family(user, pack_fid) if pack_fid else None
+    if role is None and p.get("family_parent_id") != user["id"]:
         raise HTTPException(status_code=403, detail="Not your family's pack")
+    if role:
+        _assert_family_write_role(role)
     now = datetime.now(timezone.utc).isoformat()
     reason = (req.reason or "").strip()[:280] or None
     await db.game_packs.update_one(
@@ -1747,8 +2367,12 @@ async def delete_game_pack(pack_id: str, user: dict = Depends(get_current_user))
     if not p:
         raise HTTPException(status_code=404, detail="Pack not found")
     if user["role"] == "parent":
-        if p["family_parent_id"] != user["id"]:
+        pack_fid = p.get("family_id")
+        role = await _user_role_in_family(user, pack_fid) if pack_fid else None
+        if role is None and p.get("family_parent_id") != user["id"]:
             raise HTTPException(status_code=403, detail="Not your family's pack")
+        if role:
+            _assert_family_write_role(role)
     else:
         # students can only delete their own pending or rejected packs
         if p["created_by_user_id"] != user["id"]:
@@ -1766,11 +2390,10 @@ async def my_studio_status(user: dict = Depends(require_role("student"))):
     streak = await _compute_streak(user["id"])
     fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "student_profile": 1})
     threshold = int(((fresh or {}).get("student_profile") or {}).get("game_studio_unlock_streak", 7))
-    parent_id = await _parent_id_of_student(user["id"])
+    family_id = await _family_id_of_student(user["id"])
     siblings: List[dict] = []
-    if parent_id:
-        parent = await db.users.find_one({"id": parent_id}, {"_id": 0, "linked_student_ids": 1})
-        sib_ids = [sid for sid in (parent or {}).get("linked_student_ids", []) if sid != user["id"]]
+    if family_id:
+        sib_ids = [sid for sid in await _student_ids_in_family(family_id) if sid != user["id"]]
         if sib_ids:
             rows = await db.users.find({"id": {"$in": sib_ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(20)
             siblings = rows
@@ -2437,20 +3060,20 @@ async def moments_catalog(user: dict = Depends(get_current_user)):
     return out
 
 
-def _student_id_for(user: dict, supplied: Optional[str]) -> str:
+async def _student_id_for(user: dict, supplied: Optional[str]) -> str:
     """Resolve the student_id the current user is allowed to act on."""
     if user["role"] == "student":
         return user["id"]
     if not supplied:
         raise HTTPException(status_code=400, detail="student_id is required for parent")
-    if supplied not in user.get("linked_student_ids", []):
+    if supplied not in await _accessible_student_ids(user):
         raise HTTPException(status_code=403, detail="You are not linked to this student")
     return supplied
 
 
 @api.post("/moments", response_model=Moment)
 async def create_moment(req: MomentCreate, user: dict = Depends(get_current_user)):
-    student_id = _student_id_for(user, req.student_id)
+    student_id = await _student_id_for(user, req.student_id)
     ts = req.timestamp or datetime.now(timezone.utc).isoformat()
     triggers = [t.strip() for t in (req.triggers or []) if t and t.strip()][:20]
     # Honor user-level "discard audio" preference at write time
@@ -2502,11 +3125,10 @@ async def list_moments(
         query["student_id"] = user["id"]
     else:
         if student_id:
-            if student_id not in user.get("linked_student_ids", []):
-                raise HTTPException(status_code=403, detail="You are not linked to this student")
+            await _assert_parent_owns_student(user, student_id, write=False)
             query["student_id"] = student_id
         else:
-            query["student_id"] = {"$in": user.get("linked_student_ids", [])}
+            query["student_id"] = {"$in": await _accessible_student_ids(user)}
     if moment_type:
         query["moment_type"] = moment_type
     if trigger:
@@ -2524,7 +3146,7 @@ async def delete_moment(moment_id: str, user: dict = Depends(get_current_user)):
         if m["student_id"] != user["id"]:
             raise HTTPException(status_code=403, detail="Not yours")
     else:
-        if m["student_id"] not in user.get("linked_student_ids", []):
+        if m["student_id"] not in await _accessible_student_ids(user):
             raise HTTPException(status_code=403, detail="Not your student")
     await db.moments.delete_one({"id": moment_id})
     await _audit(user, "moment.delete", target_type="student", target_id=m["student_id"], meta={"moment_id": moment_id})
@@ -2555,11 +3177,10 @@ async def moments_insights(
         query["student_id"] = user["id"]
     else:
         if student_id:
-            if student_id not in user.get("linked_student_ids", []):
-                raise HTTPException(status_code=403, detail="You are not linked to this student")
+            await _assert_parent_owns_student(user, student_id, write=False)
             query["student_id"] = student_id
         else:
-            query["student_id"] = {"$in": user.get("linked_student_ids", [])}
+            query["student_id"] = {"$in": await _accessible_student_ids(user)}
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=max(1, min(days, 180)))
     query["timestamp"] = {"$gte": cutoff.isoformat()}
@@ -2839,11 +3460,10 @@ async def moments_export(
         query["student_id"] = user["id"]
     else:
         if student_id:
-            if student_id not in user.get("linked_student_ids", []):
-                raise HTTPException(status_code=403, detail="You are not linked to this student")
+            await _assert_parent_owns_student(user, student_id, write=False)
             query["student_id"] = student_id
         else:
-            query["student_id"] = {"$in": user.get("linked_student_ids", [])}
+            query["student_id"] = {"$in": await _accessible_student_ids(user)}
     moments = await db.moments.find(query, {"_id": 0}).sort("timestamp", -1).to_list(5000)
 
     buf = io.StringIO()
@@ -3081,6 +3701,12 @@ async def on_startup():
             await db.missions.insert_one(m)
 
     logger.info("MissionSparks startup complete. Demo parent=%s / student=%s", parent_email, student_email)
+
+    # Family-group migration: ensure every existing parent has at least one family (Iter 15).
+    await _migrate_existing_parents()
+    await db.family_invites.create_index("token", unique=True)
+    await db.family_invites.create_index([("family_id", 1), ("status", 1)])
+    await db.families.create_index("members.user_id")
 
 
 @app.on_event("shutdown")

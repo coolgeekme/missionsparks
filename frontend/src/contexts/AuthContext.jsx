@@ -55,8 +55,13 @@ export function AuthProvider({ children }) {
         setUser(false);
     };
 
+    const switchFamily = useCallback(async (familyId) => {
+        await api.put(`/families/${familyId}/active`);
+        return await refresh();
+    }, [refresh]);
+
     return (
-        <AuthContext.Provider value={{ user, error, login, register, logout, refresh }}>
+        <AuthContext.Provider value={{ user, error, login, register, logout, refresh, switchFamily }}>
             {children}
         </AuthContext.Provider>
     );

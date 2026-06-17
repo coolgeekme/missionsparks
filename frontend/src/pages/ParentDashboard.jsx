@@ -240,6 +240,9 @@ export default function ParentDashboard() {
                         <Link to="/games" className="btn-pop-ghost flex items-center gap-2" data-testid="parent-go-games">
                             <Gamepad2 size={16} /> Games
                         </Link>
+                        <Link to="/family" className="btn-pop-ghost flex items-center gap-2" data-testid="parent-go-family">
+                            <Users size={16} /> Family
+                        </Link>
                         <Link to="/parent/moments" className="btn-pop-ghost flex items-center gap-2" data-testid="parent-go-moments">
                             <Activity size={16} /> Moments
                         </Link>

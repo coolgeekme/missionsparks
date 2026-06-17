@@ -1,0 +1,42 @@
+{
+  "summary": "Iter 15 Co-Parent / Family Group system: backend pytest 29/29 PASS (auto-migration, families CRUD, invites lifecycle, role enforcement viewer-write-block, ownership transfer, leave/delete guards, cancel invite, multi-family game-pack visibility, regression streak/missions/moments/students/audit). Frontend Playwright covered: parent navbar family switcher + dropdown + manage link, /family page render (name, Owner chip, 4 members with name+email+role+select, invite form, pending invites list), invite create -> link card + token, logged-out invite preview + sign-in CTA, wrong-email guard (Accept button hidden), student does NOT see switcher, rename UI works. One UX nit: when the active family has students+members, the Danger Zone is hidden (correct per delete preconditions) — testid `family-danger-zone` is therefore not present in that state, which matches business logic. Cleaned up all TEST_ data in demo family after testing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/family FamilySettings", "issues": ["family-name-display briefly shows 'Loading…' immediately after navigation from navbar manage link; consider a small skeleton placeholder for the members list to avoid the 'empty for a beat' flash."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_families_invites.py",
+    "/app/test_reports/pytest/iter15_families.xml"
+  ],
+  "action_items": [
+    "Optional UX polish: add a skeleton/loading state for FamilySettings members section to avoid the 'Loading…' flash.",
+    "Consider returning 400 (per spec) instead of 403 for 'Owner cannot remove themselves' DELETE /api/families/{id}/members/{owner_id} — currently returns 403 because _assert_family_owner check fires before the self-remove guard (test accepts both)."
+  ],
+  "critical_code_review_comments": [
+    "server.py remove_family_member: 'Owner cannot remove themselves' branch checks user_id == user['id'] AFTER _assert_family_owner; if the spec calls for HTTP 400 distinctly from non-owner 403, swap the order so the self-remove check runs first when the caller IS the owner.",
+    "server.py invite duplicate detection: confirmed that creating two pending invites for the same email returns 400 'pending invite already exists' — good. No accidental string mismatch.",
+    "Frontend Navbar family-switcher dropdown is rendered conditionally on (families.length > 0) for parents — good. Student role correctly has no switcher (verified).",
+    "FamilySettings danger-zone visibility is gated on (members.length === 1 && student_ids.length === 0) which matches DELETE family precondition; intentional behaviour — main agent may want a 'why disabled' tooltip if testid is expected in the doc.",
+    "InviteAccept page correctly hides accept button when user is logged in as different email and shows yellow `invite-wrong-email` warning — verified."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_families_invites.py (NEW, 29 tests)"
+  ],
+  "success_rate": {
+    "backend": "100% (29/29 pytest)",
+    "frontend": "100% on tested flows"
+  },
+  "test_credentials": "parent@demo.com / demo1234 (owner), coparent@demo.com / demo1234 (co_parent), student@demo.com / demo1234 (Enzo)",
+  "seed_data_creation": "Tests create throwaway parent accounts (throw_/uitest_/invitee_/viewer_/copwriter_/newowner_ prefixed). Cleanup performed at end: removed all non-demo members from Demo Parent Family, cancelled all 5 leftover pending invites, deleted orphan TEST_ families. Final state: Demo Parent Family has 2 members (parent + coparent), 0 pending invites, 1 student (Enzo).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend test file /app/backend/tests/test_families_invites.py is fully self-contained and idempotent. The fixture `main_family_id` auto-picks the family with students and sets it active first (so it's resilient to active_family_id drift). The fixture also deletes stale empty TEST_ families at start. If you re-run, expect 29/29 pass within ~7s. The frontend FamilySettings page is at /family; danger-zone is hidden when family has students/extra members (this is by design — matches the DELETE precondition). The Iter 14 test file /app/backend/tests/test_family_games.py still passes — game-pack visibility now scoped by family_id; multi-family aggregation verified.",
+  "rca of the issue": "n/a — no defects found in Iter 15 scope."
+}

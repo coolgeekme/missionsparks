@@ -29,6 +29,8 @@ import StudentIntake from "./pages/StudentIntake";
 import ReadingPractice from "./pages/ReadingPractice";
 import WritingPractice from "./pages/WritingPractice";
 import Portfolio from "./pages/Portfolio";
+import FamilySettings from "./pages/FamilySettings";
+import InviteAccept from "./pages/InviteAccept";
 import { Toaster } from "./components/ui/sonner";
 import "./App.css";
 
@@ -74,6 +76,8 @@ export default function App() {
                         <Route path="/parent/audit" element={<ProtectedRoute role="parent"><AuditLog /></ProtectedRoute>} />
                         <Route path="/parent/research" element={<ProtectedRoute role="parent"><Research /></ProtectedRoute>} />
                         <Route path="/parent/students/:studentId/portfolio" element={<ProtectedRoute role="parent"><Portfolio /></ProtectedRoute>} />
+                        <Route path="/family" element={<ProtectedRoute role="parent"><FamilySettings /></ProtectedRoute>} />
+                        <Route path="/invite/accept" element={<InviteAccept />} />
                         <Route path="/student/practice/reading/:passageId" element={<ProtectedRoute><ReadingPractice /></ProtectedRoute>} />
                         <Route path="/student/practice/writing/:pieceId" element={<ProtectedRoute><WritingPractice /></ProtectedRoute>} />
                         <Route path="*" element={<Navigate to="/" replace />} />
