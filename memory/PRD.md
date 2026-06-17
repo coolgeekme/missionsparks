@@ -103,6 +103,18 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Per-student `game_studio_unlock_streak` configurable from Student Intake (Peak hours & motivators step).
 - Backend models + endpoints (`GamePack`, `/api/game-packs` CRUD, `/api/me/studio-status`) with strict family-scoped visibility and content validation. 17/17 pytest pass (`tests/test_family_games.py`).
 
+### Iter 15 — Co-Parent / Family Group system (2026-02) — Feature B
+- **New `Family` entity**: each family has an owner + members + student_ids. Replaces "parent → linked_student_ids" as the authz boundary.
+- **Auto-migration on startup**: every pre-existing parent gets a personal family containing their previously-linked students. No data loss.
+- **3 permission tiers**: `owner` (full control), `co_parent` (create/edit missions, moments, packs), `viewer` (read-only — great for grandparents, therapists, tutors).
+- **Multi-family**: one parent can belong to many families (joint custody, blended households, tutors helping multiple families) with a **family switcher in the Navbar**.
+- **Invite flow (link-based)**: parent generates an invite for `{email, role}`; gets a shareable `invite_url` + token (14-day TTL). Invitee logs in (or registers) with the matching email and accepts via `/invite/accept?token=...`. Includes preview-before-accept, wrong-email guard, and expired/cancelled states.
+- **Family Settings page** (`/family`): members list with name+email+role, role-change select, member-remove, ownership transfer, invite form, pending invites list, danger-zone delete (gated on empty family).
+- **Authz refactor across the codebase**: `_assert_parent_owns_student(write=True/False)` is now family-aware; `_accessible_student_ids(user)` aggregates across all families; viewers blocked from writes; missions/moments/audit/streak/students/game packs all scoped via family membership.
+- **Removed-member content**: when a parent is removed from a family, their authored missions + moments are reassigned to the family owner (per product spec).
+- **Backend**: 29/29 new pytest pass (`tests/test_families_invites.py`); 117/117 across all family-aware suites; 0 regressions on Iter 14 (`tests/test_family_games.py` 17/17 still green).
+- Resend integration deferred (PUBLIC_APP_URL env var hook is in place for production deploys).
+
 ### Still open
 - ⚠️ **Sign BAAs with OpenAI (Whisper) + Anthropic (Claude) + MongoDB Atlas dedicated** before any therapist or clinical-track sale.
 - ⚠️ **Rate-limit /api/public/waitlist** before launch (public endpoint, spam risk).
@@ -114,8 +126,9 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - App rename from "MissionBoard" → **MissionSparks** completed in iter9 (Feb 2026). Streak UI rebranded to "Sparks" ⚡ (API field name kept as `streak` to avoid breaking changes).
 
 ## Roadmap (deferred)
-**Iter 15 (P1) — Co-Parent / Family Group system**: introduce a `family` entity, multi-parent linking to the same student, email invites, admin permission tiers. Requires major authz refactoring across all endpoints to check family group membership instead of single parent ownership.
-**Iter 16 (P2) — Backend refactor**: split `server.py` into modular FastAPI routers (`auth.py`, `missions.py`, `ai.py`, `games.py`, `moments.py`, `intake.py`, `practice.py`, `research.py`).
+**Iter 16 (P1, next) — Resend email integration**: send real transactional emails for invites + reset flows (the in-app invite link works today).
+**Iter 17 (P2) — Backend refactor**: split `server.py` (~3700 lines, critical) into modular FastAPI routers (`auth.py`, `families.py`, `missions.py`, `ai.py`, `games.py`, `moments.py`, `intake.py`, `practice.py`, `research.py`).
+**Iter 18 (P2) — Cross-family pack sharing on approval**: when a parent in multiple families approves a pack, kids in all their families see it (current scope: single-family only).
 **V1.1**: daily/weekly reflection journal separate from per-mission log; parent encouragement notes on logs; confidence trend graph.
 **V1.2**: teacher/tutor role with invite flow; skill mastery visualization over time.
 **V2**: streak freezes / "kind day off"; behavior-pattern email digest for parents; AI-suggested intervention plan based on Moments insights; in-app share link to therapist (read-only).

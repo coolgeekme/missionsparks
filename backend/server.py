@@ -1377,10 +1377,11 @@ async def remove_family_member(family_id: str, user_id: str,
                                 user: dict = Depends(require_role("parent"))):
     """Owner removes a member. Reassigns any audit-bearing data on their behalf
     to the family owner. Owner cannot remove themselves; use /leave."""
-    role = await _user_role_in_family(user, family_id)
-    _assert_family_owner(role)
+    # Self-remove guard first (gives a clear 400 even if caller is owner)
     if user_id == user["id"]:
         raise HTTPException(status_code=400, detail="Owner cannot remove themselves. Transfer ownership first.")
+    role = await _user_role_in_family(user, family_id)
+    _assert_family_owner(role)
     fam = await db.families.find_one({"id": family_id}, {"_id": 0})
     if not fam or not any(m["user_id"] == user_id for m in fam.get("members", [])):
         raise HTTPException(status_code=404, detail="Member not found")
