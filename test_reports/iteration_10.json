@@ -1,0 +1,37 @@
+{
+  "summary": "Iter10: Phase 1 intake + AI interview end-to-end tested. Backend: 19/19 pytest passed (intake GET/PUT incl. persistence, interview start/reply/finish/active, authz: anon=401, student=403, non-owning parent=403/404, AI draft-mission for chore prompt contains no 'write it down' phrases, regression smoke for citations/skills/strategies/moments/games/public stats). Frontend: parent-open-intake link on Parent Dashboard navigates to /parent/students/<id>/intake with H1 'Tell us about Enzo', completion bar, 6 step jumpers (basics/adhd/interests/sensitivities/peak/vanderbilt), Basics select-save flow, chip add via Enter (lowercased) and suggestion-click, Vanderbilt step renders 76 buttons (~18 items x 4 Likert + headers), Save shows 'Profile saved.' toast. Interview modal: opener auto-renders, parent reply triggers AI response (no raw <<<WRAP_UP>>> token leaked), close-without-save works. Mission Detail clue captures correctly gated: shown for Reading: text evidence mission, NOT shown for EF: planning mission.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_intake_interview.py",
+    "/app/test_reports/pytest/iter10_intake.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py now ~2170 lines — increasingly hard to navigate. Strongly recommend splitting into routers (auth, students/intake, interviews, missions, research, public) before adding Phase 2.",
+    "StudentIntake.jsx is 644 lines and bundles InterviewModal inline. The modal is a self-contained feature (separate state, network calls, scroll ref) and should live in its own component file for testability and reuse.",
+    "Interview WRAP_UP detection uses substring `<<<WRAP_UP>>>` on the assistant reply, then sets sess['status']='completed' inside reply endpoint but does NOT synthesize the profile automatically — caller must still POST /finish. Worth either calling _finish internally on wrap-up or surfacing the wrap-up state to the UI more explicitly (currently only the save button visibility/copy hints at it).",
+    "POST /interviews/{sid}/reply returns 502 if the LLM call fails, but the parent reply was already appended to in-memory `sess.messages` — and then the function raises before persisting to Mongo. So a single transient LLM error silently drops the parent's message. Consider persisting the parent turn before the LLM call.",
+    "_ai_chat_with_history collapses history into a single user message instead of using true multi-turn conversation API — works but loses some quality vs sending role-tagged messages. Low priority.",
+    "interview_reply trims content to 2000 chars without surfacing a 400 to the client when input exceeds that — silent truncation. Either reject >2000 with 413 or document the limit in UI.",
+    "/api/students/{id}/intake returns an empty StudentProfile (all defaults) for a freshly-linked student rather than 404 — fine UX-wise, but document this since some consumers may want to distinguish 'never filled' from 'all cleared'.",
+    "PUT /api/students/{id}/intake uses profile.model_dump(exclude_none=False) which lets clients erase fields by sending nulls (intended), but there's no validation of vanderbilt list length (could submit a 1-item list)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_intake_interview.py (new)"
+  ],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "100% (all review_request flows)"},
+  "test_credentials": "parent@demo.com/demo1234 and student@demo.com/demo1234 both valid; linked student id 232f66a6-a4d0-4515-8905-7219f0083646 (Enzo).",
+  "seed_data_creation": "Each pytest run creates 1 TEST_otherparent_<ts>@example.com user (for non-owner authz test) and overwrites parent@demo's linked student profile with TEST_School + sample interests. Each Playwright run adds an interest chip 'test_chip_xyz' to Enzo's profile. No cleanup endpoint used; data is clearly TEST_-prefixed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter10 verified Phase 1 intake (5 new backend endpoints + StudentIntake.jsx + InterviewModal + ParentDashboard link). All 19 pytest cases under tests/test_intake_interview.py pass against the live preview URL when REACT_APP_BACKEND_URL is exported. Register endpoint requires `accept_terms: true`. MissionDetail is mounted ONLY at /student/missions/:id — to verify clue-captures gating, login as student (not parent) and visit /student/missions/<id>. Pre-existing 3 audio test failures in test_moments_audio.py remain out of scope. AI interview latency is ~5-8s per reply; allow >=8s waits in Playwright. The chip input lowercases custom inputs at submit time — assertions must compare case-insensitively.",
+  "rca of the issue": "N/A — all review_request criteria met. No bugs found."
+}

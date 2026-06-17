@@ -350,6 +350,10 @@ export default function ParentDashboard() {
                         </div>
                         <p className="text-sm font-semibold text-[#4A5568] mb-3">
                             Optional notes the AI will use when drafting missions (grade, reading level, interests, struggles, motivation).
+                            {" "}
+                            <Link to={`/parent/students/${selectedStudent.id}/intake`} className="text-[#4361EE] font-bold hover:underline" data-testid="parent-open-intake">
+                                Set up the full structured profile →
+                            </Link>
                         </p>
                         <textarea
                             value={profileNotes}

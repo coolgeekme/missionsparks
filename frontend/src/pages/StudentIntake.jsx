@@ -220,7 +220,7 @@ export default function StudentIntake() {
                 {step.key === "vanderbilt" && (
                     <p className="text-xs text-[#4A5568] font-semibold">
                         <BookOpen size={11} className="inline mr-1 text-[#876200]" />
-                        Short form inspired by the NICHQ Vanderbilt parent rating scale (Wolraich 2003). Not a diagnostic tool — share results with your pediatrician if you're concerned.
+                        {"Short form inspired by the NICHQ Vanderbilt parent rating scale (Wolraich 2003). Not a diagnostic tool — share results with your pediatrician if you're concerned."}
                     </p>
                 )}
             </main>
@@ -451,7 +451,7 @@ function ReviewStep({ profile, student }) {
     return (
         <div className="space-y-4">
             <p className="text-sm font-semibold text-[#4A5568]">
-                Here's what we have for {student.name}. This goes straight into every AI-drafted mission.
+                {"Here's what we have for "}{student.name}{". This goes straight into every AI-drafted mission."}
             </p>
             <div className="rounded-2xl bg-[#F0F8FF] p-4 space-y-2 text-sm" data-testid="intake-review">
                 <ReviewRow label="Grade" value={profile.grade} />

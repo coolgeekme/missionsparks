@@ -22,6 +22,7 @@ import Research from "./pages/Research";
 import Landing from "./pages/Landing";
 import Changelog from "./pages/Changelog";
 import SubProcessors from "./pages/SubProcessors";
+import StudentIntake from "./pages/StudentIntake";
 import { Toaster } from "./components/ui/sonner";
 import "./App.css";
 
@@ -73,6 +74,14 @@ export default function App() {
                             element={
                                 <ProtectedRoute role="parent">
                                     <ParentLogs />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/parent/students/:studentId/intake"
+                            element={
+                                <ProtectedRoute role="parent">
+                                    <StudentIntake />
                                 </ProtectedRoute>
                             }
                         />
