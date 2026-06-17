@@ -577,11 +577,17 @@ async def interview_reply(session_id: str, req: InterviewReplyRequest,
     now = datetime.now(timezone.utc).isoformat()
     sess["messages"].append({"role": "parent", "content": req.content.strip()[:2000], "ts": now})
 
+    # Persist the parent's turn BEFORE calling the LLM so a transient AI failure
+    # does not silently drop their message.
+    await db.interview_sessions.update_one(
+        {"id": session_id},
+        {"$set": {"messages": sess["messages"], "updated_at": now}},
+    )
+
     ai_reply = await _ai_chat_with_history(INTERVIEW_SYSTEM_PROMPT, sess["messages"])
     sess["messages"].append({"role": "assistant", "content": ai_reply, "ts": now})
     sess["updated_at"] = now
-
-    # If the model signaled wrap-up, auto-complete and synthesize the profile
+    # If the model signaled wrap-up, auto-complete; caller still POSTs /finish to synthesize the profile.
     if "<<<WRAP_UP>>>" in ai_reply:
         sess["status"] = "completed"
     await db.interview_sessions.update_one(

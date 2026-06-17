@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Rocket } from "lucide-react";
+import { Zap, ArrowLeft } from "lucide-react";
 
 export default function Login() {
     const { login } = useAuth();
@@ -37,14 +37,22 @@ export default function Login() {
 
     return (
         <div className="min-h-screen mb-dots flex items-center justify-center p-6" data-testid="login-page">
-            <div className="w-full max-w-md mb-card p-8">
-                <div className="flex flex-col items-center text-center mb-6">
-                    <div className="h-14 w-14 rounded-2xl bg-[#4361EE] flex items-center justify-center text-white shadow-[0_6px_0_0_#3A53CC] mb-3">
-                        <Rocket size={26} />
-                    </div>
-                    <h1 className="font-display font-extrabold text-3xl text-[#0B132B]">Welcome back!</h1>
-                    <p className="text-[#4A5568] font-semibold mt-1">Log in to launch today's missions.</p>
-                </div>
+            <div className="w-full max-w-md">
+                <Link
+                    to="/"
+                    className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE] hover:text-[#0B132B] mb-4"
+                    data-testid="login-back-home"
+                >
+                    <ArrowLeft size={14} /> Back to home
+                </Link>
+                <div className="mb-card p-8">
+                    <Link to="/" className="flex flex-col items-center text-center mb-6 group" data-testid="login-logo-home">
+                        <div className="h-14 w-14 rounded-2xl bg-[#4361EE] flex items-center justify-center text-white shadow-[0_6px_0_0_#3A53CC] mb-3 group-hover:scale-105 transition-transform">
+                            <Zap size={26} fill="currentColor" />
+                        </div>
+                        <h1 className="font-display font-extrabold text-3xl text-[#0B132B]">Welcome back!</h1>
+                        <p className="text-[#4A5568] font-semibold mt-1">{"Log in to launch today's missions."}</p>
+                    </Link>
 
                 <form onSubmit={submit} className="space-y-4" data-testid="login-form">
                     <div>
@@ -101,6 +109,7 @@ export default function Login() {
                     {" · "}
                     <Link to="/terms" className="underline hover:text-[#4361EE]">Terms</Link>
                 </p>
+                </div>
             </div>
         </div>
     );

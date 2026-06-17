@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Sparkles } from "lucide-react";
+import { Sparkles, ArrowLeft } from "lucide-react";
 
 export default function Register() {
     const { register } = useAuth();
@@ -34,7 +34,15 @@ export default function Register() {
 
     return (
         <div className="min-h-screen mb-dots flex items-center justify-center p-6" data-testid="register-page">
-            <div className="w-full max-w-md mb-card p-8">
+            <div className="w-full max-w-md">
+                <Link
+                    to="/"
+                    className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE] hover:text-[#0B132B] mb-4"
+                    data-testid="register-back-home"
+                >
+                    <ArrowLeft size={14} /> Back to home
+                </Link>
+                <div className="mb-card p-8">
                 <div className="flex flex-col items-center text-center mb-6">
                     <div className="h-14 w-14 rounded-2xl bg-[#06D6A0] flex items-center justify-center text-white shadow-[0_6px_0_0_#05B488] mb-3">
                         <Sparkles size={26} />
@@ -103,6 +111,7 @@ export default function Register() {
 
                 <div className="mt-5 text-center">
                     <p className="text-sm font-bold text-[#4A5568]">Have an account? <Link to="/login" className="text-[#4361EE] underline" data-testid="register-go-login">Log in</Link></p>
+                </div>
                 </div>
             </div>
         </div>
