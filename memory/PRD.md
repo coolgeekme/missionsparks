@@ -77,14 +77,23 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - 14 new pytest cases (`test_research.py`) — all passing.
 - E2E (testing agent iter8): 100% pass on all 8 acceptance criteria.
 
+### Iter 9 — Public landing + waitlist (2026-02)
+- New public landing page at `/` with hero, features, research-credibility band, how-it-works, privacy section, waitlist, and footer.
+- Logged-out visitors see Landing; logged-in users get redirected to their dashboard.
+- New `/changelog` public page with 8 release entries (v0.2 → v0.9, vertical timeline).
+- Dynamic citation/skills/strategies/waitlist counters on the landing page via new `/api/public/stats` (no-auth).
+- `/api/public/waitlist` POST (no-auth, idempotent on email) + `/api/waitlist` GET (parent-gated for now).
+- 11 new backend pytest cases (`test_landing_waitlist.py`) — all passing.
+- E2E (testing agent iter9): 100% pass on all 11 acceptance criteria, zero issues found.
+
 ### Still open
 - ⚠️ **Sign BAAs with OpenAI (Whisper) + Anthropic (Claude) + MongoDB Atlas dedicated** before any therapist or clinical-track sale.
+- ⚠️ **Rate-limit /api/public/waitlist** before launch (public endpoint, spam risk).
 - Legal review of Privacy Policy + Terms by a privacy attorney (drafts are templates).
-- Production hardening: MongoDB encryption-at-rest config, rate limiting, password-reset flow, brute-force throttling.
+- Password-reset flow, brute-force throttling, MongoDB encryption-at-rest.
 - Per-student data export (zip with CSV + JSON + audio clips) on demand.
-- FERPA-aware "school mode" if schools adopt.
-- GDPR/UK-GDPR readiness if EU/UK users.
-- Refactor server.py (~1800 lines) into `routers/` modules — increasingly urgent after iter8.
+- FERPA-aware "school mode" if schools adopt; GDPR/UK-GDPR if EU users.
+- Refactor `server.py` (~1860 lines) into `routers/` modules — increasingly urgent.
 - App rename from "MissionBoard" → **MissionSparks** completed in iter9 (Feb 2026). Streak UI rebranded to "Sparks" ⚡ (API field name kept as `streak` to avoid breaking changes).
 
 ## Roadmap (deferred)
