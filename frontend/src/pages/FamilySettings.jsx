@@ -69,7 +69,7 @@ export default function FamilySettings() {
                 email: inviteEmail.trim(),
                 role: inviteRole,
             });
-            toast.success("Invite created — share the link with them!");
+            toast.success(data.email_sent ? "Invite sent — they'll get an email!" : "Invite ready — share the link with them.");
             setLastInvite(data);
             setInviteEmail("");
             load(activeId);
@@ -316,7 +316,11 @@ export default function FamilySettings() {
                             {lastInvite && (
                                 <div className="mt-4 rounded-2xl bg-[#06D6A0]/10 border-2 border-[#06D6A0]/30 p-4" data-testid="invite-link-card">
                                     <p className="font-bold text-[#0B132B] text-sm">Invite ready for <span className="text-[#057a5b]">{lastInvite.email}</span></p>
-                                    <p className="text-xs text-[#4A5568] mt-1">Share this link with them. It expires {new Date(lastInvite.expires_at).toLocaleDateString()}.</p>
+                                    <p className="text-xs text-[#4A5568] mt-1">
+                                        {lastInvite.email_sent
+                                            ? <>📬 Email sent to their inbox. They can also use this link directly. Expires {new Date(lastInvite.expires_at).toLocaleDateString()}.</>
+                                            : <>Email couldn&apos;t be sent (sender domain not verified yet) — just share this link with them. Expires {new Date(lastInvite.expires_at).toLocaleDateString()}.</>}
+                                    </p>
                                     <div className="flex gap-2 mt-2">
                                         <input
                                             readOnly

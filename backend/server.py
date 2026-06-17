@@ -8,6 +8,7 @@ import os
 import uuid
 import secrets
 import logging
+from email_service import send_family_invite_email
 import bcrypt
 import jwt
 from datetime import datetime, timezone, timedelta
@@ -1464,8 +1465,24 @@ async def create_family_invite(family_id: str, req: FamilyInviteCreate,
     # Build invite URL using public app origin
     origin = os.environ.get("PUBLIC_APP_URL") or os.environ.get("FRONTEND_URL") or ""
     invite_url = f"{origin.rstrip('/')}/invite/accept?token={token}" if origin else f"/invite/accept?token={token}"
+    # Best-effort send via Resend (never raises — invite link still works in-app).
+    expires_human = (now + timedelta(days=INVITE_TTL_DAYS)).strftime("%b %d, %Y")
+    email_id = await send_family_invite_email(
+        to=email,
+        family_name=fam["name"],
+        role=req.role,
+        inviter_name=user.get("name"),
+        invite_url=invite_url,
+        expires_at_human=expires_human,
+    )
+    if email_id:
+        await db.family_invites.update_one(
+            {"id": invite["id"]},
+            {"$set": {"email_message_id": email_id, "email_sent_at": _now_iso()}},
+        )
     out = {k: v for k, v in invite.items() if k != "_id"}
     out["invite_url"] = invite_url
+    out["email_sent"] = bool(email_id)
     return out
 
 

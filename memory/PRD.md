@@ -113,7 +113,14 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - **Authz refactor across the codebase**: `_assert_parent_owns_student(write=True/False)` is now family-aware; `_accessible_student_ids(user)` aggregates across all families; viewers blocked from writes; missions/moments/audit/streak/students/game packs all scoped via family membership.
 - **Removed-member content**: when a parent is removed from a family, their authored missions + moments are reassigned to the family owner (per product spec).
 - **Backend**: 29/29 new pytest pass (`tests/test_families_invites.py`); 117/117 across all family-aware suites; 0 regressions on Iter 14 (`tests/test_family_games.py` 17/17 still green).
-- Resend integration deferred (PUBLIC_APP_URL env var hook is in place for production deploys).
+
+### Iter 16 — Resend email integration (2026-02)
+- Real transactional emails for family invites via Resend's Python SDK (`resend` 2.32.2).
+- New module `/app/backend/email_service.py` — async non-blocking wrapper using `asyncio.to_thread`; **never raises** (in-app invite link is always source of truth).
+- Email template: styled HTML (inline CSS, table layout) + plain-text fallback. Includes CTA button, copyable link, expiry date, role description.
+- POST `/api/families/{id}/invites` now returns `email_sent: true/false`; FamilySettings UI shows "📬 Email sent" vs "Couldn't send — just share the link" message.
+- Env config: `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (default `onboarding@resend.dev`), `RESEND_FROM_NAME`, `PUBLIC_APP_URL`.
+- **Production note**: Resend default is test mode (sends only to API-key owner). To send to any recipient, verify a sending domain at https://resend.com/domains and update `RESEND_FROM_EMAIL` to an address on that domain.
 
 ### Still open
 - ⚠️ **Sign BAAs with OpenAI (Whisper) + Anthropic (Claude) + MongoDB Atlas dedicated** before any therapist or clinical-track sale.
@@ -126,9 +133,9 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - App rename from "MissionBoard" → **MissionSparks** completed in iter9 (Feb 2026). Streak UI rebranded to "Sparks" ⚡ (API field name kept as `streak` to avoid breaking changes).
 
 ## Roadmap (deferred)
-**Iter 16 (P1, next) — Resend email integration**: send real transactional emails for invites + reset flows (the in-app invite link works today).
-**Iter 17 (P2) — Backend refactor**: split `server.py` (~3700 lines, critical) into modular FastAPI routers (`auth.py`, `families.py`, `missions.py`, `ai.py`, `games.py`, `moments.py`, `intake.py`, `practice.py`, `research.py`).
+**Iter 17 (P2, next) — Backend refactor**: split `server.py` (~3700 lines, critical) into modular FastAPI routers (`auth.py`, `families.py`, `missions.py`, `ai.py`, `games.py`, `moments.py`, `intake.py`, `practice.py`, `research.py`).
 **Iter 18 (P2) — Cross-family pack sharing on approval**: when a parent in multiple families approves a pack, kids in all their families see it (current scope: single-family only).
+**Iter 19 (P2) — Verify production sending domain on Resend** so invites can land in any inbox (today: only the API key owner's inbox).
 **V1.1**: daily/weekly reflection journal separate from per-mission log; parent encouragement notes on logs; confidence trend graph.
 **V1.2**: teacher/tutor role with invite flow; skill mastery visualization over time.
 **V2**: streak freezes / "kind day off"; behavior-pattern email digest for parents; AI-suggested intervention plan based on Moments insights; in-app share link to therapist (read-only).
