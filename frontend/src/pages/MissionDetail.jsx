@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import MissionTimer from "../components/MissionTimer";
 import { api, formatApiErrorDetail } from "../lib/api";
-import { ArrowLeft, Clock, CheckCircle2, Plus, X, Gamepad2 } from "lucide-react";
+import { ArrowLeft, Clock, CheckCircle2, Plus, X, Gamepad2, Zap } from "lucide-react";
 
 const STAR_URL = "https://static.prod-images.emergentagent.com/jobs/151314fa-6f88-4a3d-a39f-0044b194f5e9/images/5f587837e7ac036a02af75fb2b488a2a8b33429167fae318cb66d294e807a889.png";
 
@@ -104,10 +104,10 @@ export default function MissionDetail() {
                     <h1 className="font-display font-extrabold text-4xl text-[#0B132B] mt-4">Mission complete! 🎉</h1>
                     <p className="text-[#4A5568] font-semibold mt-2">Awesome reflection. Your parent will see it in their logs.</p>
                     {postStreak && (
-                        <div className="mt-5 inline-flex items-center gap-2 rounded-2xl border-2 border-[#EF476F] bg-[#EF476F]/10 px-4 py-2" data-testid="mission-success-streak">
-                            <span className="text-2xl">🔥</span>
+                        <div className="mt-5 inline-flex items-center gap-2 rounded-2xl border-2 border-[#FFD166] bg-[#FFD166]/20 px-4 py-2" data-testid="mission-success-streak">
+                            <Zap size={22} fill="currentColor" className="text-[#876200]" />
                             <span className="font-display font-bold text-lg text-[#0B132B]">
-                                {postStreak.current_streak} day streak
+                                +1 spark · {postStreak.current_streak} day streak
                             </span>
                         </div>
                     )}

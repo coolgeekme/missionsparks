@@ -39,7 +39,7 @@ export default function Register() {
                     <div className="h-14 w-14 rounded-2xl bg-[#06D6A0] flex items-center justify-center text-white shadow-[0_6px_0_0_#05B488] mb-3">
                         <Sparkles size={26} />
                     </div>
-                    <h1 className="font-display font-extrabold text-3xl text-[#0B132B]">Join MissionBoard</h1>
+                    <h1 className="font-display font-extrabold text-3xl text-[#0B132B]">Join MissionSparks</h1>
                     <p className="text-[#4A5568] font-semibold mt-1">Create an account to start your adventure.</p>
                 </div>
 

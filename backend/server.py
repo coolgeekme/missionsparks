@@ -212,12 +212,12 @@ class AccountPrefsUpdate(BaseModel):
 
 
 # ---------- App ----------
-app = FastAPI(title="MissionBoard API")
+app = FastAPI(title="MissionSparks API")
 api = APIRouter(prefix="/api")
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger("missionboard")
+logger = logging.getLogger("missionsparks")
 
 
 def _user_to_public(u: dict) -> "UserPublic":
@@ -945,7 +945,7 @@ async def _ai_chat(system_message: str, user_text: str) -> str:
         raise HTTPException(status_code=500, detail="AI is not configured. Set EMERGENT_LLM_KEY in backend/.env.")
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
-        session_id=f"missionboard-{uuid.uuid4()}",
+        session_id=f"missionsparks-{uuid.uuid4()}",
         system_message=system_message,
     ).with_model(AI_MODEL_PROVIDER, AI_MODEL_NAME)
     try:
@@ -960,7 +960,7 @@ def _system_prompt(skills: List[dict], strategies: List[dict]) -> str:
     strat_lines = "\n".join([f"- {s['name']} {s.get('emoji','')}: {s['description']}" for s in strategies])
     evidence_tags = ", ".join(all_known_tags())
     return (
-        "You are MissionBoard's assistant. You help a busy parent draft small, kid-friendly daily "
+        "You are MissionSparks' assistant. You help a busy parent draft small, kid-friendly daily "
         "learning 'missions' for their child. Missions focus on Reading and Executive Function. "
         "Each mission must be tiny, doable in 5-25 minutes, and broken into 2-5 concrete steps a child can check off. "
         "Use warm, encouraging, second-person language ('you'). Avoid jargon and emoji.\n\n"
@@ -1410,7 +1410,7 @@ def _moment_extraction_system_prompt() -> str:
         for t in MOMENT_CATALOG["triggers"]
     )
     return (
-        "You are MissionBoard's helper. A parent or kid will narrate a 'moment' — a behavior or "
+        "You are MissionSparks' helper. A parent or kid will narrate a 'moment' — a behavior or "
         "feeling that just happened — and you must extract a structured record from their narration.\n\n"
         "Pick moment_type from this catalog (use the KEY, not the label):\n"
         f"{types}\n\n"
@@ -1602,7 +1602,7 @@ async def moments_export(
 # ---------- Health ----------
 @api.get("/")
 async def root():
-    return {"app": "MissionBoard", "status": "ok"}
+    return {"app": "MissionSparks", "status": "ok"}
 
 
 app.include_router(api)
@@ -1802,7 +1802,7 @@ async def on_startup():
         for m in demo_missions:
             await db.missions.insert_one(m)
 
-    logger.info("MissionBoard startup complete. Demo parent=%s / student=%s", parent_email, student_email)
+    logger.info("MissionSparks startup complete. Demo parent=%s / student=%s", parent_email, student_email)
 
 
 @app.on_event("shutdown")

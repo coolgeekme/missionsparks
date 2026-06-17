@@ -1,5 +1,5 @@
 """
-Research citation library for MissionBoard.
+Research citation library for MissionSparks.
 
 Every clinically-relevant element of the app (skills, strategies, moment types,
 triggers, mini-games, AI mission drafts) is linked to one or more citations

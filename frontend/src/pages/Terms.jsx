@@ -16,7 +16,7 @@ export default function Terms() {
                 </Section>
 
                 <Section title="What this app is — and isn't">
-                    <p>MissionBoard helps families create daily learning missions and capture behavior observations. <strong>It is not a medical device, not a diagnostic tool, and not a substitute for therapy, education plans, or medical care.</strong> Insights are pattern summaries, not clinical findings.</p>
+                    <p>MissionSparks helps families create daily learning missions and capture behavior observations. <strong>It is not a medical device, not a diagnostic tool, and not a substitute for therapy, education plans, or medical care.</strong> Insights are pattern summaries, not clinical findings.</p>
                 </Section>
 
                 <Section title="Your content">
@@ -40,7 +40,7 @@ export default function Terms() {
                 </Section>
 
                 <Section title="Contact">
-                    <p>Questions: support@missionboard.example.</p>
+                    <p>Questions: support@missionsparks.example.</p>
                 </Section>
             </main>
         </div>

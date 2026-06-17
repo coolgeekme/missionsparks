@@ -70,7 +70,7 @@ export default function Research() {
                     </div>
                     <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#0B132B]">Why this app works</h1>
                     <p className="text-[#4A5568] font-semibold max-w-2xl">
-                        Every skill, strategy, mini-game, and behavior tag in MissionBoard is grounded in
+                        Every skill, strategy, mini-game, and behavior tag in MissionSparks is grounded in
                         peer-reviewed research or authoritative health-organization guidance. Browse the full
                         library below — share with your child's therapist or teacher.
                     </p>
@@ -186,7 +186,7 @@ export default function Research() {
                         evidence base evolves.
                     </p>
                     <p className="mt-2">
-                        <em>MissionBoard is a consumer wellness product, not a medical device. Use this library
+                        <em>MissionSparks is a consumer wellness product, not a medical device. Use this library
                         to talk with your child's clinician — not as a substitute for one.</em>
                     </p>
                 </footer>

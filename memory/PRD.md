@@ -1,4 +1,4 @@
-# MissionBoard — PRD
+# MissionSparks — PRD
 
 ## Original problem
 A kid-friendly app for parents to assign small daily learning "missions" to their student child (Reading + Executive Function), and for the student to complete them, log a quick reflection, and self-track behavior moments. Voice-first capture for parents and kids. AI helps draft missions + parse spoken moments. Insights surface ADHD-relevant patterns.
@@ -85,7 +85,7 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - FERPA-aware "school mode" if schools adopt.
 - GDPR/UK-GDPR readiness if EU/UK users.
 - Refactor server.py (~1800 lines) into `routers/` modules — increasingly urgent after iter8.
-- App rename from "MissionBoard" (Quest-themed shortlist proposed; deferred per user).
+- App rename from "MissionBoard" → **MissionSparks** completed in iter9 (Feb 2026). Streak UI rebranded to "Sparks" ⚡ (API field name kept as `streak` to avoid breaking changes).
 
 ## Roadmap (deferred)
 **V1.1**: daily/weekly reflection journal separate from per-mission log; parent encouragement notes on logs; confidence trend graph.

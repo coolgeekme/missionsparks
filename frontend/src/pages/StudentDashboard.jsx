@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../lib/api";
-import { Clock, Sparkles, CheckCircle2, Flame, Heart } from "lucide-react";
+import { Clock, Sparkles, CheckCircle2, Zap, Heart } from "lucide-react";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const ROCKET_URL = "https://static.prod-images.emergentagent.com/jobs/151314fa-6f88-4a3d-a39f-0044b194f5e9/images/1ec739dfedecb93df2ad320aeb4f02b79070a29d4126c045ddb5fc82ecf1c875.png";
@@ -91,22 +91,22 @@ export default function StudentDashboard() {
                                 <div
                                     className={`relative h-16 w-16 rounded-2xl flex items-center justify-center ${
                                         streak.current_streak > 0
-                                            ? "bg-[#EF476F]/15 text-[#EF476F]"
+                                            ? "bg-[#FFD166]/30 text-[#876200]"
                                             : "bg-[#E2E8F0] text-[#A0AEC0]"
                                     }`}
                                     data-testid="student-streak-icon"
                                 >
-                                    <Flame size={32} className={streak.current_streak > 0 ? "animate-pulse" : ""} />
+                                    <Zap size={32} fill="currentColor" className={streak.current_streak > 0 ? "animate-pulse" : ""} />
                                 </div>
                                 <div>
-                                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Current streak</p>
+                                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Spark streak</p>
                                     <p className="font-display font-extrabold text-3xl text-[#0B132B] leading-none" data-testid="student-streak-current">
                                         {streak.current_streak} day{streak.current_streak === 1 ? "" : "s"}
                                     </p>
                                     <p className="text-sm font-bold text-[#4A5568] mt-1">
                                         {streak.longest_streak > streak.current_streak
                                             ? <>Personal best: <span className="text-[#0B132B]">{streak.longest_streak} days</span></>
-                                            : (streak.current_streak >= 2 ? "🔥 You're on fire!" : "Finish a mission today to keep it going.")}
+                                            : (streak.current_streak >= 2 ? "⚡ You're sparking!" : "Finish a mission today to light your first spark.")}
                                     </p>
                                 </div>
                             </div>
@@ -140,7 +140,7 @@ export default function StudentDashboard() {
                         <img src={STAR_URL} alt="Star" className="h-24 w-24 mx-auto drop-shadow-lg" />
                         <h2 className="font-display font-extrabold text-3xl text-[#0B132B] mt-2">All missions complete! 🎉</h2>
                         <p className="text-[#4A5568] font-semibold mt-1">
-                            Your streak is now <span className="text-[#EF476F] font-extrabold">{streak?.current_streak ?? 0} day{(streak?.current_streak ?? 0) === 1 ? "" : "s"}</span> long. Come back tomorrow to keep it growing.
+                            Your spark streak is now <span className="text-[#876200] font-extrabold">{streak?.current_streak ?? 0} day{(streak?.current_streak ?? 0) === 1 ? "" : "s"}</span> long. Come back tomorrow to add another spark.
                         </p>
                     </section>
                 )}

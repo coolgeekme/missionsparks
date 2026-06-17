@@ -40,7 +40,7 @@ export default function Account() {
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
             const a = document.createElement("a");
             a.href = URL.createObjectURL(blob);
-            a.download = `missionboard_export_${new Date().toISOString().slice(0, 10)}.json`;
+            a.download = `missionsparks_export_${new Date().toISOString().slice(0, 10)}.json`;
             a.click();
         } catch (e) {
             setErr(formatApiErrorDetail(e.response?.data?.detail) || e.message);

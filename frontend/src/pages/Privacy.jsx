@@ -47,7 +47,7 @@ export default function Privacy() {
                 </Section>
 
                 <Section title="Contact">
-                    <p>Questions or requests: privacy@missionboard.example.</p>
+                    <p>Questions or requests: privacy@missionsparks.example.</p>
                 </Section>
             </main>
         </div>

@@ -5,7 +5,7 @@ import EvidenceBadge from "../components/EvidenceBadge";
 import { api, formatApiErrorDetail } from "../lib/api";
 import {
     Plus, ClipboardList, Users, Pencil, Trash2, UserPlus, Clock,
-    Sparkles, Save, Loader2, Wand2, X, Flame, Activity, BookOpen,
+    Sparkles, Save, Loader2, Wand2, X, Zap, Activity, BookOpen,
 } from "lucide-react";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -317,7 +317,7 @@ export default function ParentDashboard() {
                                     data-testid="parent-link-consent-checkbox"
                                 />
                                 <span>
-                                    I am the parent or legal guardian and consent to MissionBoard processing my child's information as described in the{" "}
+                                    I am the parent or legal guardian and consent to MissionSparks processing my child's information as described in the{" "}
                                     <Link to="/privacy" className="text-[#4361EE] underline" target="_blank">Privacy Policy</Link>.
                                 </span>
                             </label>
@@ -339,8 +339,8 @@ export default function ParentDashboard() {
                             </div>
                             {studentStreak && (
                                 <div className="flex items-center gap-2" data-testid="parent-student-streak">
-                                    <span className={`mb-chip ${studentStreak.current_streak > 0 ? "bg-[#EF476F]/15 text-[#EF476F]" : "bg-[#E2E8F0] text-[#4A5568]"}`}>
-                                        <Flame size={14} /> {studentStreak.current_streak} day streak
+                                    <span className={`mb-chip ${studentStreak.current_streak > 0 ? "bg-[#FFD166]/30 text-[#876200]" : "bg-[#E2E8F0] text-[#4A5568]"}`}>
+                                        <Zap size={14} fill="currentColor" /> {studentStreak.current_streak}-day spark streak
                                     </span>
                                     <span className="mb-chip bg-[#06D6A0]/15 text-[#057a5b]">
                                         {studentStreak.completed_today_count}/{studentStreak.missions_today_count} today
