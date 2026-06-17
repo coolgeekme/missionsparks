@@ -170,6 +170,30 @@ export default function App() {
                                 </ProtectedRoute>
                             }
                         />
+                        <Route
+                            path="/parent/students/:studentId/portfolio"
+                            element={
+                                <ProtectedRoute role="parent">
+                                    <Portfolio />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/student/practice/reading/:passageId"
+                            element={
+                                <ProtectedRoute>
+                                    <ReadingPractice />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/student/practice/writing/:pieceId"
+                            element={
+                                <ProtectedRoute>
+                                    <WritingPractice />
+                                </ProtectedRoute>
+                            }
+                        />
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                     <Toaster />
