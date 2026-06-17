@@ -302,7 +302,7 @@ export default function MissionForm() {
                         </div>
                     </div>
 
-                    {!editing && (
+                    {!editing && missionKind === "standard" && (
                         <div data-testid="mission-form-recurrence">
                             <label className="block text-sm font-bold text-[#0B132B] mb-2">Repeat</label>
                             <div className="flex flex-wrap gap-2">

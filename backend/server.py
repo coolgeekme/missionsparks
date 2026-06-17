@@ -1108,6 +1108,12 @@ async def create_practice_mission(req: PracticeMissionRequest,
             "linked_passage_id": passage.id,
             "linked_writing_id": None,
         }
+        try:
+            await db.missions.insert_one(dict(doc))
+        except Exception:
+            # Roll back the orphaned passage so the user can retry cleanly
+            await db.reading_passages.delete_one({"id": passage.id})
+            raise
     else:  # writing
         piece = await generate_writing_prompt(
             WritingPromptRequest(
@@ -1136,7 +1142,11 @@ async def create_practice_mission(req: PracticeMissionRequest,
             "linked_passage_id": None,
             "linked_writing_id": piece.id,
         }
-    await db.missions.insert_one(dict(doc))
+        try:
+            await db.missions.insert_one(dict(doc))
+        except Exception:
+            await db.writing_pieces.delete_one({"id": piece.id})
+            raise
     return doc
 
 

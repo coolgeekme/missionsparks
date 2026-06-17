@@ -586,7 +586,7 @@ export default function ParentDashboard() {
                                     </div>
                                     {m.description && <p className="text-[#4A5568] font-semibold text-sm mb-3">{m.description}</p>}
                                     <div className="flex items-center gap-2 text-sm font-bold text-[#4A5568] mb-3">
-                                        <Clock size={14} /> {m.estimated_minutes} min · {m.steps.length} steps
+                                        <Clock size={14} /> {m.estimated_minutes} min{m.mission_type === "standard" && ` · ${m.steps.length} steps`}
                                     </div>
                                     <div className="flex flex-wrap gap-2">
                                         {m.skill_ids.map((sid) => skillMap[sid] && (
