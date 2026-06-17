@@ -1546,12 +1546,13 @@ async def list_game_packs(user: dict = Depends(get_current_user)):
     rows = await db.game_packs.find(
         {
             "family_parent_id": parent_id,
-            "status": "approved",
             "$or": [
+                # Student always sees their own packs (any status — so the Waiting chip shows)
                 {"created_by_user_id": user["id"]},
-                {"share_with_student_ids": user["id"]},
-                # Parent-authored packs without an explicit share-list go to all kids
-                {"created_by_role": "parent", "share_with_student_ids": []},
+                # Approved packs explicitly shared with this student
+                {"status": "approved", "share_with_student_ids": user["id"]},
+                # Approved parent-authored packs with no share-list go to all kids
+                {"status": "approved", "created_by_role": "parent", "share_with_student_ids": []},
             ],
         },
         {"_id": 0},
@@ -1568,15 +1569,18 @@ async def get_game_pack(pack_id: str, user: dict = Depends(get_current_user)):
         if p["family_parent_id"] != user["id"]:
             raise HTTPException(status_code=403, detail="Not your family's pack")
         return p
-    # student: must be approved and visible
-    if p["status"] != "approved":
-        raise HTTPException(status_code=403, detail="Pack not available")
+    # student: must belong to same family
     parent_id = await _parent_id_of_student(user["id"])
     if p["family_parent_id"] != parent_id:
         raise HTTPException(status_code=403, detail="Not your family's pack")
+    # creator-student can always read their own pack regardless of status
+    if p["created_by_user_id"] == user["id"]:
+        return p
+    # otherwise must be approved AND visible
+    if p["status"] != "approved":
+        raise HTTPException(status_code=403, detail="Pack not available")
     visible = (
-        p["created_by_user_id"] == user["id"]
-        or user["id"] in (p.get("share_with_student_ids") or [])
+        user["id"] in (p.get("share_with_student_ids") or [])
         or (p["created_by_role"] == "parent" and not (p.get("share_with_student_ids") or []))
     )
     if not visible:

@@ -248,13 +248,16 @@ class TestStudentSubmitGated:
         # store on the class for reuse
         TestStudentSubmitGated.pending_pack_id = d["id"]
 
-    def test_student_cannot_see_own_pending_via_list(self, student_session):
-        # The list endpoint for students filters to approved-only.
+    def test_student_sees_own_pending_via_list(self, student_session):
+        """Per spec: a kid should see their OWN packs in any status (so the
+        'Waiting' chip shows in Kid Studio). Sibling pending packs remain hidden."""
         ss, _ = student_session
         r = ss.get(f"{API}/game-packs", timeout=15)
         assert r.status_code == 200
-        for p in r.json():
-            assert p["status"] == "approved"
+        rows = r.json()
+        # Must contain our just-submitted pending pack
+        assert any(p["id"] == TestStudentSubmitGated.pending_pack_id and p["status"] == "pending" for p in rows), \
+            "Student's own pending pack should appear in their list"
 
 
 # ---------- Approve / Reject flows ----------
@@ -325,14 +328,10 @@ class TestApproveReject:
 # ---------- Visibility & 403s ----------
 
 class TestVisibility:
-    def test_student_get_pending_sibling_pack_403(self, parent_session, student_session, student_id):
-        """A sibling's pending pack must 403 to the student.
-        Since the demo only has one student, simulate by creating a pending pack
-        whose created_by_user_id != student_id by inserting via a non-student route...
-        We will mark a parent-authored pack as 'pending' via approve flow is not possible.
-        Instead use kid's own pending pack and ensure the GET-by-id returns 403 if the
-        student tries to fetch a pending pack that isn't approved.
-        """
+    def test_student_can_get_own_pending_pack(self, parent_session, student_session, student_id):
+        """Per spec: a kid can deep-link to their own pending pack (for Kid Studio
+        review). Sibling pending packs are blocked (single-student demo doesn't
+        have a sibling to verify the negative path here)."""
         ps, _ = parent_session
         ss, _ = student_session
 
@@ -355,10 +354,10 @@ class TestVisibility:
         pid = sub.json()["id"]
         _track(pid)
 
-        # Student GET-by-id on their OWN pending pack: should 403 per spec
-        # (student can only access approved packs by id).
+        # Student GET-by-id on their OWN pending pack: 200 (own packs always visible).
         r = ss.get(f"{API}/game-packs/{pid}", timeout=15)
-        assert r.status_code == 403, f"Expected 403 on pending pack GET, got {r.status_code}: {r.text}"
+        assert r.status_code == 200, f"Owner-kid should see own pending pack, got {r.status_code}: {r.text}"
+        assert r.json()["status"] == "pending"
 
     def test_parent_list_includes_all_statuses(self, parent_session):
         ps, _ = parent_session

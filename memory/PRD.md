@@ -86,6 +86,23 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - 11 new backend pytest cases (`test_landing_waitlist.py`) — all passing.
 - E2E (testing agent iter9): 100% pass on all 11 acceptance criteria, zero issues found.
 
+### Iter 10–13 — Research library, AI-led intake, Reading + Writing practice (2026-02)
+- Research-backed citation DB seeded + UI badges + `/research` library page.
+- Phase 1 structured parent intake form & AI-led text interview via `/api/intake/interview/{start,reply}`.
+- "Why this mission?" rationale tooltips on AI drafts.
+- Recurring missions (daily/weekdays/weekends/weekly), mission duplication, visible Edit buttons.
+- AI-generated Reading Passages + Guided Writing missions + Portfolio page (`POST /api/missions/practice`).
+
+### Iter 14 — Family Games System (2026-02) — Feature A
+- Mini-games library exposed at `/games` for BOTH parents and kids; tabs for Built-in / Custom packs / Pending (parents only).
+- Parents can author **custom game packs** for the 3 customizable games (Word Match, Memory Cards, Sentence Builder) via `/parent/games/new` — instantly approved on save and optionally shared with specific kids.
+- **Kid Studio** at `/student/studio` — locked behind a per-student `game_studio_unlock_streak` (default 7 days). Once unlocked, the kid can author a pack for a sibling. Every kid-authored pack starts as `status="pending"` and **must be parent-approved before anyone (including the creator) can play it**.
+- Parent approval queue: Approve (with optional re-pick of shared kids) or Reject with a short note that the kid sees on their pack tile.
+- Kids see their own packs in any status (Waiting/Sent back/Approved chips); only **approved** sibling packs are visible to other kids.
+- GamePlay route now supports `?packId=...` standalone (`/play/free/{gameKey}?packId={id}`) and shows the pack name + creator under the game header.
+- Per-student `game_studio_unlock_streak` configurable from Student Intake (Peak hours & motivators step).
+- Backend models + endpoints (`GamePack`, `/api/game-packs` CRUD, `/api/me/studio-status`) with strict family-scoped visibility and content validation. 17/17 pytest pass (`tests/test_family_games.py`).
+
 ### Still open
 - ⚠️ **Sign BAAs with OpenAI (Whisper) + Anthropic (Claude) + MongoDB Atlas dedicated** before any therapist or clinical-track sale.
 - ⚠️ **Rate-limit /api/public/waitlist** before launch (public endpoint, spam risk).
@@ -93,10 +110,12 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Password-reset flow, brute-force throttling, MongoDB encryption-at-rest.
 - Per-student data export (zip with CSV + JSON + audio clips) on demand.
 - FERPA-aware "school mode" if schools adopt; GDPR/UK-GDPR if EU users.
-- Refactor `server.py` (~1860 lines) into `routers/` modules — increasingly urgent.
+- Refactor `server.py` (~3100 lines, critical) into `routers/` modules — increasingly urgent.
 - App rename from "MissionBoard" → **MissionSparks** completed in iter9 (Feb 2026). Streak UI rebranded to "Sparks" ⚡ (API field name kept as `streak` to avoid breaking changes).
 
 ## Roadmap (deferred)
+**Iter 15 (P1) — Co-Parent / Family Group system**: introduce a `family` entity, multi-parent linking to the same student, email invites, admin permission tiers. Requires major authz refactoring across all endpoints to check family group membership instead of single parent ownership.
+**Iter 16 (P2) — Backend refactor**: split `server.py` into modular FastAPI routers (`auth.py`, `missions.py`, `ai.py`, `games.py`, `moments.py`, `intake.py`, `practice.py`, `research.py`).
 **V1.1**: daily/weekly reflection journal separate from per-mission log; parent encouragement notes on logs; confidence trend graph.
 **V1.2**: teacher/tutor role with invite flow; skill mastery visualization over time.
 **V2**: streak freezes / "kind day off"; behavior-pattern email digest for parents; AI-suggested intervention plan based on Moments insights; in-app share link to therapist (read-only).
@@ -106,6 +125,7 @@ parent@demo.com / demo1234 (linked to Enzo)
 student@demo.com / demo1234
 
 ## Test coverage
-- 71/71 non-AI backend tests pass (auth, missions, logs, streak, games, moments, voice).
-- AI suite (mission drafting + voice parse) hits live Claude + Whisper — verified at smoke and integration level.
+- 88/88 non-AI backend tests pass (auth, missions, logs, streak, games, moments, voice, practice, landing/waitlist, research, family games).
+- AI suite (mission drafting + voice parse + AI interview + reading/writing gen) hits live Claude + Whisper — verified at smoke and integration level.
 - Frontend agent verified all flows except real-mic record→upload (headless browser limitation).
+
