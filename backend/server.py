@@ -138,6 +138,11 @@ class MissionStep(BaseModel):
     done: bool = False
 
 
+class MissionRecurrence(BaseModel):
+    pattern: Literal["none", "daily", "weekdays", "weekends", "weekly"] = "none"
+    end_date: Optional[str] = None  # ISO; defaults to +30 days at creation
+
+
 class MissionCreate(BaseModel):
     student_id: str
     title: str
@@ -147,6 +152,7 @@ class MissionCreate(BaseModel):
     due_date: str  # ISO date string YYYY-MM-DD
     skill_ids: List[str] = []
     strategy_ids: List[str] = []
+    recurrence: Optional[MissionRecurrence] = None
 
 
 class MissionUpdate(BaseModel):
@@ -157,6 +163,10 @@ class MissionUpdate(BaseModel):
     due_date: Optional[str] = None
     skill_ids: Optional[List[str]] = None
     strategy_ids: Optional[List[str]] = None
+
+
+class MissionDuplicateRequest(BaseModel):
+    due_date: str  # ISO
 
 
 class Mission(BaseModel):
@@ -171,6 +181,8 @@ class Mission(BaseModel):
     strategy_ids: List[str] = []
     created_by_user_id: str
     created_at: str
+    recurrence_pattern: Optional[str] = None
+    recurrence_parent_id: Optional[str] = None
 
 
 class MissionLogCreate(BaseModel):
@@ -911,11 +923,43 @@ async def _assert_parent_owns_student(parent: dict, student_id: str):
         raise HTTPException(status_code=403, detail="You are not linked to this student")
 
 
+def _recurrence_dates(start_iso: str, pattern: str, end_iso: Optional[str]) -> List[str]:
+    """Return all dates after `start_iso` (exclusive) up through `end_iso`
+    that match the given recurrence pattern. Defaults to a 30-day window."""
+    from datetime import date, timedelta
+    start = date.fromisoformat(start_iso)
+    if end_iso:
+        try:
+            end = date.fromisoformat(end_iso)
+        except Exception:
+            end = start + timedelta(days=30)
+    else:
+        end = start + timedelta(days=30)
+    end = min(end, start + timedelta(days=180))  # hard cap: 6 months
+    out: List[str] = []
+    d = start + timedelta(days=1)
+    while d <= end:
+        wd = d.weekday()  # 0=Mon, 6=Sun
+        ok = (
+            (pattern == "daily")
+            or (pattern == "weekdays" and wd < 5)
+            or (pattern == "weekends" and wd >= 5)
+            or (pattern == "weekly" and wd == start.weekday())
+        )
+        if ok:
+            out.append(d.isoformat())
+        d += timedelta(days=1)
+    return out
+
+
 @api.post("/missions", response_model=Mission)
 async def create_mission(req: MissionCreate, user: dict = Depends(require_role("parent"))):
     await _assert_parent_owns_student(user, req.student_id)
     mission_id = str(uuid.uuid4())
-    doc = {
+    now_iso = datetime.now(timezone.utc).isoformat()
+    pattern = (req.recurrence.pattern if req.recurrence else "none") or "none"
+
+    base = {
         "id": mission_id,
         "student_id": req.student_id,
         "title": req.title,
@@ -926,11 +970,50 @@ async def create_mission(req: MissionCreate, user: dict = Depends(require_role("
         "skill_ids": req.skill_ids,
         "strategy_ids": req.strategy_ids,
         "created_by_user_id": user["id"],
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": now_iso,
+        "recurrence_pattern": pattern if pattern != "none" else None,
+        "recurrence_parent_id": None,
     }
-    await db.missions.insert_one(doc)
-    doc.pop("_id", None)
-    return Mission(**doc)
+    await db.missions.insert_one(dict(base))
+
+    # Eagerly spawn recurring instances for the next 30 days (or until end_date)
+    if pattern != "none":
+        future = _recurrence_dates(
+            req.due_date, pattern, req.recurrence.end_date if req.recurrence else None
+        )
+        for d in future:
+            inst = dict(base)
+            inst["id"] = str(uuid.uuid4())
+            inst["due_date"] = d
+            inst["created_at"] = now_iso
+            inst["recurrence_parent_id"] = mission_id
+            await db.missions.insert_one(inst)
+
+    out = await db.missions.find_one({"id": mission_id}, {"_id": 0})
+    return out
+
+
+@api.post("/missions/{mission_id}/duplicate", response_model=Mission)
+async def duplicate_mission(mission_id: str, req: MissionDuplicateRequest,
+                             user: dict = Depends(require_role("parent"))):
+    src = await db.missions.find_one({"id": mission_id}, {"_id": 0})
+    if not src:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    await _assert_parent_owns_student(user, src["student_id"])
+    new_id = str(uuid.uuid4())
+    dup = {
+        **src,
+        "id": new_id,
+        "due_date": req.due_date,
+        "created_by_user_id": user["id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        # A duplicate is a fresh one-off — drop any recurrence linkage.
+        "recurrence_pattern": None,
+        "recurrence_parent_id": None,
+    }
+    dup.pop("_id", None)
+    await db.missions.insert_one(dup)
+    return dup
 
 
 @api.get("/missions", response_model=List[Mission])

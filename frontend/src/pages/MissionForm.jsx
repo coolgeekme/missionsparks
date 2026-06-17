@@ -24,6 +24,7 @@ export default function MissionForm() {
         due_date: todayISO(),
         skill_ids: [],
         strategy_ids: [],
+        recurrence_pattern: "none",  // "none" | "daily" | "weekdays" | "weekends" | "weekly"
     });
     const [err, setErr] = useState("");
     const [busy, setBusy] = useState(false);
@@ -57,6 +58,7 @@ export default function MissionForm() {
                     due_date: data.due_date,
                     skill_ids: data.skill_ids,
                     strategy_ids: data.strategy_ids,
+                    recurrence_pattern: data.recurrence_pattern || "none",
                 });
             }
         })();
@@ -86,15 +88,19 @@ export default function MissionForm() {
         setErr("");
         setBusy(true);
         try {
+            const { recurrence_pattern, ...rest } = form;
             const payload = {
-                ...form,
+                ...rest,
                 steps: form.steps.map((s) => s.trim()).filter(Boolean),
                 estimated_minutes: Number(form.estimated_minutes) || 10,
             };
             if (editing) {
-                const { student_id, ...rest } = payload; // eslint-disable-line no-unused-vars
-                await api.put(`/missions/${id}`, rest);
+                const { student_id, ...editRest } = payload; // eslint-disable-line no-unused-vars
+                await api.put(`/missions/${id}`, editRest);
             } else {
+                if (recurrence_pattern && recurrence_pattern !== "none") {
+                    payload.recurrence = { pattern: recurrence_pattern };
+                }
                 await api.post("/missions", payload);
             }
             navigate("/parent");
@@ -235,6 +241,36 @@ export default function MissionForm() {
                             />
                         </div>
                     </div>
+
+                    {!editing && (
+                        <div data-testid="mission-form-recurrence">
+                            <label className="block text-sm font-bold text-[#0B132B] mb-2">Repeat</label>
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { v: "none", l: "Just once" },
+                                    { v: "daily", l: "Every day" },
+                                    { v: "weekdays", l: "Weekdays (Mon–Fri)" },
+                                    { v: "weekends", l: "Weekends (Sat–Sun)" },
+                                    { v: "weekly", l: "Weekly (same weekday)" },
+                                ].map((o) => (
+                                    <button
+                                        key={o.v}
+                                        type="button"
+                                        onClick={() => setForm({ ...form, recurrence_pattern: o.v })}
+                                        className={`mb-chip border-2 ${form.recurrence_pattern === o.v ? "bg-[#06D6A0] text-[#0B132B] border-[#057a5b]" : "bg-white text-[#0B132B] border-[#E2E8F0] hover:border-[#06D6A0]"}`}
+                                        data-testid={`mission-form-recurrence-${o.v}`}
+                                    >
+                                        {o.l}
+                                    </button>
+                                ))}
+                            </div>
+                            {form.recurrence_pattern !== "none" && (
+                                <p className="text-xs font-semibold text-[#057a5b] mt-2">
+                                    We'll create instances for the next 30 days starting from your due date. Edits later only change the day you edit.
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     <div>
                         <label className="block text-sm font-bold text-[#0B132B] mb-2">Steps</label>

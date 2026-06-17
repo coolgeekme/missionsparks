@@ -7,7 +7,7 @@ import { api, formatApiErrorDetail } from "../lib/api";
 import {
     Plus, ClipboardList, Users, Pencil, Trash2, UserPlus, Clock,
     Sparkles, Save, Loader2, Wand2, X, Zap, Activity, BookOpen,
-    HelpCircle,
+    HelpCircle, Copy, Repeat,
 } from "lucide-react";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -130,6 +130,19 @@ export default function ParentDashboard() {
         if (!window.confirm("Delete this mission?")) return;
         await api.delete(`/missions/${id}`);
         loadMissions(selectedStudent.id);
+    };
+
+    const [duplicatingId, setDuplicatingId] = useState(null);
+    const handleDuplicate = async (id) => {
+        setDuplicatingId(id);
+        try {
+            await api.post(`/missions/${id}/duplicate`, { due_date: todayISO() });
+            await loadMissions(selectedStudent.id);
+        } catch (e) {
+            window.alert(formatApiErrorDetail(e.response?.data?.detail) || e.message);
+        } finally {
+            setDuplicatingId(null);
+        }
     };
 
     const saveProfile = async () => {
@@ -501,12 +514,33 @@ export default function ParentDashboard() {
                             {missions.map((m) => (
                                 <article key={m.id} className="mb-card mb-card-hover p-6" data-testid={`parent-mission-${m.id}`}>
                                     <div className="flex items-start justify-between gap-3 mb-2">
-                                        <h3 className="font-display font-bold text-xl text-[#0B132B] leading-tight">{m.title}</h3>
-                                        <div className="flex gap-1">
-                                            <Link to={`/parent/missions/${m.id}/edit`} className="p-2 rounded-xl hover:bg-[#F0F8FF]" data-testid={`parent-mission-edit-${m.id}`}>
-                                                <Pencil size={16} className="text-[#4361EE]" />
+                                        <div className="flex-1">
+                                            <h3 className="font-display font-bold text-xl text-[#0B132B] leading-tight">{m.title}</h3>
+                                            {m.recurrence_pattern && (
+                                                <span className="mt-1 inline-flex items-center gap-1 mb-chip bg-[#06D6A0]/15 text-[#057a5b] text-[10px] py-0.5" data-testid={`parent-mission-recurs-${m.id}`}>
+                                                    <Repeat size={10} /> Repeats {m.recurrence_pattern}
+                                                </span>
+                                            )}
+                                            {m.recurrence_parent_id && !m.recurrence_pattern && (
+                                                <span className="mt-1 inline-flex items-center gap-1 mb-chip bg-[#06D6A0]/10 text-[#057a5b] text-[10px] py-0.5" data-testid={`parent-mission-instance-${m.id}`}>
+                                                    <Repeat size={10} /> Recurring instance
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-1 flex-wrap justify-end">
+                                            <Link to={`/parent/missions/${m.id}/edit`} className="p-2 rounded-xl hover:bg-[#F0F8FF] inline-flex items-center gap-1 text-xs font-bold text-[#4361EE]" data-testid={`parent-mission-edit-${m.id}`} title="Edit">
+                                                <Pencil size={16} /> Edit
                                             </Link>
-                                            <button onClick={() => handleDelete(m.id)} className="p-2 rounded-xl hover:bg-[#EF476F]/10" data-testid={`parent-mission-delete-${m.id}`}>
+                                            <button
+                                                onClick={() => handleDuplicate(m.id)}
+                                                className="p-2 rounded-xl hover:bg-[#FFD166]/30 inline-flex items-center gap-1 text-xs font-bold text-[#876200]"
+                                                data-testid={`parent-mission-duplicate-${m.id}`}
+                                                disabled={duplicatingId === m.id}
+                                                title="Duplicate to today"
+                                            >
+                                                {duplicatingId === m.id ? <Loader2 size={16} className="animate-spin" /> : <Copy size={16} />} Duplicate
+                                            </button>
+                                            <button onClick={() => handleDelete(m.id)} className="p-2 rounded-xl hover:bg-[#EF476F]/10" data-testid={`parent-mission-delete-${m.id}`} title="Delete">
                                                 <Trash2 size={16} className="text-[#EF476F]" />
                                             </button>
                                         </div>

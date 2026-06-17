@@ -1,0 +1,38 @@
+{
+  "summary": "Iter11: Validated 3 new features — recurring missions (4 patterns), duplicate endpoint, edit-with-logs. Backend: 21/21 pytest cases pass in test_recurring_duplicate.py (recurrence spawn counts daily≈30/weekdays≈22/weekends≈8/weekly≈4, 'none' and missing recurrence spawn 0; duplicate happy path persists fields and assigns new id + null recurrence; duplicate authz blocks non-owning parent (403/404) and student role (403) and returns 404 for missing id; edit PUT persists steps to 4 items even when mission_logs exist; title/description/estimated_minutes/due_date editable independently; regression smoke covers citations/skills/strategies/moments-catalog/games-catalog/public/stats/intake-get/AI draft-mission rationale still present). Frontend: mission-form-recurrence section visible on /parent/missions/new with all 5 chips (none/daily/weekdays/weekends/weekly), 'Just once' selected by default, weekdays selection saves a recurring mission. Edit page (/parent/missions/:id/edit) does NOT render the recurrence section. Parent dashboard mission cards show clearly labeled Edit/Duplicate/Delete buttons (text 'Edit' and 'Duplicate' visible alongside icons) with correct data-testids; clicking Duplicate adds a new card to today's list (6→7) within ~1s and the original title is preserved on the duplicate; Repeats chip ('Repeats daily') renders for recurring parents.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_recurring_duplicate.py",
+    "/app/test_reports/pytest/iter11_recurring.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py now ~2270 lines — recurrence and duplicate logic was bolted into the existing missions section. Splitting into routers (missions, recurrence, ai, students, etc.) is overdue before Phase 2.",
+    "_recurrence_dates uses date.fromisoformat(start_iso); if a parent submits an ISO datetime (e.g., from a date input that includes time) this will raise ValueError and the whole POST /missions returns 500. Consider try/except or normalising to YYYY-MM-DD before parsing.",
+    "Eager-spawn strategy: when a parent creates a 'daily' recurrence with end_date 6 months out, the backend inserts up to ~180 mission docs in a loop of single insert_one calls. For higher load consider insert_many or a generator/cron approach. Functional but O(N) round-trips.",
+    "Edit on a recurring INSTANCE silently mutates only that instance (recurrence_parent_id preserved). UX is fine for v1 but the parent has no signal that other future instances will diverge. Consider surfacing 'this only edits today' in the edit form when mission.recurrence_parent_id is set.",
+    "Duplicate copies skill_ids/strategy_ids by reference (spread of dict). Fine for primitives, but if Mission model ever embeds nested objects this becomes a shallow-copy footgun. Use deep copy or explicit field-by-field mapping.",
+    "POST /missions/{id}/duplicate accepts any due_date string with no validation (could be '2026-99-99' or empty). Pydantic accepts plain str. Add a date validator or use date type to reject malformed input with 422 instead of storing garbage.",
+    "ParentDashboard.loadMissions filters strictly by due_date=todayISO(); recurring parents created for future dates and all spawned instances are invisible until the dashboard date matches. Consider a 'Show upcoming' toggle or a small badge counting future instances — current UX hides the value of recurring missions until the day arrives.",
+    "handleDuplicate in ParentDashboard catches errors silently (no toast or user feedback on failure). Wrap in try/catch with a visible error state.",
+    "MissionForm.jsx still single 366-line file; recurrence-chip block is duplicate-prone if more chip groups added. Extract a <ChipSelector /> component."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_recurring_duplicate.py (new)"
+  ],
+  "success_rate": {"backend": "100% (21/21)", "frontend": "100% (all review_request flows)"},
+  "test_credentials": "parent@demo.com / demo1234 and student@demo.com / demo1234 both valid; Enzo student id 232f66a6-a4d0-4515-8905-7219f0083646.",
+  "seed_data_creation": "Pytest run creates 1 TEST_otherparent_<ts>@example.com user for non-owner authz test, plus ~80-100 TEST_-prefixed missions on Enzo (recurring parents + spawned instances + duplicates + edit fixtures). Playwright run adds 2 missions: 'TEST_PW_weekdays' (recurring weekdays, +1 day) and 'TEST_PW_today_daily' (recurring daily, today) plus one duplicate. All data is clearly TEST_-prefixed; no cleanup endpoint exists.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter11 verified recurring/duplicate/edit features. All 21 cases in test_recurring_duplicate.py pass against live REACT_APP_BACKEND_URL. Dashboard ONLY shows missions where due_date == today, so when smoke-testing the 'Repeats' chip in the UI you must create the recurring mission with due_date=today (not future) or the parent won't be visible on the dashboard. Spawned instances (recurrence_parent_id set, recurrence_pattern null) similarly only appear on the dashboard on their own due_date. Pre-existing 3 audio test failures in test_moments_audio.py remain out of scope. Mission-form submit button data-testid is `mission-form-submit` (not `-save`).",
+  "rca of the issue": "N/A — all review_request criteria met. No bugs found."
+}
