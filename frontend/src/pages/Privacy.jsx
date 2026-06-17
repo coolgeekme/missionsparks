@@ -26,7 +26,7 @@ export default function Privacy() {
                 </Section>
 
                 <Section title="How AI is used">
-                    <p>To make logging faster we send your <em>voice recording</em> to <strong>OpenAI Whisper</strong> for transcription, then send the <em>transcript text</em> to <strong>Anthropic Claude</strong> to extract structured fields. We do not currently have a Business Associate Agreement (BAA) with either provider, which means this data is processed on consumer-tier endpoints. Don't put protected health information here unless and until those agreements are in place.</p>
+                    <p>To make logging faster we send your <em>voice recording</em> to an AI provider for transcription, then send the <em>transcript text</em> to another AI provider to extract structured fields. Our current list of AI vendors and what data they receive is maintained on our <Link to="/sub-processors" className="text-[#4361EE] underline" data-testid="privacy-link-subprocessors">sub-processors page</Link>. We do not currently have Business Associate Agreements (BAAs) with these vendors, which means data is processed on consumer-tier endpoints. Don't put protected health information here unless and until those agreements are in place.</p>
                     <p className="mt-2">You can turn off audio retention with the "Discard audio after transcription" toggle in <Link to="/account" className="text-[#4361EE] underline">your account settings</Link>. When on, recordings are deleted after transcription — only the text is kept.</p>
                 </Section>
 

@@ -21,6 +21,7 @@ import AuditLog from "./pages/AuditLog";
 import Research from "./pages/Research";
 import Landing from "./pages/Landing";
 import Changelog from "./pages/Changelog";
+import SubProcessors from "./pages/SubProcessors";
 import { Toaster } from "./components/ui/sonner";
 import "./App.css";
 
@@ -40,6 +41,7 @@ export default function App() {
                     <Routes>
                         <Route path="/" element={<RootRedirect />} />
                         <Route path="/changelog" element={<Changelog />} />
+                        <Route path="/sub-processors" element={<SubProcessors />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />
                         <Route

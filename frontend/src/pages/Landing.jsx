@@ -305,6 +305,7 @@ export default function Landing() {
                     <FooterCol title="Legal">
                         <Link to="/privacy" className="hover:text-white">Privacy</Link>
                         <Link to="/terms" className="hover:text-white">Terms</Link>
+                        <Link to="/sub-processors" className="hover:text-white" data-testid="footer-subprocessors">Sub-processors</Link>
                         <a href="mailto:support@missionsparks.example" className="hover:text-white">Contact</a>
                     </FooterCol>
                 </div>
