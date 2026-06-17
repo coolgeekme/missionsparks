@@ -159,9 +159,14 @@ export default function StudentDashboard() {
                             {missions.map((m) => {
                                 const log = latestLogByMission[m.id];
                                 const done = log?.status === "completed";
+                                const practiceHref = m.mission_type === "reading_passage" && m.linked_passage_id
+                                    ? `/student/practice/reading/${m.linked_passage_id}`
+                                    : m.mission_type === "writing_prompt" && m.linked_writing_id
+                                    ? `/student/practice/writing/${m.linked_writing_id}`
+                                    : `/student/missions/${m.id}`;
                                 return (
                                     <Link
-                                        to={`/student/missions/${m.id}`}
+                                        to={practiceHref}
                                         key={m.id}
                                         className="mb-card mb-card-hover p-6 block"
                                         data-testid={`student-mission-${m.id}`}
@@ -172,7 +177,7 @@ export default function StudentDashboard() {
                                         </div>
                                         {m.description && <p className="text-[#4A5568] font-semibold text-sm mb-3">{m.description}</p>}
                                         <div className="flex items-center gap-2 text-sm font-bold text-[#4A5568] mb-3">
-                                            <Clock size={14} /> {m.estimated_minutes} min · {m.steps.length} step{m.steps.length === 1 ? "" : "s"}
+                                            <Clock size={14} /> {m.estimated_minutes} min{m.mission_type === "standard" && ` · ${m.steps.length} step${m.steps.length === 1 ? "" : "s"}`}
                                         </div>
                                         <div className="flex flex-wrap gap-2">
                                             {m.strategy_ids.map((sid) => stratMap[sid] && (

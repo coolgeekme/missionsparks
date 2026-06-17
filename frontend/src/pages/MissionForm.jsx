@@ -32,6 +32,9 @@ export default function MissionForm() {
 
     // AI draft
     const [aiPrompt, setAiPrompt] = useState("");
+    const [missionKind, setMissionKind] = useState("standard"); // "standard" | "reading" | "writing"
+    const [topicHint, setTopicHint] = useState("");
+    const [levelOverride, setLevelOverride] = useState("");
     const [aiBusy, setAiBusy] = useState(false);
     const [aiErr, setAiErr] = useState("");
 
@@ -89,6 +92,21 @@ export default function MissionForm() {
         setErr("");
         setBusy(true);
         try {
+            // Practice missions: backend generates content + creates mission in one call
+            if (!editing && missionKind !== "standard") {
+                const payload = {
+                    student_id: form.student_id,
+                    due_date: form.due_date,
+                    kind: missionKind,
+                    estimated_minutes: Number(form.estimated_minutes) || 15,
+                };
+                if (topicHint.trim()) payload.topic_hint = topicHint.trim();
+                if (levelOverride) payload.level_override = levelOverride;
+                await api.post("/missions/practice", payload);
+                toast.success(missionKind === "reading" ? "Reading mission created." : "Writing mission created.");
+                navigate("/parent");
+                return;
+            }
             const { recurrence_pattern, ...rest } = form;
             const payload = {
                 ...rest,
@@ -198,6 +216,35 @@ export default function MissionForm() {
                 )}
 
                 <form onSubmit={submit} className="mb-card p-6 space-y-5" data-testid="mission-form">
+                    {!editing && (
+                        <div data-testid="mission-form-type">
+                            <label className="block text-sm font-bold text-[#0B132B] mb-2">Mission type</label>
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { v: "standard", l: "📋 Standard (steps)", desc: "A checklist of steps the kid completes" },
+                                    { v: "reading", l: "📖 Reading practice", desc: "AI generates a passage + comprehension questions" },
+                                    { v: "writing", l: "✍️ Writing practice", desc: "AI generates a prompt + scaffold" },
+                                ].map((o) => (
+                                    <button
+                                        key={o.v}
+                                        type="button"
+                                        onClick={() => setMissionKind(o.v)}
+                                        title={o.desc}
+                                        className={`mb-chip border-2 ${missionKind === o.v ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white text-[#0B132B] border-[#E2E8F0] hover:border-[#4361EE]"}`}
+                                        data-testid={`mission-form-type-${o.v}`}
+                                    >
+                                        {o.l}
+                                    </button>
+                                ))}
+                            </div>
+                            {missionKind !== "standard" && (
+                                <p className="text-xs font-semibold text-[#4361EE] mt-2">
+                                    AI will generate the content the moment you save. Steps / skills / strategies aren't needed for this type.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
                     {!editing && (
                         <div>
                             <label className="block text-sm font-bold text-[#0B132B] mb-1">Student</label>

@@ -243,6 +243,18 @@ class Mission(BaseModel):
     created_at: str
     recurrence_pattern: Optional[str] = None
     recurrence_parent_id: Optional[str] = None
+    mission_type: str = "standard"  # "standard" | "reading_passage" | "writing_prompt"
+    linked_passage_id: Optional[str] = None
+    linked_writing_id: Optional[str] = None
+
+
+class PracticeMissionRequest(BaseModel):
+    student_id: str
+    due_date: str
+    kind: Literal["reading", "writing"]
+    topic_hint: Optional[str] = None
+    level_override: Optional[str] = None
+    estimated_minutes: int = 15
 
 
 class MissionLogCreate(BaseModel):
@@ -1057,6 +1069,75 @@ async def create_mission(req: MissionCreate, user: dict = Depends(require_role("
 
     out = await db.missions.find_one({"id": mission_id}, {"_id": 0})
     return out
+
+
+@api.post("/missions/practice", response_model=Mission)
+async def create_practice_mission(req: PracticeMissionRequest,
+                                   user: dict = Depends(require_role("parent"))):
+    """Generate a reading passage or writing prompt AND create a mission that
+    links to it. Kid clicking the mission card jumps straight into the practice."""
+    await _assert_parent_owns_student(user, req.student_id)
+    mission_id = str(uuid.uuid4())
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    if req.kind == "reading":
+        passage = await generate_reading_passage(
+            ReadingPassageRequest(
+                student_id=req.student_id,
+                topic_hint=req.topic_hint,
+                level_override=req.level_override,
+            ),
+            user=user,
+        )
+        title = f"📖 Read: {passage.title}"
+        doc = {
+            "id": mission_id,
+            "student_id": req.student_id,
+            "title": title,
+            "description": f"Read the passage and answer {len(passage.questions)} questions.",
+            "steps": [],
+            "estimated_minutes": req.estimated_minutes,
+            "due_date": req.due_date,
+            "skill_ids": [],
+            "strategy_ids": [],
+            "created_by_user_id": user["id"],
+            "created_at": now_iso,
+            "recurrence_pattern": None,
+            "recurrence_parent_id": None,
+            "mission_type": "reading_passage",
+            "linked_passage_id": passage.id,
+            "linked_writing_id": None,
+        }
+    else:  # writing
+        piece = await generate_writing_prompt(
+            WritingPromptRequest(
+                student_id=req.student_id,
+                topic_hint=req.topic_hint,
+                level_override=req.level_override,
+            ),
+            user=user,
+        )
+        title_text = (piece.prompt[:60] + "…") if len(piece.prompt) > 60 else piece.prompt
+        doc = {
+            "id": mission_id,
+            "student_id": req.student_id,
+            "title": f"✍️ Write: {title_text}",
+            "description": "Use the scaffold and sentence starters to write your piece.",
+            "steps": [],
+            "estimated_minutes": req.estimated_minutes,
+            "due_date": req.due_date,
+            "skill_ids": [],
+            "strategy_ids": [],
+            "created_by_user_id": user["id"],
+            "created_at": now_iso,
+            "recurrence_pattern": None,
+            "recurrence_parent_id": None,
+            "mission_type": "writing_prompt",
+            "linked_passage_id": None,
+            "linked_writing_id": piece.id,
+        }
+    await db.missions.insert_one(dict(doc))
+    return doc
 
 
 @api.post("/missions/{mission_id}/duplicate", response_model=Mission)

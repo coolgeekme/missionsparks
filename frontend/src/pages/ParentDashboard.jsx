@@ -555,6 +555,16 @@ export default function ParentDashboard() {
                                                     <Repeat size={10} /> Recurring instance
                                                 </span>
                                             )}
+                                            {m.mission_type === "reading_passage" && (
+                                                <span className="ml-1 inline-flex items-center gap-1 mb-chip bg-[#4361EE]/10 text-[#4361EE] text-[10px] py-0.5" data-testid={`parent-mission-type-reading-${m.id}`}>
+                                                    📖 Reading practice
+                                                </span>
+                                            )}
+                                            {m.mission_type === "writing_prompt" && (
+                                                <span className="ml-1 inline-flex items-center gap-1 mb-chip bg-[#06D6A0]/15 text-[#057a5b] text-[10px] py-0.5" data-testid={`parent-mission-type-writing-${m.id}`}>
+                                                    ✍️ Writing practice
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="flex gap-1 flex-wrap justify-end">
                                             <Link to={`/parent/missions/${m.id}/edit`} className="p-2 rounded-xl hover:bg-[#F0F8FF] inline-flex items-center gap-1 text-xs font-bold text-[#4361EE]" data-testid={`parent-mission-edit-${m.id}`} title="Edit">

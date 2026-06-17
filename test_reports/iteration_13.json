@@ -1,0 +1,40 @@
+{
+  "summary": "Iter13: Practice missions (reading_passage / writing_prompt) end-to-end. Backend: created /app/backend/tests/test_practice_missions.py — 13/13 pass (happy paths for both kinds + linked passage/piece queryable + parent-only authz + student=403, anon=401, other_parent=403 + invalid kind=422 + regression: standard /missions still works, /reading/passage, /writing/prompt, /students/{id}/portfolio, /students/{id}/intake, /skills, /strategies). Frontend: verified mission-form-type selector renders all 3 chips with correct data-testids (standard/reading/writing) and default 'standard' is selected. Live POST /api/missions/practice from the parent session returned 200 with mission_type='reading_passage' (📖 Read: prefix, linked_passage_id set, steps=[]) and mission_type='writing_prompt' (✍️ Write: prefix, linked_writing_id set). Parent dashboard renders parent-mission-type-reading-{id} and parent-mission-type-writing-{id} chips on both new mission cards. Student dashboard: cards have href='/student/practice/reading/{passage_id}' and '/student/practice/writing/{piece_id}' (NOT /student/missions/{id}); step count '· N steps' is correctly suppressed on student card text (only '10 min' shows, no 'step' substring). Clicking the reading card navigated to /student/practice/reading/{passage_id} and rendered the passage title ('Emperor Penguins: Masters of Survival'), body, '5th grade' level, and the 4 questions with literal/inferential labels — the route registration miss from iter12 is now fixed. Iter12's 3 missing Route entries are confirmed registered in /app/frontend/src/App.js lines 173-196.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ParentDashboard mission cards", "issues": ["Reading-practice and writing-practice missions still show '· 0 steps' on the parent dashboard meta line (e.g. '10 min · 0 steps'). The review request only mandated hiding step count on the STUDENT dashboard for non-standard missions (which IS correctly implemented in StudentDashboard.jsx:180). Consider applying the same conditional on ParentDashboard.jsx for visual consistency — '0 steps' is misleading because a reading mission's 'work unit' is questions, not steps."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_practice_missions.py",
+    "/app/test_reports/pytest/iter13_practice_missions.xml"
+  ],
+  "action_items": [
+    "Optional polish: in /app/frontend/src/pages/ParentDashboard.jsx, hide '· N steps' when m.mission_type !== 'standard' (mirror StudentDashboard.jsx:180). Currently parent sees '10 min · 0 steps' on every reading/writing practice card which reads as broken-data even though it's logically correct."
+  ],
+  "critical_code_review_comments": [
+    "PracticeMissionRequest does NOT accept recurrence_pattern — good, matches v1 spec ('always one-off'). However the v1 contract is enforced only by omission; consider documenting in the endpoint docstring that recurrence is intentionally unsupported so future contributors don't 'helpfully' add it.",
+    "POST /missions/practice does a synchronous LLM call (generate_reading_passage / generate_writing_prompt) inside the request. On Emergent's LLM key this takes 5-15s. There is NO timeout protection on the wrapper — if the upstream LLM hangs, the FastAPI worker blocks for the full uvicorn timeout. Consider asyncio.wait_for() with a 60s budget and 504 on timeout.",
+    "If generate_reading_passage raises (e.g. validation error from LLM JSON), the mission row is NEVER inserted — good. But the partially-created ReadingPassage row IS inserted by generate_reading_passage before the mission insert. Result: orphan passage in DB on mission-creation failure. Wrap in a try/except that deletes the passage if the mission insert fails.",
+    "server.py is now ~2713 lines (was ~2630 in iter12). Strongly recommend splitting routers — missions, reading_writing, auth, students should each be a separate APIRouter mounted under /api.",
+    "MissionForm.jsx submit() still posts to /missions/practice with the full form payload (title/steps/etc) even though backend ignores them and AI generates fresh title. This is wasted bandwidth — could just send {student_id, due_date, kind, topic_hint, level_override, estimated_minutes}. Not a bug but cleaner.",
+    "Recurrence section still renders on the form when reading/writing chip is selected — the review_request explicitly says 'that's OK for v1' but it WILL confuse parents. Recommend hiding/disabling the Repeat section when missionKind !== 'standard' before public launch.",
+    "Pre-existing: 3 audio test failures in test_moments_audio.py noted from iter12 are still present and out-of-scope for this iteration."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_practice_missions.py (new)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100% — all acceptance criteria pass: chip selector renders, practice missions create with correct shape, parent chips render on dashboard, student cards route to /student/practice/reading|writing/{linked_id}, step count hidden on student card for non-standard"},
+  "test_credentials": "parent@demo.com / demo1234 and student@demo.com / demo1234. Enzo id 232f66a6-a4d0-4515-8905-7219f0083646. NOTE: backend register requires accept_terms=true (not accept_tos) — added to test_practice_missions.py register helper. Browser system date during this run was 2026-06-17 — newly-created missions only show on parent/student dashboards if due_date is on/after the current local date (used today's date for E2E verification).",
+  "seed_data_creation": "Pytest created 1 TEST_practice_op_<ts>@example.com other-parent + 2 reading passages + 2 writing pieces + 1 standard regression mission on Enzo. Playwright E2E run created 1 additional reading and 1 writing practice mission on Enzo (visible on dashboards with title prefixes '📖 Read: Emperor Penguins...' and '✍️ Write: Enzo, imagine a dog...').",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iter13 acceptance criteria green. Backend POST /missions/practice is solid (13/13 pytest), parent UI chip selector + dashboard chips work, student dashboard routing to /student/practice/{kind}/{linked_id} works, step count correctly hidden for non-standard student cards. The only follow-up is an optional polish item: hide '· 0 steps' on ParentDashboard for reading/writing missions for visual consistency (see action_items). Iter12's 3 missing route registrations in App.js are now confirmed present and reachable.",
+  "rca of the issue": "N/A — no bugs found. Iter12's reported critical (missing routes in App.js) is verified fixed at lines 173-196 (/parent/students/:studentId/portfolio, /student/practice/reading/:passageId, /student/practice/writing/:pieceId)."
+}
