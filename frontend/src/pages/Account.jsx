@@ -88,7 +88,7 @@ export default function Account() {
                         <div className="flex-1">
                             <h2 className="font-display font-bold text-xl text-[#0B132B]">Discard audio after transcription</h2>
                             <p className="text-sm text-[#4A5568] font-semibold mt-1">
-                                When ON, voice recordings are transcribed by Whisper and then thrown away — we keep only the text on your Moment. <strong>Recommended.</strong>
+                                When ON, voice recordings are transcribed and then thrown away — we keep only the text on your Moment. <strong>Recommended.</strong>
                             </p>
                             <div className="flex items-center gap-3 mt-3">
                                 <button

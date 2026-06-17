@@ -134,8 +134,8 @@ export default function Landing() {
                             icon={<Sparkles size={22} />}
                             tint="bg-[#4361EE]/10 text-[#4361EE]"
                             title="AI mission drafter"
-                            body={"Tell Claude what your kid's working on. Get a chunked, time-boxed mission with research-tagged steps in 5 seconds."}
-                            tag="Claude Sonnet 4.5"
+                            body={"Tell our AI what your kid's working on. Get a chunked, time-boxed mission with research-tagged steps in 5 seconds."}
+                            tag="AI-drafted, research-tagged"
                         />
                         <FeatureCard
                             icon={<Zap size={22} fill="currentColor" />}

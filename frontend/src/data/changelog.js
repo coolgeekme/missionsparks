@@ -47,7 +47,7 @@ export const CHANGELOG = [
         tag: "Feature",
         items: [
             "Tap-or-talk Moments tracker with 14 moment types and 18 triggers",
-            "Voice logging via OpenAI Whisper — natural-language → structured moment",
+            "Voice logging via AI transcription — natural-language → structured moment",
             "Parent insights dashboard with charts and CSV export for therapists",
         ],
     },
@@ -68,7 +68,7 @@ export const CHANGELOG = [
         title: "AI mission drafting",
         tag: "Feature",
         items: [
-            "Claude Sonnet drafts personalized missions from parent notes",
+            "AI drafts personalized missions from parent notes",
             "'AI draft day' suggests 3 varied missions in one click",
             "Skills + strategies auto-tagged from a controlled vocabulary",
         ],
