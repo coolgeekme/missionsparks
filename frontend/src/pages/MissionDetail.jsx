@@ -42,6 +42,19 @@ export default function MissionDetail() {
     const stratMap = useMemo(() => Object.fromEntries(strategies.map((s) => [s.id, s])), [strategies]);
     const skillMap = useMemo(() => Object.fromEntries(skills.map((s) => [s.id, s])), [skills]);
 
+    // Clue captures are reading-specific. Only show on missions that target
+    // Reading skills OR use a reading-focused strategy.
+    const READING_STRATEGY_NAMES = new Set([
+        "Underline clues", "Jot a clue", "Picture it", "Ask a question", "Re-read", "Slow down mode",
+    ]);
+    const isReadingMission = useMemo(() => {
+        if (!mission) return false;
+        const hasReadingSkill = (mission.skill_ids || []).some((sid) => skillMap[sid]?.category === "Reading");
+        const hasReadingStrategy = (mission.strategy_ids || []).some((sid) => READING_STRATEGY_NAMES.has(stratMap[sid]?.name));
+        return hasReadingSkill || hasReadingStrategy;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mission, skillMap, stratMap]);
+
     useEffect(() => {
         (async () => {
             const [m, sk, st] = await Promise.all([
@@ -176,7 +189,8 @@ export default function MissionDetail() {
                     </section>
                 )}
 
-                <section className="mb-card p-6" data-testid="mission-detail-clues">
+                {isReadingMission && (
+                    <section className="mb-card p-6" data-testid="mission-detail-clues">
                     <h2 className="font-display font-bold text-xl text-[#0B132B] mb-1">📝 Clue captures</h2>
                     <p className="text-sm font-semibold text-[#4A5568] mb-3">
                         Reading on a screen or listening to an audiobook? Type the line or paraphrase what you heard. Paper readers can still underline — both work.
@@ -226,6 +240,7 @@ export default function MissionDetail() {
                         </ul>
                     )}
                 </section>
+                )}
 
                 <section className="mb-card p-6">
                     <h2 className="font-display font-bold text-xl text-[#0B132B] mb-3">Steps</h2>

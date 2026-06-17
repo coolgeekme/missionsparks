@@ -211,6 +211,64 @@ class AccountPrefsUpdate(BaseModel):
     discard_audio: Optional[bool] = None
 
 
+# ---------- Student profile (Phase 1: parent intake) ----------
+class StudentProfile(BaseModel):
+    """Structured intake captured by parents about their child. Drives AI mission
+    drafting and persists alongside the user document so updates are atomic."""
+    # Basics
+    grade: Optional[str] = None
+    reading_level: Optional[str] = None  # "below", "on", "above"
+    school: Optional[str] = None
+
+    # ADHD
+    diagnosed: Optional[bool] = None
+    adhd_subtype: Optional[str] = None  # "combined", "inattentive", "hyperactive", "uncertain"
+    diagnosis_year: Optional[int] = None
+    on_medication: Optional[bool] = None
+
+    # Custom domains (free-form lists kept short)
+    interests: List[str] = []
+    sensitivities: List[str] = []
+    peak_hours: List[str] = []  # any of: "early_morning", "morning", "afternoon", "evening"
+    common_triggers: List[str] = []
+    strengths: List[str] = []
+    motivators: List[str] = []
+
+    # NICHQ Vanderbilt parent screen — 18 items, 0–3 scale (never/occasionally/often/very often)
+    vanderbilt_inattention: List[int] = []  # 9 items, indices 0-8
+    vanderbilt_hyperactivity: List[int] = []  # 9 items, indices 0-8
+    vanderbilt_taken_at: Optional[str] = None
+
+    # AI interview output (synthesized summary)
+    interview_summary: Optional[str] = None
+    interview_completed_at: Optional[str] = None
+
+    # Free notes
+    parent_notes: Optional[str] = None
+
+    updated_at: Optional[str] = None
+
+
+class InterviewMessage(BaseModel):
+    role: str  # "assistant" | "parent"
+    content: str
+    ts: Optional[str] = None
+
+
+class InterviewSession(BaseModel):
+    id: str
+    student_id: str
+    parent_id: str
+    status: str  # "active" | "completed"
+    messages: List[InterviewMessage] = []
+    created_at: str
+    updated_at: str
+
+
+class InterviewReplyRequest(BaseModel):
+    content: str
+
+
 # ---------- App ----------
 app = FastAPI(title="MissionSparks API")
 api = APIRouter(prefix="/api")
@@ -395,6 +453,217 @@ async def list_skills(user: dict = Depends(get_current_user)):
 @api.get("/strategies", response_model=List[Strategy])
 async def list_strategies(user: dict = Depends(get_current_user)):
     return await db.strategies.find({}, {"_id": 0}).to_list(1000)
+
+
+# ---------- Student profile (Phase 1 intake) ----------
+@api.get("/students/{student_id}/intake", response_model=StudentProfile)
+async def get_student_intake(student_id: str, user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, student_id)
+    s = await db.users.find_one({"id": student_id}, {"_id": 0, "password_hash": 0})
+    if not s:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return StudentProfile(**(s.get("student_profile") or {}))
+
+
+@api.put("/students/{student_id}/intake", response_model=StudentProfile)
+async def set_student_intake(student_id: str, profile: StudentProfile,
+                              user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, student_id)
+    data = profile.model_dump(exclude_none=False)
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.users.update_one({"id": student_id}, {"$set": {"student_profile": data}})
+    await _audit(user, "intake.update", target_type="student", target_id=student_id)
+    return StudentProfile(**data)
+
+
+# ---------- AI Interview (text-only, parent-led) ----------
+INTERVIEW_SYSTEM_PROMPT = (
+    "You are MissionSparks' onboarding coach. You're having a warm, conversational "
+    "chat with a parent to learn enough about their child to make daily learning "
+    "missions actually feel personalized.\n\n"
+    "Rules:\n"
+    "- Ask ONE short, focused question at a time. No bullet lists, no preamble.\n"
+    "- Build naturally on the parent's previous answers — use what they said.\n"
+    "- Warm, second-person ('you', 'your child'), zero clinical jargon, no emoji.\n"
+    "- Cover (in roughly this order, skipping anything they've already told you):\n"
+    "    1) What their child is genuinely interested in or excited by\n"
+    "    2) What they're working on academically right now (and what's hard)\n"
+    "    3) Time of day when their child is at their best\n"
+    "    4) What tends to derail a learning session\n"
+    "    5) What encouragement style actually works for this kid\n"
+    "    6) Any sensory or environmental sensitivities to plan around\n"
+    "- After about 6-8 exchanges (your messages count + their messages count), "
+    "  if you have enough useful detail, FINISH the interview by responding with the "
+    "  exact token <<<WRAP_UP>>> on its own line, followed by a single warm sign-off "
+    "  sentence. Do not ask more questions after WRAP_UP.\n"
+    "- If the parent gives a very short answer, gently probe once for specifics — "
+    "  but only once per topic, then move on.\n"
+)
+
+
+async def _ai_chat_with_history(system_message: str, messages: List[dict]) -> str:
+    """Multi-turn chat: collapses prior turns into a single transcript prompt
+    sent alongside the system message. Stateless and simple."""
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI is not configured.")
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"missionsparks-iv-{uuid.uuid4()}",
+        system_message=system_message,
+    ).with_model(AI_MODEL_PROVIDER, AI_MODEL_NAME)
+    transcript = "\n".join(
+        f"{'Coach' if m['role'] == 'assistant' else 'Parent'}: {m['content']}"
+        for m in messages
+    )
+    user_text = (
+        "Conversation so far:\n"
+        f"{transcript}\n\n"
+        "Send the next message. Reply with only what the Coach should say next — "
+        "no labels, no quotation marks."
+    )
+    try:
+        return (await chat.send_message(UserMessage(text=user_text))).strip()
+    except Exception as e:
+        logger.exception("Interview AI call failed")
+        raise HTTPException(status_code=502, detail=f"AI service error: {e}") from e
+
+
+@api.post("/students/{student_id}/interview", response_model=InterviewSession)
+async def start_interview(student_id: str, user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, student_id)
+    student = await db.users.find_one({"id": student_id}, {"_id": 0, "password_hash": 0})
+    name = student.get("name", "your child")
+    # Resume an active session if one already exists
+    active = await db.interview_sessions.find_one(
+        {"student_id": student_id, "parent_id": user["id"], "status": "active"},
+        {"_id": 0},
+    )
+    if active:
+        return InterviewSession(**active)
+
+    opener = (
+        f"Hi! I'd love to learn a little about {name} so the missions we draft "
+        "actually fit them. To start with — what's something they're genuinely "
+        "into right now? Could be a topic, a character, a game, a hobby — anything."
+    )
+    now = datetime.now(timezone.utc).isoformat()
+    session = {
+        "id": str(uuid.uuid4()),
+        "student_id": student_id,
+        "parent_id": user["id"],
+        "status": "active",
+        "messages": [{"role": "assistant", "content": opener, "ts": now}],
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.interview_sessions.insert_one(session)
+    await _audit(user, "interview.start", target_type="student", target_id=student_id, meta={"session_id": session["id"]})
+    return InterviewSession(**session)
+
+
+@api.post("/interviews/{session_id}/reply", response_model=InterviewSession)
+async def interview_reply(session_id: str, req: InterviewReplyRequest,
+                          user: dict = Depends(require_role("parent"))):
+    sess = await db.interview_sessions.find_one({"id": session_id}, {"_id": 0})
+    if not sess:
+        raise HTTPException(status_code=404, detail="Interview session not found")
+    if sess["parent_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your interview session")
+    if sess["status"] != "active":
+        raise HTTPException(status_code=409, detail="Interview already finished")
+    if not req.content.strip():
+        raise HTTPException(status_code=400, detail="Reply cannot be empty")
+
+    now = datetime.now(timezone.utc).isoformat()
+    sess["messages"].append({"role": "parent", "content": req.content.strip()[:2000], "ts": now})
+
+    ai_reply = await _ai_chat_with_history(INTERVIEW_SYSTEM_PROMPT, sess["messages"])
+    sess["messages"].append({"role": "assistant", "content": ai_reply, "ts": now})
+    sess["updated_at"] = now
+
+    # If the model signaled wrap-up, auto-complete and synthesize the profile
+    if "<<<WRAP_UP>>>" in ai_reply:
+        sess["status"] = "completed"
+    await db.interview_sessions.update_one(
+        {"id": session_id},
+        {"$set": {"messages": sess["messages"], "updated_at": now, "status": sess["status"]}},
+    )
+    return InterviewSession(**sess)
+
+
+@api.post("/interviews/{session_id}/finish", response_model=StudentProfile)
+async def finish_interview(session_id: str, user: dict = Depends(require_role("parent"))):
+    sess = await db.interview_sessions.find_one({"id": session_id}, {"_id": 0})
+    if not sess:
+        raise HTTPException(status_code=404, detail="Interview session not found")
+    if sess["parent_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your interview session")
+
+    # Synthesize the conversation into structured fields
+    transcript = "\n".join(
+        f"{'Coach' if m['role'] == 'assistant' else 'Parent'}: {m['content']}"
+        for m in sess["messages"]
+    )
+    synth_sys = (
+        "You convert a parent–coach interview about a child into a structured JSON profile. "
+        "Be conservative — only include fields the parent actually mentioned. "
+        "Use short, kid-friendly lowercase tag-style strings for list items "
+        "(e.g. 'minecraft', 'dinosaurs', 'noise', 'small rewards'). "
+        "Do not invent details. Reply with STRICT JSON only — no prose, no code fences."
+    )
+    synth_user = (
+        f"INTERVIEW TRANSCRIPT:\n{transcript}\n\n"
+        'Return a JSON object with this exact shape (omit a field by setting [] or ""): '
+        '{ "interests": [str], "sensitivities": [str], "peak_hours": [str from: '
+        '"early_morning","morning","afternoon","evening"], '
+        '"common_triggers": [str], "strengths": [str], "motivators": [str], '
+        '"summary": "1-2 sentence plain-English summary of this child for an AI mission drafter" }'
+    )
+    raw = await _ai_chat(synth_sys, synth_user)
+    data = _extract_json(raw) or {}
+
+    student = await db.users.find_one({"id": sess["student_id"]}, {"_id": 0, "password_hash": 0})
+    profile = dict(student.get("student_profile") or {})
+
+    def merge_list(key: str):
+        new_items = [str(x).strip() for x in (data.get(key) or []) if str(x).strip()]
+        existing = profile.get(key) or []
+        seen = set()
+        out = []
+        for item in existing + new_items:
+            k = item.lower()
+            if k not in seen:
+                seen.add(k)
+                out.append(item)
+        profile[key] = out[:20]  # cap
+
+    for k in ("interests", "sensitivities", "peak_hours", "common_triggers", "strengths", "motivators"):
+        merge_list(k)
+    summary = (data.get("summary") or "").strip()
+    if summary:
+        profile["interview_summary"] = summary
+    now = datetime.now(timezone.utc).isoformat()
+    profile["interview_completed_at"] = now
+    profile["updated_at"] = now
+
+    await db.users.update_one({"id": sess["student_id"]}, {"$set": {"student_profile": profile}})
+    await db.interview_sessions.update_one(
+        {"id": session_id},
+        {"$set": {"status": "completed", "updated_at": now}},
+    )
+    await _audit(user, "interview.finish", target_type="student", target_id=sess["student_id"],
+                 meta={"session_id": session_id, "turns": len(sess["messages"])})
+    return StudentProfile(**profile)
+
+
+@api.get("/students/{student_id}/interview/active", response_model=Optional[InterviewSession])
+async def get_active_interview(student_id: str, user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, student_id)
+    sess = await db.interview_sessions.find_one(
+        {"student_id": student_id, "parent_id": user["id"], "status": "active"},
+        {"_id": 0},
+    )
+    return InterviewSession(**sess) if sess else None
 
 
 # ---------- Research / citations ----------
@@ -1011,6 +1280,17 @@ def _system_prompt(skills: List[dict], strategies: List[dict]) -> str:
         "learning 'missions' for their child. Missions focus on Reading and Executive Function. "
         "Each mission must be tiny, doable in 5-25 minutes, and broken into 2-5 concrete steps a child can check off. "
         "Use warm, encouraging, second-person language ('you'). Avoid jargon and emoji.\n\n"
+        "STEPS — strict rules:\n"
+        "- Each step must be a SHORT, PHYSICAL action the child does in their space "
+        "  (e.g. 'pick up 5 things off the floor', 'set a 5-min timer', 'do 10 jumping jacks').\n"
+        "- DO NOT ask the child to 'write it down', 'jot it on paper', 'make a list on paper', "
+        "  'draw a chart', or any pencil-and-paper note-taking UNLESS the mission targets a "
+        "  Reading skill AND uses the 'Underline clues' or 'Jot a clue' strategy. "
+        "  For Executive Function / chores / movement missions, use 'say it out loud', 'remember', "
+        "  'estimate in your head', or 'tell a grown-up' instead.\n"
+        "- Do not invent objects or tools the child may not have (no journals, planners, sticker charts, dice, etc.).\n"
+        "- Do not assume a printed book is present — the child may be reading on a screen or "
+        "  listening to an audiobook. Use 'read the page' / 'pause the audio' phrasing.\n\n"
         "Pick skill_names and strategy_names ONLY from the lists below — copy the names exactly.\n\n"
         f"AVAILABLE SKILLS:\n{skill_lines}\n\n"
         f"AVAILABLE STRATEGIES:\n{strat_lines}\n\n"
@@ -1025,11 +1305,43 @@ def _system_prompt(skills: List[dict], strategies: List[dict]) -> str:
 
 
 def _student_context(student: dict) -> str:
-    notes = (student.get("profile_notes") or "").strip()
+    """Build the AI-mission prompt context from the structured StudentProfile
+    (and the legacy parent profile_notes for backward compat)."""
     name = student.get("name", "the child")
-    if notes:
-        return f"Student: {name}.\nProfile notes from parent: {notes}\n"
-    return f"Student: {name}. (No profile notes provided — keep it broadly appropriate for an upper-elementary learner.)\n"
+    profile = student.get("student_profile") or {}
+    legacy_notes = (student.get("profile_notes") or "").strip()
+
+    bits: List[str] = [f"Student: {name}."]
+    if profile.get("grade"):
+        bits.append(f"Grade: {profile['grade']}.")
+    if profile.get("reading_level"):
+        bits.append(f"Reading level: {profile['reading_level']} grade-level.")
+    if profile.get("adhd_subtype"):
+        sub = profile["adhd_subtype"]
+        if sub != "uncertain":
+            bits.append(f"ADHD subtype: {sub}.")
+    if profile.get("interests"):
+        bits.append("Interests: " + ", ".join(profile["interests"][:8]) + ".")
+    if profile.get("strengths"):
+        bits.append("Strengths: " + ", ".join(profile["strengths"][:6]) + ".")
+    if profile.get("motivators"):
+        bits.append("Motivators that work: " + ", ".join(profile["motivators"][:6]) + ".")
+    if profile.get("sensitivities"):
+        bits.append("Sensitivities to plan around: " + ", ".join(profile["sensitivities"][:6]) + ".")
+    if profile.get("common_triggers"):
+        bits.append("Common triggers: " + ", ".join(profile["common_triggers"][:6]) + ".")
+    if profile.get("peak_hours"):
+        bits.append("Best times of day: " + ", ".join(profile["peak_hours"]) + ".")
+    if profile.get("interview_summary"):
+        bits.append("Coach summary: " + profile["interview_summary"])
+    if profile.get("parent_notes"):
+        bits.append("Parent notes: " + profile["parent_notes"])
+    if legacy_notes and not profile.get("parent_notes"):
+        bits.append("Parent notes: " + legacy_notes)
+
+    if len(bits) == 1:
+        bits.append("(No profile filled in yet — keep it broadly appropriate for an upper-elementary learner.)")
+    return " ".join(bits) + "\n"
 
 
 @api.post("/ai/draft-mission", response_model=AIDraftedMission)

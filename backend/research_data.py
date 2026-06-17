@@ -334,6 +334,17 @@ CITATIONS: List[Dict] = [
         "tags": ["aba", "abc_model", "behavior_tracking", "moments"],
     },
     {
+        "key": "wolraich_2003_vanderbilt",
+        "title": "Psychometric properties of the Vanderbilt ADHD Diagnostic Parent Rating Scale in a referred population",
+        "authors": "Wolraich, M. L., et al.",
+        "year": 2003,
+        "source": "Journal of Pediatric Psychology, 28(8), 559–567",
+        "source_type": "peer_reviewed",
+        "url": "https://doi.org/10.1093/jpepsy/jsg046",
+        "summary": "Validates the NICHQ Vanderbilt ADHD Diagnostic Rating Scale — the AAP-endorsed parent screening instrument we use in MissionSparks' intake.",
+        "tags": ["adhd", "screening", "vanderbilt", "intake", "guideline"],
+    },
+    {
         "key": "mueller_oppenheimer_2014_notes",
         "title": "The Pen Is Mightier Than the Keyboard: Advantages of Longhand Over Laptop Note Taking",
         "authors": "Mueller, P. A., & Oppenheimer, D. M.",
