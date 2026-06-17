@@ -145,6 +145,24 @@ export default function ParentDashboard() {
         }
     };
 
+    const [generatingPractice, setGeneratingPractice] = useState(null);
+    const generatePractice = async (kind) => {
+        if (!selectedStudent) return;
+        setGeneratingPractice(kind);
+        try {
+            const url = kind === "reading" ? "/reading/passage" : "/writing/prompt";
+            const { data } = await api.post(url, { student_id: selectedStudent.id });
+            const path = kind === "reading"
+                ? `/student/practice/reading/${data.id}`
+                : `/student/practice/writing/${data.id}`;
+            window.open(path, "_blank");
+        } catch (e) {
+            window.alert(formatApiErrorDetail(e.response?.data?.detail) || e.message);
+        } finally {
+            setGeneratingPractice(null);
+        }
+    };
+
     const saveProfile = async () => {
         if (!selectedStudent) return;
         setProfileSaving(true);
@@ -370,6 +388,17 @@ export default function ParentDashboard() {
                                 Set up the full structured profile →
                             </Link>
                         </p>
+                        <div className="flex flex-wrap gap-2 mb-3" data-testid="parent-practice-cta">
+                            <button onClick={() => generatePractice("reading")} disabled={generatingPractice} className="btn-pop-ghost text-xs flex items-center gap-1.5" data-testid="parent-generate-reading">
+                                {generatingPractice === "reading" ? <Loader2 size={12} className="animate-spin" /> : <BookOpen size={12} />} Generate reading passage
+                            </button>
+                            <button onClick={() => generatePractice("writing")} disabled={generatingPractice} className="btn-pop-ghost text-xs flex items-center gap-1.5" data-testid="parent-generate-writing">
+                                {generatingPractice === "writing" ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} Generate writing prompt
+                            </button>
+                            <Link to={`/parent/students/${selectedStudent.id}/portfolio`} className="btn-pop-ghost text-xs flex items-center gap-1.5" data-testid="parent-open-portfolio">
+                                <BookOpen size={12} /> Portfolio
+                            </Link>
+                        </div>
                         <textarea
                             value={profileNotes}
                             onChange={(e) => setProfileNotes(e.target.value)}

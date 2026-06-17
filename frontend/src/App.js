@@ -23,6 +23,9 @@ import Landing from "./pages/Landing";
 import Changelog from "./pages/Changelog";
 import SubProcessors from "./pages/SubProcessors";
 import StudentIntake from "./pages/StudentIntake";
+import ReadingPractice from "./pages/ReadingPractice";
+import WritingPractice from "./pages/WritingPractice";
+import Portfolio from "./pages/Portfolio";
 import { Toaster } from "./components/ui/sonner";
 import "./App.css";
 

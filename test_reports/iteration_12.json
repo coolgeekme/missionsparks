@@ -1,0 +1,46 @@
+{
+  "summary": "Iter12: Tested adaptive content generation (reading passages, writing prompts, portfolio, audio transcribe). Backend: 37/37 pytest cases pass in test_reading_writing.py covering passage shape + word count + 4-5 questions w/ literal/inferential/vocabulary types + 4 citation ids resolved, level resolution from Enzo profile (actual grade=5 not 3 as review_request stated), level_override below/above shifts grade_target by ±1, parent-only generation (student role gets 403, anon 401), submission accepted by both parent and student, other parent gets 403, persistence verified via GET (answers/feedback/score/completed_at), writing piece scaffold/starters/draft empty initially, empty draft returns 400, portfolio returns reading+writing arrays for owner parent and the student themselves (other parent 403, anon 401), audio/transcribe returns 400 on empty body / 413 on >24MB / 401 anonymous, plus regression smoke on /citations /skills /strategies /moments/catalog /games/catalog /public/stats /students/{id}/intake /missions. Frontend: 3 CTAs on About-Enzo card are wired (parent-generate-reading, parent-generate-writing, parent-open-portfolio). Generate API call succeeds (200 to /api/reading/passage seen in network) and window.open(/student/practice/reading/{id}) is invoked. BUT the new tab redirects to /parent immediately — confirmed by directly page.goto'ing the URL: no GET /api/reading/passage/{id} request fires, body renders the parent dashboard. ROOT CAUSE: /app/frontend/src/App.js imports ReadingPractice, WritingPractice, Portfolio but NEVER registers <Route> entries for /student/practice/reading/:passageId, /student/practice/writing/:pieceId, /parent/students/:studentId/portfolio. The catch-all '<Route path=\"*\" element={<Navigate to=\"/\" replace />}/>' then bounces every visit back to /parent. This makes ALL 3 new pages completely inaccessible despite the backend being healthy and the dashboard buttons firing correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "App.js", "issue": "Missing <Route> registrations for ReadingPractice, WritingPractice, and Portfolio. Components are imported (lines 26-28) but never used in <Routes>. Result: navigating to /student/practice/reading/:id, /student/practice/writing/:id, or /parent/students/:id/portfolio falls through to the catch-all path='*' and redirects to /parent. All 3 new pages are unreachable.", "selector": "/app/frontend/src/App.js", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Generate reading/writing from parent dashboard", "issue": "POST succeeds and window.open() fires, but the new tab cannot render the practice page because the route is not registered — user lands on /parent and never sees the passage they just generated.", "affected_selectors": ["parent-generate-reading", "parent-generate-writing", "parent-open-portfolio"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_reading_writing.py",
+    "/app/test_reports/pytest/iter12_reading_writing.xml"
+  ],
+  "action_items": [
+    "Add 3 <Route> entries to /app/frontend/src/App.js BEFORE the catch-all '*': path='/student/practice/reading/:passageId' -> <ReadingPractice/>, path='/student/practice/writing/:pieceId' -> <WritingPractice/>, path='/parent/students/:studentId/portfolio' -> <Portfolio/>. The reading and writing routes need ProtectedRoute without a role restriction (since both parent AND student can access — backend already authz-checks). The portfolio route should be ProtectedRoute role='parent'.",
+    "After the route fix, re-run the playwright UI flow: generate reading -> answer all 4 questions -> verify reading-overall renders Score: X/Y; generate writing -> click a sentence starter (verify it appends to writing-textarea) -> type draft -> verify writing-feedback renders.",
+    "Update /app/memory/test_credentials.md or backend seed to clarify Enzo's actual grade — review_request says grade=3 but live profile is grade=5. Either is fine but they should match the docs."
+  ],
+  "critical_code_review_comments": [
+    "App.js: dead imports for ReadingPractice/WritingPractice/Portfolio with no Route registration. CI lint should be configured to flag unused imports — this would have been caught at build time.",
+    "ReadingPractice.useEffect calls navigate('/') on ANY GET failure including 401/404. A 401 in a brand-new tab (rare, since cookie is shared) would silently bounce the user. Consider a friendlier error UI instead of redirect.",
+    "/api/audio/transcribe: 422 on empty transcript leaks the model's silence to the user as a 422 vs 400. Consider a single 4xx contract for 'no usable audio'.",
+    "_resolve_reading_target ignores non-integer grade strings like 'K' silently (returns the base grade with no shift for below/above). Add explicit handling for K so below stays K (not crash) and above goes to '1st grade'.",
+    "ReadingFeedback.per_question is a list of plain dicts, not typed — Pydantic won't validate question_id/correct/feedback fields. Promote to a nested model so the OpenAPI schema documents it.",
+    "server.py is now ~2630 lines. Reading & Writing section added another ~250 lines to an already-overloaded module. Strongly recommend splitting into routers/reading_writing.py before next feature.",
+    "ParentDashboard.generatePractice silently alerts on failure but doesn't surface the in-flight 'generatingPractice' state to the user beyond disabling the button — no spinner. AI generation can take 3-8s; users may click again or assume nothing happened.",
+    "Portfolio.jsx has no pagination — to_list(500) backend limit will eventually clip. Add a 'load more' or server-side pagination before users accumulate >500 artifacts.",
+    "Sentence-starter chips append to draft but there is no undo if the user mistakenly clicks one — clicking a chip a second time should remove it, or there should be a delete-last-starter affordance."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_reading_writing.py (new)"
+  ],
+  "success_rate": {"backend": "100% (37/37)", "frontend": "33% — CTA buttons render and API call fires, but 3 new pages are unreachable due to missing route registration in App.js"},
+  "test_credentials": "parent@demo.com / demo1234 and student@demo.com / demo1234 valid. Enzo student id 232f66a6-a4d0-4515-8905-7219f0083646. NOTE: Enzo's live profile has grade=5 (not 3 as review_request claims) and reading_level=on — backend grade_target resolution matches profile correctly.",
+  "seed_data_creation": "Pytest run creates 1 TEST_op_rw_<ts>@example.com other parent and ~8 reading passages + ~5 writing pieces on Enzo's portfolio (all real LLM calls). No cleanup endpoint; data is identifiable by created_at timestamp.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend is healthy — re-running test_reading_writing.py against live URL should still be 37/37. Critical frontend block: 3 missing <Route> entries in App.js. Once the main agent adds them, the playwright flow to verify is: login as parent -> click parent-generate-reading -> wait for new tab to load reading-practice-page -> fill all reading-q-input-i textareas -> click reading-submit -> wait for reading-overall (score) and reading-q-feedback-i; then click parent-generate-writing -> verify writing-prompt, writing-scaffold, writing-starter-0 clickable (appends to writing-textarea), type draft -> click writing-submit -> verify writing-feedback. Portfolio test: click parent-open-portfolio -> verify portfolio-page renders with portfolio-reading and portfolio-writing sections each having item children with UUIDs in testids. The pre-existing 3 audio test failures in test_moments_audio.py are still out-of-scope (unrelated to this iteration).",
+  "rca of the issue": "Frontend route registration miss. The main agent created the 3 page components (ReadingPractice.jsx, WritingPractice.jsx, Portfolio.jsx) and added the import statements in App.js (lines 26-28) but forgot to add the corresponding <Route> JSX entries inside the <Routes> block. Because App.js ends with '<Route path=\"*\" element={<Navigate to=\"/\" replace />}/>', any unknown URL — including the 3 brand-new paths — falls through to the catch-all and gets redirected to '/' which then sends a parent user to '/parent'. Reproduction: login as parent -> open https://<frontend>/student/practice/reading/<any-uuid> directly -> observe redirect to /parent and no GET /api/reading/passage/<uuid> request in network panel. Mitigation: add the 3 missing Route elements (see action_items #1). After fix, the entire end-to-end flow should work because the backend is fully functional (verified via 37 passing pytest cases including a full create->submit->GET round-trip for both reading and writing)."
+}

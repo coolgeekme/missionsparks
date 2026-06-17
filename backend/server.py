@@ -169,6 +169,66 @@ class MissionDuplicateRequest(BaseModel):
     due_date: str  # ISO
 
 
+# ---------- Reading practice ----------
+class ReadingPassageRequest(BaseModel):
+    student_id: str
+    topic_hint: Optional[str] = None  # parent can nudge: "dinosaurs", "soccer", etc.
+    level_override: Optional[str] = None  # "below" | "on" | "above" — overrides profile
+
+class ReadingQuestion(BaseModel):
+    id: str
+    text: str
+    type: str  # "literal" | "inferential" | "vocabulary"
+    answer_key: str  # what a strong answer looks like (used for feedback)
+
+class ReadingPassage(BaseModel):
+    id: str
+    student_id: str
+    parent_id: str
+    title: str
+    topic: str
+    level: str  # "below" | "on" | "above"
+    grade_target: str  # e.g. "2nd grade", "3rd grade"
+    word_count: int
+    body: str
+    questions: List[ReadingQuestion] = []
+    citations: List[str] = []  # citation ids backing the design
+    created_at: str
+
+class ReadingAnswerSubmission(BaseModel):
+    answers: dict  # {question_id: answer_text}
+
+class ReadingFeedback(BaseModel):
+    per_question: List[dict]  # [{question_id, correct: bool, feedback: str}]
+    overall: str
+    score: int  # 0-N correct
+    total: int
+
+
+class WritingPromptRequest(BaseModel):
+    student_id: str
+    topic_hint: Optional[str] = None
+    level_override: Optional[str] = None
+
+class WritingPiece(BaseModel):
+    id: str
+    student_id: str
+    parent_id: str
+    prompt: str
+    scaffold: List[str] = []  # paragraph frame steps
+    sentence_starters: List[str] = []
+    topic: str
+    level: str
+    citations: List[str] = []
+    draft: str = ""
+    feedback: str = ""
+    submitted_at: Optional[str] = None
+    created_at: str
+
+class WritingSubmission(BaseModel):
+    draft: str
+
+
 class Mission(BaseModel):
     id: str
     student_id: str
@@ -1558,6 +1618,267 @@ async def ai_draft_day(req: AIDayDraftRequest, user: dict = Depends(require_role
     return out
 
 
+# ---------- Reading & Writing practice ----------
+GRADE_TO_TARGET = {
+    "K": "kindergarten", "1": "1st grade", "2": "2nd grade", "3": "3rd grade",
+    "4": "4th grade", "5": "5th grade", "6": "6th grade", "7": "7th grade",
+    "8": "8th grade", "9": "9th grade", "10": "10th grade", "11": "11th grade", "12": "12th grade",
+}
+
+
+def _resolve_reading_target(student_profile: dict, level_override: Optional[str]) -> tuple[str, str]:
+    """Returns (level, grade_target). level ∈ {below, on, above}."""
+    grade = (student_profile.get("grade") or "3").strip()
+    base = GRADE_TO_TARGET.get(grade, "3rd grade")
+    level = (level_override or student_profile.get("reading_level") or "on").lower()
+    if level == "below" and grade.isdigit() and int(grade) >= 1:
+        target = GRADE_TO_TARGET.get(str(int(grade) - 1), base)
+    elif level == "above" and grade.isdigit() and int(grade) <= 11:
+        target = GRADE_TO_TARGET.get(str(int(grade) + 1), base)
+    else:
+        target = base
+    return level, target
+
+
+async def _citation_keys_to_ids(keys: List[str]) -> List[str]:
+    lookup = await _citation_id_lookup()
+    return [lookup[k] for k in keys if k in lookup]
+
+
+@api.post("/reading/passage", response_model=ReadingPassage)
+async def generate_reading_passage(req: ReadingPassageRequest,
+                                   user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, req.student_id)
+    student = await db.users.find_one({"id": req.student_id}, {"_id": 0, "password_hash": 0})
+    profile = student.get("student_profile") or {}
+    level, grade_target = _resolve_reading_target(profile, req.level_override)
+    interests = profile.get("interests") or []
+    topic_hint = (req.topic_hint or (interests[0] if interests else "")).strip()
+
+    name = student.get("name", "the reader")
+    system = (
+        "You write short, kid-friendly nonfiction or simple narrative passages used in a "
+        "reading-comprehension practice app for children with ADHD. The reader's name is "
+        f"{name}. Match the target reading level EXACTLY — short sentences for younger "
+        "levels, mostly common words. Keep total length between 120 and 200 words. "
+        "Content must be safe for kids (no violence, no scary themes, no romance). "
+        "Then write 4 comprehension questions: 2 literal (answers stated directly in the "
+        "text), 1 inferential (answer requires connecting clues), 1 vocabulary-in-context. "
+        "Reply with STRICT JSON only — no prose, no code fences."
+    )
+    user_text = (
+        f"Target reading level: {grade_target} ({level} the student's grade).\n"
+        f"Topic preference: {topic_hint or 'pick something genuinely interesting to a kid this age'}.\n\n"
+        'Return this exact JSON shape:\n'
+        '{ "title": str, "topic": str, "body": str (the passage, 120-200 words), '
+        '"questions": [ { "text": str, "type": "literal"|"inferential"|"vocabulary", '
+        '"answer_key": str (a clear correct answer or set of acceptable answers) } ] }'
+    )
+    raw = await _ai_chat(system, user_text)
+    data = _extract_json(raw) or {}
+    body = (data.get("body") or "").strip()
+    questions = []
+    for q in (data.get("questions") or [])[:5]:
+        if not isinstance(q, dict):
+            continue
+        qtype = (q.get("type") or "literal").lower()
+        if qtype not in ("literal", "inferential", "vocabulary"):
+            qtype = "literal"
+        questions.append(ReadingQuestion(
+            id=str(uuid.uuid4()),
+            text=(q.get("text") or "").strip(),
+            type=qtype,
+            answer_key=(q.get("answer_key") or "").strip(),
+        ))
+
+    citations = await _citation_keys_to_ids([
+        "nrp_2000", "cain_oakhill_1999_inference", "raphael_1986_qar", "stahl_1986_vocab",
+    ])
+    doc = ReadingPassage(
+        id=str(uuid.uuid4()),
+        student_id=req.student_id,
+        parent_id=user["id"],
+        title=(data.get("title") or "Reading practice").strip(),
+        topic=(data.get("topic") or topic_hint or "general").strip(),
+        level=level,
+        grade_target=grade_target,
+        word_count=len(body.split()),
+        body=body,
+        questions=questions,
+        citations=citations,
+        created_at=datetime.now(timezone.utc).isoformat(),
+    )
+    await db.reading_passages.insert_one(doc.model_dump())
+    return doc
+
+
+@api.post("/reading/passage/{passage_id}/answer", response_model=ReadingFeedback)
+async def submit_reading_answers(passage_id: str, sub: ReadingAnswerSubmission,
+                                  user: dict = Depends(get_current_user)):
+    p = await db.reading_passages.find_one({"id": passage_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="Passage not found")
+    # Either the parent who owns the student, or the student themselves
+    if user["id"] != p["parent_id"] and user["id"] != p["student_id"]:
+        raise HTTPException(status_code=403, detail="Not your passage")
+
+    qs = p["questions"]
+    grade_text = "\n".join(
+        f"Q{i+1} ({q['type']}): {q['text']}\n"
+        f"  Looking for: {q['answer_key']}\n"
+        f"  Reader answered: {sub.answers.get(q['id'], '').strip() or '(no answer)'}"
+        for i, q in enumerate(qs)
+    )
+    system = (
+        "You're a warm, playful tutor giving feedback to a child on reading-comprehension answers. "
+        "For each question decide if the reader got the gist (use loose grading — partial credit if "
+        "they show understanding). Be kind and specific. One sentence of feedback per question. "
+        "Then a 1-sentence overall encouragement. Use 1-2 fun emojis total to keep it kid-friendly. "
+        "Reply with STRICT JSON only."
+    )
+    user_text = (
+        f"Passage:\n{p['body']}\n\nAnswers to grade:\n{grade_text}\n\n"
+        'Return JSON: { "per_question": [{"question_id": str, "correct": bool, "feedback": str}], '
+        '"overall": str }'
+    )
+    raw = await _ai_chat(system, user_text)
+    data = _extract_json(raw) or {}
+    per_q = []
+    for q, item in zip(qs, (data.get("per_question") or [])):
+        if not isinstance(item, dict):
+            item = {}
+        per_q.append({
+            "question_id": q["id"],
+            "correct": bool(item.get("correct", False)),
+            "feedback": (item.get("feedback") or "").strip(),
+        })
+    score = sum(1 for pq in per_q if pq["correct"])
+    feedback = ReadingFeedback(
+        per_question=per_q,
+        overall=(data.get("overall") or "").strip(),
+        score=score,
+        total=len(qs),
+    )
+    await db.reading_passages.update_one(
+        {"id": passage_id},
+        {"$set": {"answers": sub.answers, "feedback": feedback.model_dump(),
+                  "completed_at": datetime.now(timezone.utc).isoformat(), "score": score, "total": len(qs)}},
+    )
+    return feedback
+
+
+@api.post("/writing/prompt", response_model=WritingPiece)
+async def generate_writing_prompt(req: WritingPromptRequest,
+                                  user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, req.student_id)
+    student = await db.users.find_one({"id": req.student_id}, {"_id": 0, "password_hash": 0})
+    profile = student.get("student_profile") or {}
+    level, grade_target = _resolve_reading_target(profile, req.level_override)
+    interests = profile.get("interests") or []
+    topic_hint = (req.topic_hint or (interests[0] if interests else "")).strip()
+
+    name = student.get("name", "the writer")
+    system = (
+        "You design tiny, kid-friendly writing prompts for a child with ADHD who needs "
+        f"scaffolding for multi-paragraph writing. The writer's name is {name}. "
+        "The output is a writing prompt, a paragraph scaffold (3-5 short steps the kid "
+        "follows in order), and 3-5 sentence starters they can copy and finish. "
+        f"Target grade for vocabulary and complexity: {grade_target}. "
+        "Topic should feel exciting, not school-y. No essays, no 5-paragraph templates. "
+        "Reply with STRICT JSON only."
+    )
+    user_text = (
+        f"Topic preference: {topic_hint or 'pick something kid-engaging'}.\n\n"
+        'Return JSON: { "prompt": str (1-2 sentence kid-facing writing prompt), '
+        '"topic": str, "scaffold": [str, ...] (3-5 short steps), '
+        '"sentence_starters": [str, ...] (3-5 starters ending in "...") }'
+    )
+    raw = await _ai_chat(system, user_text)
+    data = _extract_json(raw) or {}
+    citations = await _citation_keys_to_ids([
+        "mueller_oppenheimer_2014_notes", "marzano_2001_annotation", "diamond_2013_ef",
+    ])
+    doc = WritingPiece(
+        id=str(uuid.uuid4()),
+        student_id=req.student_id,
+        parent_id=user["id"],
+        prompt=(data.get("prompt") or "").strip(),
+        topic=(data.get("topic") or topic_hint or "general").strip(),
+        level=level,
+        scaffold=[str(s).strip() for s in (data.get("scaffold") or []) if str(s).strip()][:6],
+        sentence_starters=[str(s).strip() for s in (data.get("sentence_starters") or []) if str(s).strip()][:6],
+        citations=citations,
+        created_at=datetime.now(timezone.utc).isoformat(),
+    )
+    await db.writing_pieces.insert_one(doc.model_dump())
+    return doc
+
+
+@api.post("/writing/piece/{piece_id}/submit", response_model=WritingPiece)
+async def submit_writing(piece_id: str, sub: WritingSubmission,
+                          user: dict = Depends(get_current_user)):
+    p = await db.writing_pieces.find_one({"id": piece_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="Writing piece not found")
+    if user["id"] != p["parent_id"] and user["id"] != p["student_id"]:
+        raise HTTPException(status_code=403, detail="Not your writing")
+    if not sub.draft.strip():
+        raise HTTPException(status_code=400, detail="Draft cannot be empty")
+
+    system = (
+        "You're a warm, playful writing coach giving feedback to a child with ADHD on their "
+        "writing. Be specific and kind — call out one concrete thing that worked, and one "
+        "thing to try next time. Do NOT correct spelling or grammar unless it makes the "
+        "meaning unclear. No grading. 2-3 sentences total. 1-2 fun emojis ok."
+    )
+    user_text = f"Prompt: {p['prompt']}\n\nThe child wrote:\n{sub.draft}\n\nReply with feedback only, no headers."
+    feedback = await _ai_chat(system, user_text)
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.writing_pieces.update_one(
+        {"id": piece_id},
+        {"$set": {"draft": sub.draft.strip(), "feedback": feedback.strip(), "submitted_at": now}},
+    )
+    p.update({"draft": sub.draft.strip(), "feedback": feedback.strip(), "submitted_at": now})
+    return WritingPiece(**p)
+
+
+@api.get("/students/{student_id}/portfolio")
+async def student_portfolio(student_id: str, user: dict = Depends(get_current_user)):
+    # Parent (owner) or student themselves
+    if user["role"] == "parent":
+        await _assert_parent_owns_student(user, student_id)
+    elif user["id"] != student_id:
+        raise HTTPException(status_code=403, detail="Not your portfolio")
+    reading = await db.reading_passages.find(
+        {"student_id": student_id}, {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+    writing = await db.writing_pieces.find(
+        {"student_id": student_id}, {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+    return {"reading": reading, "writing": writing}
+
+
+@api.get("/reading/passage/{passage_id}")
+async def get_reading_passage(passage_id: str, user: dict = Depends(get_current_user)):
+    p = await db.reading_passages.find_one({"id": passage_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="Not found")
+    if user["id"] != p["parent_id"] and user["id"] != p["student_id"]:
+        raise HTTPException(status_code=403, detail="Not yours")
+    return p
+
+
+@api.get("/writing/piece/{piece_id}")
+async def get_writing_piece(piece_id: str, user: dict = Depends(get_current_user)):
+    p = await db.writing_pieces.find_one({"id": piece_id}, {"_id": 0})
+    if not p:
+        raise HTTPException(status_code=404, detail="Not found")
+    if user["id"] != p["parent_id"] and user["id"] != p["student_id"]:
+        raise HTTPException(status_code=403, detail="Not yours")
+    return p
+
+
 # ---------- Moments (ADHD behavior + trigger tracking) ----------
 MOMENT_CATALOG = {
     "moment_types": [
@@ -1896,6 +2217,39 @@ def _moment_extraction_system_prompt() -> str:
         "Never invent details the parent didn't say.\n\n"
         "Respond with STRICT JSON only, no prose, no code fences."
     )
+
+
+@api.post("/audio/transcribe")
+async def audio_transcribe(
+    audio: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+):
+    """Simple Whisper transcription — used by Writing Practice for voice dictation."""
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="AI is not configured.")
+    raw = await audio.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="No audio data received.")
+    if len(raw) > 24 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Audio file too large (max 24MB).")
+    mime = audio.content_type or "audio/webm"
+    ext = "webm"
+    for k, v in (("wav", "wav"), ("mp4", "m4a"), ("m4a", "m4a"), ("mp3", "mp3"), ("mpeg", "mp3"), ("ogg", "ogg")):
+        if k in mime:
+            ext = v
+            break
+    try:
+        stt = OpenAISpeechToText(api_key=EMERGENT_LLM_KEY)
+        buf = io.BytesIO(raw)
+        buf.name = f"writing.{ext}"
+        stt_resp = await stt.transcribe(file=buf, model="whisper-1", response_format="json", language="en")
+        transcript = (getattr(stt_resp, "text", "") or "").strip()
+    except Exception as e:
+        logger.exception("Whisper transcription failed")
+        raise HTTPException(status_code=502, detail=f"Transcription failed: {e}") from e
+    if not transcript:
+        raise HTTPException(status_code=422, detail="Could not understand the recording. Try again in a quieter spot.")
+    return {"transcript": transcript}
 
 
 @api.post("/moments/parse-audio", response_model=ParsedMoment)
