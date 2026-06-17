@@ -1204,6 +1204,7 @@ class AIDraftedMission(BaseModel):
     strategy_names: List[str] = []
     evidence_tags: List[str] = []
     evidence_refs: List[str] = []  # citation ids
+    rationale: str = ""  # 1-2 sentences: why this mission for THIS child
 
 
 def _norm(s: str) -> str:
@@ -1306,6 +1307,12 @@ def _system_prompt(skills: List[dict], strategies: List[dict]) -> str:
         "Pick the tags that most directly justify the chosen skills/strategies (e.g. a chunked "
         "planning task = 'task_chunking', 'executive_function'; a re-read for evidence = "
         "'annotation', 'reading_fluency'). Do not invent tags.\n\n"
+        "Also include a 'rationale' field — 1 to 2 short sentences, addressed to the parent "
+        "(use 'your child' or their child's name if you know it), explaining WHY this mission "
+        "fits THIS child specifically. Name 1–2 concrete profile factors (an interest, a peak hour, "
+        "a motivator, a strength, a known trigger you're avoiding) AND 1 research angle "
+        "(e.g. 'short chunks fit working-memory limits' or 'movement before reading aids attention'). "
+        "Keep it warm, plain-English, no jargon, no citations or paper authors — those are surfaced separately.\n\n"
         "Always respond with STRICT JSON only — no prose, no code fences."
     )
 
@@ -1365,7 +1372,8 @@ async def ai_draft_mission(req: AIDraftRequest, user: dict = Depends(require_rol
         + '"estimated_minutes": int (5-25), '
         + '"skill_names": [str, ...] (1-2 items, copied exactly from AVAILABLE SKILLS), '
         + '"strategy_names": [str, ...] (1-2 items, copied exactly from AVAILABLE STRATEGIES), '
-        + '"evidence_tags": [str, ...] (1-3 items, copied exactly from the controlled vocabulary) }'
+        + '"evidence_tags": [str, ...] (1-3 items, copied exactly from the controlled vocabulary), '
+        + '"rationale": str (1-2 sentences explaining why this fits this child) }'
     )
 
     raw = await _ai_chat(_system_prompt(skills, strategies), user_text)
@@ -1385,6 +1393,7 @@ async def ai_draft_mission(req: AIDraftRequest, user: dict = Depends(require_rol
     strategy_ids = _match_ids(strategy_names, strategies)
     evidence_tags = [str(x).strip() for x in (data.get("evidence_tags") or []) if str(x).strip()]
     evidence_refs = await _resolve_evidence_for_mission(skill_ids, strategy_ids, evidence_tags)
+    rationale = (data.get("rationale") or "").strip()[:600]
     return AIDraftedMission(
         title=title,
         description=description,
@@ -1396,6 +1405,7 @@ async def ai_draft_mission(req: AIDraftRequest, user: dict = Depends(require_rol
         strategy_names=strategy_names,
         evidence_tags=evidence_tags,
         evidence_refs=evidence_refs,
+        rationale=rationale,
     )
 
 
@@ -1417,7 +1427,8 @@ async def ai_draft_day(req: AIDayDraftRequest, user: dict = Depends(require_role
         + '"estimated_minutes": int (5-25), '
         + '"skill_names": [str, ...] (1-2, copied exactly), '
         + '"strategy_names": [str, ...] (1-2, copied exactly), '
-        + '"evidence_tags": [str, ...] (1-3, copied exactly from the controlled vocabulary) }'
+        + '"evidence_tags": [str, ...] (1-3, copied exactly from the controlled vocabulary), '
+        + '"rationale": str (1-2 sentences explaining why this fits this child) }'
     )
 
     raw = await _ai_chat(_system_prompt(skills, strategies), user_text)
@@ -1441,6 +1452,7 @@ async def ai_draft_day(req: AIDayDraftRequest, user: dict = Depends(require_role
         st_ids = _match_ids(st_names, strategies)
         ev_tags = [str(x).strip() for x in (d.get("evidence_tags") or []) if str(x).strip()]
         ev_refs = await _resolve_evidence_for_mission(sk_ids, st_ids, ev_tags)
+        rationale = (d.get("rationale") or "").strip()[:600]
         out.append(AIDraftedMission(
             title=title,
             description=(d.get("description") or "").strip(),
@@ -1452,6 +1464,7 @@ async def ai_draft_day(req: AIDayDraftRequest, user: dict = Depends(require_role
             strategy_names=st_names,
             evidence_tags=ev_tags,
             evidence_refs=ev_refs,
+            rationale=rationale,
         ))
     return out
 

@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import EvidenceBadge from "../components/EvidenceBadge";
+import { Popover, PopoverTrigger, PopoverContent } from "../components/ui/popover";
 import { api, formatApiErrorDetail } from "../lib/api";
 import {
     Plus, ClipboardList, Users, Pencil, Trash2, UserPlus, Clock,
     Sparkles, Save, Loader2, Wand2, X, Zap, Activity, BookOpen,
+    HelpCircle,
 } from "lucide-react";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -427,14 +429,42 @@ export default function ParentDashboard() {
                                                 </span>
                                             ))}
                                         </div>
-                                        {d.evidence_refs && d.evidence_refs.length > 0 && (
-                                            <div className="mt-3 pt-3 border-t border-[#E2E8F0] flex items-center gap-2" data-testid={`ai-draft-evidence-${i}`}>
-                                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#4A5568]">Backed by</span>
-                                                <EvidenceBadge citationIds={d.evidence_refs} label="Research supporting this mission" testId={`ai-draft-evidence-badge-${i}`} />
-                                                {d.evidence_tags && d.evidence_tags.length > 0 && (
-                                                    <span className="text-[10px] font-bold text-[#4A5568]">
-                                                        {d.evidence_tags.map((t) => t.replaceAll("_", " ")).join(" · ")}
-                                                    </span>
+                                        {((d.evidence_refs && d.evidence_refs.length > 0) || d.rationale) && (
+                                            <div className="mt-3 pt-3 border-t border-[#E2E8F0] flex items-center gap-2 flex-wrap" data-testid={`ai-draft-evidence-${i}`}>
+                                                {d.evidence_refs && d.evidence_refs.length > 0 && (
+                                                    <>
+                                                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#4A5568]">Backed by</span>
+                                                        <EvidenceBadge citationIds={d.evidence_refs} label="Research supporting this mission" testId={`ai-draft-evidence-badge-${i}`} />
+                                                        {d.evidence_tags && d.evidence_tags.length > 0 && (
+                                                            <span className="text-[10px] font-bold text-[#4A5568]">
+                                                                {d.evidence_tags.map((t) => t.replaceAll("_", " ")).join(" · ")}
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                )}
+                                                {d.rationale && (
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 ring-1 ring-[#4361EE]/30 bg-[#4361EE]/10 text-[#4361EE] text-[10px] font-extrabold uppercase tracking-wider hover:bg-[#4361EE]/15 transition"
+                                                                data-testid={`ai-draft-why-${i}`}
+                                                                aria-label="Why this mission?"
+                                                            >
+                                                                <HelpCircle size={11} /> Why this mission?
+                                                            </button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent
+                                                            align="end"
+                                                            className="w-[min(20rem,90vw)] p-4 bg-white border-2 border-[#E2E8F0] rounded-2xl shadow-xl"
+                                                            data-testid={`ai-draft-why-popover-${i}`}
+                                                        >
+                                                            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#4361EE] mb-2 flex items-center gap-1">
+                                                                <Wand2 size={11} /> Why this mission?
+                                                            </p>
+                                                            <p className="text-sm font-semibold text-[#0B132B] leading-snug">{d.rationale}</p>
+                                                        </PopoverContent>
+                                                    </Popover>
                                                 )}
                                             </div>
                                         )}
