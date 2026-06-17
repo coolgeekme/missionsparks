@@ -1,0 +1,35 @@
+{
+  "summary": "Iter9: Landing page + changelog + waitlist + dynamic stats fully tested. Backend (11/11 pytest) and Frontend (all 11 review scenarios) PASS. Logged-out '/' renders Landing, logged-in parent redirects to /parent, /changelog public, waitlist idempotency works end-to-end via POST /api/public/waitlist with already_on_waitlist flag flipping success message correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_landing_waitlist.py",
+    "/app/test_reports/pytest/iter9_landing.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is large (~1858 lines). Consider splitting into routers (auth, missions, waitlist, public, research) for maintainability — not blocking.",
+    "Landing.jsx (~390 lines) is fine but mixes layout + sub-components; could move FeatureCard/StatTile/StepCard/PrivacyTile/FooterCol into a /components/landing folder for reuse and easier testing.",
+    "Landing waitlist stat readout uses `stats.waitlist > 0` but exposes the live waitlist count to anonymous visitors — acceptable here since it's an aggregate count, but flag for product review if it could ever reveal sensitive growth signals to competitors.",
+    "Waitlist endpoint stores `joined_at` as ISO string; consistent with rest of codebase but a real datetime field would allow Mongo-native sort/range queries.",
+    "Email validation: backend uses EmailStr (good). Frontend has `required` + `type=email`, no client-side regex check beyond browser default — acceptable.",
+    "No rate-limit on POST /api/public/waitlist — public endpoint could be spammed. Consider IP-based throttling before launch."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_landing_waitlist.py (new)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% (all flows in review_request)"},
+  "test_credentials": "parent@demo.com / demo1234 (valid, used for /api/waitlist gated test and logged-in redirect test)",
+  "seed_data_creation": "Each test run creates 2 TEST_ prefixed waitlist entries via backend pytest and 1 landing_e2e_<ts>@example.com via Playwright. No cleanup endpoint used; entries accumulate but are clearly TEST_ prefixed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter9 added /api/public/stats (no-auth) and /api/public/waitlist (no-auth, idempotent on email) + /api/waitlist (parent-gated). Frontend Landing.jsx at '/' for logged-out users, redirects logged-in parents to /parent, students to /student. /changelog is public with 8 entries. All data-testids per review_request are present. Pre-existing 3 stale audio test failures in test_moments_audio.py (iter7) still exist — discard_audio default — out of scope and ignored. Regression of /api/citations, /api/skills, /api/strategies, /api/moments/catalog, /api/games/catalog requires parent auth (401 anonymous); confirmed all return 200 with parent session.",
+  "rca of the issue": "N/A — no bugs found. All review_request criteria met."
+}

@@ -19,13 +19,15 @@ import Terms from "./pages/Terms";
 import Account from "./pages/Account";
 import AuditLog from "./pages/AuditLog";
 import Research from "./pages/Research";
+import Landing from "./pages/Landing";
+import Changelog from "./pages/Changelog";
 import { Toaster } from "./components/ui/sonner";
 import "./App.css";
 
 function RootRedirect() {
     const { user } = useAuth();
     if (user === null) return <div className="min-h-screen flex items-center justify-center text-[#4361EE] font-bold">Loading…</div>;
-    if (!user) return <Navigate to="/login" replace />;
+    if (!user) return <Landing />;
     return <Navigate to={user.role === "parent" ? "/parent" : "/student"} replace />;
 }
 
@@ -37,6 +39,7 @@ export default function App() {
                     <BrowserRouter>
                     <Routes>
                         <Route path="/" element={<RootRedirect />} />
+                        <Route path="/changelog" element={<Changelog />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />
                         <Route
