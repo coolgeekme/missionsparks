@@ -21,6 +21,10 @@ from datetime import datetime, timedelta, timezone
 import pytest
 import pytz
 import requests
+from dotenv import load_dotenv
+
+# Load /app/backend/.env so direct MongoDB connections work in tests
+load_dotenv(pathlib.Path(__file__).resolve().parents[1] / ".env")
 
 def _load_react_backend_url():
     env = os.environ.get("REACT_APP_BACKEND_URL")

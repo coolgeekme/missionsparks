@@ -494,6 +494,11 @@ async def _build_and_send(parent_user: dict, *, force: bool = False) -> dict:
     if email_id:
         updates["digest_preferences.last_sent_at"] = now.isoformat()
         updates["digest_preferences.last_email_message_id"] = email_id
+    else:
+        logger.warning(
+            "Digest send failed for %s — will retry at %s",
+            parent_user["email"], next_due.isoformat(),
+        )
     await _db.users.update_one({"id": parent_user["id"]}, {"$set": updates})
 
     return {"sent": bool(email_id), "email_id": email_id, "reason": "ok" if email_id else "resend failed"}

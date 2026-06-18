@@ -120,7 +120,18 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Email template: styled HTML (inline CSS, table layout) + plain-text fallback. Includes CTA button, copyable link, expiry date, role description.
 - POST `/api/families/{id}/invites` now returns `email_sent: true/false`; FamilySettings UI shows "📬 Email sent" vs "Couldn't send — just share the link" message.
 - Env config: `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (default `onboarding@resend.dev`), `RESEND_FROM_NAME`, `PUBLIC_APP_URL`.
-- **Production note**: Resend default is test mode (sends only to API-key owner). To send to any recipient, verify a sending domain at https://resend.com/domains and update `RESEND_FROM_EMAIL` to an address on that domain.
+
+### Iter 17 — Parent digest emails (2026-02)
+- **Daily or weekly summary email** for opted-in parents with kid activity + AI-personalized off-app tips + curated ADHD article.
+- New `/app/backend/digest_service.py` — content aggregator + Resend sender. Per-kid section includes spark streak, missions completed, mini-games played + top score, recent moments highlights.
+- **AI weekly tips** (Claude) — 3 evidence-informed activities tailored to each kid's interests + motivators. Cached for 7 days per student in `digest_weekly_tips`. Daily digests reuse the same weekly batch.
+- **Curated ADHD article rotation** — `/app/backend/digest_articles.py` seeds 12 evergreen entries from CHADD, ADDitude, Harvard Health, NIMH, AAP, ADHD Foundation. Each parent's `seen_article_ids` rotates through the library before recycling.
+- **APScheduler** runs hourly (cron at :05) in-process; fires `dispatch_due_digests()`.
+- New endpoints: `GET/PUT /api/me/digest-preferences`, `POST /api/me/digest/send-sample`.
+- New UI section on `/account`: enable toggle, cadence (daily/weekly), timezone (11 options), send time, day-of-week (weekly only), "Send me a sample now" button, last-sent + next-due chips.
+- **Per-member opt-in**: each parent (owner / co_parent / viewer) has their own digest_preferences embedded on their user doc. Coparents enable independently.
+- Resend domain `missionsparks.com` is now verified — emails deliver to any recipient. Sender: `hello@missionsparks.com`.
+- 15/15 digest pytest tests pass (`tests/test_digest.py`). 103/103 across the whole family-aware suite. Zero regressions.
 
 ### Still open
 - ⚠️ **Sign BAAs with OpenAI (Whisper) + Anthropic (Claude) + MongoDB Atlas dedicated** before any therapist or clinical-track sale.
@@ -133,9 +144,10 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - App rename from "MissionBoard" → **MissionSparks** completed in iter9 (Feb 2026). Streak UI rebranded to "Sparks" ⚡ (API field name kept as `streak` to avoid breaking changes).
 
 ## Roadmap (deferred)
-**Iter 17 (P2, next) — Backend refactor**: split `server.py` (~3700 lines, critical) into modular FastAPI routers (`auth.py`, `families.py`, `missions.py`, `ai.py`, `games.py`, `moments.py`, `intake.py`, `practice.py`, `research.py`).
-**Iter 18 (P2) — Cross-family pack sharing on approval**: when a parent in multiple families approves a pack, kids in all their families see it (current scope: single-family only).
-**Iter 19 (P2) — Verify production sending domain on Resend** so invites can land in any inbox (today: only the API key owner's inbox).
+**Iter 18 (P2, next) — Backend refactor**: split `server.py` (~3850 lines, critical) into modular FastAPI routers.
+**Iter 19 (P2) — Cross-family pack sharing on approval**: when a parent in multiple families approves a pack, kids in all their families see it (current scope: single-family only).
+**Iter 20 (P2) — Web-search-powered "Latest ADHD research" digest section**: optional AI search at send-time for fresh articles beyond the curated 12.
+**Iter 21 (P2) — Teacher/Tutor role + Skill Mastery viz.**
 **V1.1**: daily/weekly reflection journal separate from per-mission log; parent encouragement notes on logs; confidence trend graph.
 **V1.2**: teacher/tutor role with invite flow; skill mastery visualization over time.
 **V2**: streak freezes / "kind day off"; behavior-pattern email digest for parents; AI-suggested intervention plan based on Moments insights; in-app share link to therapist (read-only).
