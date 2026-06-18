@@ -9,6 +9,7 @@ import uuid
 import secrets
 import logging
 from email_service import send_family_invite_email
+import digest_service
 import bcrypt
 import jwt
 from datetime import datetime, timezone, timedelta
@@ -2423,6 +2424,63 @@ async def my_studio_status(user: dict = Depends(require_role("student"))):
     }
 
 
+# ---------- Parent Digest preferences + send ----------
+class DigestPreferences(BaseModel):
+    enabled: bool = False
+    cadence: Literal["daily", "weekly"] = "daily"
+    preferred_hour: int = 19
+    preferred_minute: int = 0
+    preferred_weekday: int = 6  # 0=Mon, 6=Sun
+    tz: str = "America/Los_Angeles"
+
+
+@api.get("/me/digest-preferences")
+async def get_digest_prefs(user: dict = Depends(require_role("parent"))):
+    fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "digest_preferences": 1})
+    prefs = digest_service.normalize_prefs((fresh or {}).get("digest_preferences"))
+    return {
+        "enabled": prefs["enabled"],
+        "cadence": prefs["cadence"],
+        "preferred_hour": prefs["preferred_hour"],
+        "preferred_minute": prefs["preferred_minute"],
+        "preferred_weekday": prefs["preferred_weekday"],
+        "tz": prefs["tz"],
+        "last_sent_at": prefs.get("last_sent_at"),
+        "next_due_at": prefs.get("next_due_at"),
+    }
+
+
+@api.put("/me/digest-preferences")
+async def update_digest_prefs(req: DigestPreferences, user: dict = Depends(require_role("parent"))):
+    fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "digest_preferences": 1})
+    current = digest_service.normalize_prefs((fresh or {}).get("digest_preferences"))
+    merged = {**current, **req.model_dump()}
+    merged = digest_service.normalize_prefs(merged)
+    # Always recompute next_due when prefs change so the scheduler picks the right slot
+    now = datetime.now(timezone.utc)
+    next_due = digest_service.compute_next_due(merged, now_utc=now) if merged["enabled"] else None
+    if next_due:
+        merged["next_due_at"] = next_due.isoformat()
+    else:
+        merged["next_due_at"] = None
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"digest_preferences": merged}},
+    )
+    await _audit(user, "digest.preferences_update", target_type="user", target_id=user["id"],
+                 meta={"enabled": merged["enabled"], "cadence": merged["cadence"]})
+    return merged
+
+
+@api.post("/me/digest/send-sample")
+async def send_sample_digest(user: dict = Depends(require_role("parent"))):
+    fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+    result = await digest_service.send_sample_to(fresh)
+    await _audit(user, "digest.send_sample", target_type="user", target_id=user["id"],
+                 meta={"sent": result.get("sent")})
+    return result
+
+
 # ---------- AI Mission Drafting ----------
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 AI_MODEL_PROVIDER = "anthropic"
@@ -3726,7 +3784,35 @@ async def on_startup():
     await db.family_invites.create_index([("family_id", 1), ("status", 1)])
     await db.families.create_index("members.user_id")
 
+    # Parent digest scheduler (Iter 17). Hourly tick; sends to anyone whose
+    # next_due_at has elapsed.
+    digest_service.configure(db, _ai_chat)
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler  # noqa: WPS433
+        scheduler = AsyncIOScheduler(timezone="UTC")
+
+        async def _digest_tick():
+            try:
+                n = await digest_service.dispatch_due_digests()
+                if n:
+                    logger.info("Digest dispatch sent %s emails.", n)
+            except Exception as e:  # noqa: BLE001
+                logger.exception("Digest tick failed: %s", e)
+
+        scheduler.add_job(_digest_tick, "cron", minute=5, id="digest_tick", replace_existing=True)
+        scheduler.start()
+        app.state.digest_scheduler = scheduler
+        logger.info("Digest scheduler started (hourly at :05).")
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Failed to start digest scheduler: %s", e)
+
 
 @app.on_event("shutdown")
 async def on_shutdown():
+    sched = getattr(app.state, "digest_scheduler", None)
+    if sched:
+        try:
+            sched.shutdown(wait=False)
+        except Exception:  # noqa: BLE001
+            pass
     client.close()

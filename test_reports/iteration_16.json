@@ -1,0 +1,38 @@
+{
+  "summary": "Iter 17 (Parent Digest Emails) — Both backend & frontend tested. 15/15 backend tests pass (1 originally skipped, then fixed). Frontend Account page renders the new 'Family digest email' section correctly with toggle, cadence (Daily/Weekly), timezone, send time, weekday row, send-sample button, and persisted next_due/last_sent footer. Send-sample to parent@demo.com returns sent=true with a Resend email_id. AI tips are generated once via Claude (first send) and cached in db.digest_weekly_tips (verified — 1 cached doc, generated_at present). Article rotation across send-samples confirmed (>=2 distinct articles recorded in seen_article_ids). Scheduler boot log present in backend.err.log. Validation normalization works (Mars/Olympus → America/Los_Angeles, hour=99 → 23). Co-parent opt-in is independent of parent. dispatch_due_digests respects enabled gating. PUT enable=true sets next_due_at at next 20:00 PT; weekly with weekday=6 returns next Sunday at the chosen hour; PUT disable clears next_due_at.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Account → Family digest email → Send time / Day of week select",
+        "issues": ["React dev-mode console warning: 'In HTML, <span> cannot be a child of <option>'. This is caused by the dev tooling injecting x-component spans into <option> text — production builds are unaffected. No functional impact."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_digest.py",
+    "/app/test_reports/pytest/digest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "digest_service.py is ~530 lines and combines content aggregation, AI prompt building, HTML rendering, Resend dispatch, and scheduler entry — consider splitting into digest_render.py (HTML/text builders) + digest_service.py (pipeline) to keep each file focused and < 350 lines.",
+    "digest_service._build_and_send updates next_due_at on Resend failure with the same prefs object — good for backoff, but worth adding a logger.warning summarising 'will retry at <next_due_at>' for observability.",
+    "Curated articles URLs in digest_articles.py point to generic landing pages (e.g. https://chadd.org/for-parents/overview/) instead of specific posts — fine for evergreen rotation but a future refresh might find deeper article URLs to make 'Worth a read' feel more current.",
+    "compute_next_due always advances by 1 day / 1 week when target<=local_now; if a user PUTs prefs at exactly preferred_hour:00, they'll never get today's slot. Minor — likely intentional and avoids duplicate sends after edit."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_digest.py (new file — 15 tests)"
+  ],
+  "success_rate": { "backend": "100%", "frontend": "100%" },
+  "test_credentials": "parent@demo.com / demo1234; coparent@demo.com / demo1234 — both already present in /app/memory/test_credentials.md",
+  "seed_data_creation": "No new seed data. Test uses existing demo parent (Enzo linked) and demo co-parent. Resets parent digest prefs to disabled at module start.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iter 17 digest emails work end-to-end with real Resend delivery (sender domain missionsparks.com verified). To avoid burning Resend quota in future runs, monkey-patch resend.Emails.send before calling /api/me/digest/send-sample, or temporarily unset RESEND_API_KEY. db.digest_weekly_tips caches AI tips per student for 7 days. Backend tests live at /app/backend/tests/test_digest.py and run in ~4 seconds. Scheduler boot log line: 'Digest scheduler started (hourly at :05).' in /var/log/supervisor/backend.err.log. The new Account page section uses data-testids: digest-section, digest-enable-toggle, digest-enable-state, digest-config, digest-cadence-{daily,weekly}, digest-tz, digest-hour, digest-weekday-row, digest-weekday-{0..6}, digest-send-sample, digest-last-sent, digest-next-due.",
+  "rca of the issue": "N/A — no issues found. All 16 review_request items verified."
+}

@@ -3,7 +3,15 @@ import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { api, formatApiErrorDetail } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
-import { ArrowLeft, Mic, Download, Trash2, Shield, History } from "lucide-react";
+import { toast } from "sonner";
+import { ArrowLeft, Mic, Download, Trash2, Shield, History, Mail, Send, Clock } from "lucide-react";
+
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const TIMEZONES = [
+    "America/Los_Angeles", "America/Denver", "America/Chicago", "America/New_York",
+    "Europe/London", "Europe/Paris", "Europe/Berlin", "Asia/Kolkata", "Asia/Tokyo",
+    "Australia/Sydney", "UTC",
+];
 
 export default function Account() {
     const { user, refresh, logout } = useAuth();
@@ -15,9 +23,20 @@ export default function Account() {
     const [confirmText, setConfirmText] = useState("");
     const [err, setErr] = useState("");
 
+    // Digest preferences (parent-only)
+    const [digestPrefs, setDigestPrefs] = useState(null);
+    const [digestSaving, setDigestSaving] = useState(false);
+    const [sendingSample, setSendingSample] = useState(false);
+
     useEffect(() => {
         if (user && user.id) setDiscardAudio(!!user.discard_audio);
     }, [user]);
+
+    useEffect(() => {
+        if (user && user.role === "parent") {
+            api.get("/me/digest-preferences").then(({ data }) => setDigestPrefs(data)).catch(() => {});
+        }
+    }, [user?.id, user?.role]);
 
     const saveAudio = async (next) => {
         setSaving(true);
@@ -61,6 +80,38 @@ export default function Account() {
             setErr(formatApiErrorDetail(e.response?.data?.detail) || e.message);
             setDeleting(false);
         }
+    };
+
+    const saveDigest = async (patch) => {
+        if (!digestPrefs) return;
+        const next = { ...digestPrefs, ...patch };
+        setDigestPrefs(next);  // optimistic
+        setDigestSaving(true);
+        try {
+            const { data } = await api.put("/me/digest-preferences", {
+                enabled: !!next.enabled,
+                cadence: next.cadence,
+                preferred_hour: next.preferred_hour,
+                preferred_minute: next.preferred_minute,
+                preferred_weekday: next.preferred_weekday,
+                tz: next.tz,
+            });
+            setDigestPrefs(data);
+            toast.success("Digest preferences saved.");
+        } catch (e) {
+            toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message);
+        } finally { setDigestSaving(false); }
+    };
+
+    const sendSample = async () => {
+        setSendingSample(true);
+        try {
+            const { data } = await api.post("/me/digest/send-sample");
+            if (data.sent) toast.success(`Sample sent to ${user.email} 📬`);
+            else toast.error("Couldn't send sample email — check that your sender domain is verified.");
+        } catch (e) {
+            toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message);
+        } finally { setSendingSample(false); }
     };
 
     if (!user || !user.id) return null;
@@ -123,6 +174,111 @@ export default function Account() {
                         </div>
                     </div>
                 </section>
+
+                {user.role === "parent" && digestPrefs && (
+                    <section className="mb-card p-6" data-testid="digest-section">
+                        <div className="flex items-start gap-3">
+                            <div className="h-12 w-12 rounded-2xl bg-[#06D6A0]/15 text-[#057a5b] flex items-center justify-center">
+                                <Mail />
+                            </div>
+                            <div className="flex-1">
+                                <h2 className="font-display font-bold text-xl text-[#0B132B]">Family digest email</h2>
+                                <p className="text-sm text-[#4A5568] font-semibold mt-1">
+                                    A regular summary of each kid&apos;s activity + a personalized off-app activity + an ADHD article worth reading.
+                                </p>
+
+                                <div className="mt-4 flex items-center gap-3">
+                                    <button
+                                        onClick={() => saveDigest({ enabled: !digestPrefs.enabled })}
+                                        disabled={digestSaving}
+                                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${digestPrefs.enabled ? "bg-[#06D6A0]" : "bg-[#E2E8F0]"}`}
+                                        aria-pressed={digestPrefs.enabled}
+                                        data-testid="digest-enable-toggle"
+                                    >
+                                        <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${digestPrefs.enabled ? "translate-x-7" : "translate-x-1"}`} />
+                                    </button>
+                                    <span className="font-bold text-[#0B132B]" data-testid="digest-enable-state">{digestPrefs.enabled ? "ON" : "OFF"}</span>
+                                </div>
+
+                                {digestPrefs.enabled && (
+                                    <div className="mt-5 grid sm:grid-cols-2 gap-4" data-testid="digest-config">
+                                        <div>
+                                            <label className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mb-2 block">Cadence</label>
+                                            <div className="flex gap-2" data-testid="digest-cadence-row">
+                                                {["daily", "weekly"].map((c) => (
+                                                    <button
+                                                        key={c}
+                                                        onClick={() => saveDigest({ cadence: c })}
+                                                        className={`px-4 py-2 rounded-2xl font-bold text-sm border-2 transition-all ${digestPrefs.cadence === c ? "bg-[#4361EE] border-[#4361EE] text-white" : "bg-white border-[#E2E8F0] text-[#4A5568] hover:border-[#4361EE]"}`}
+                                                        data-testid={`digest-cadence-${c}`}
+                                                    >{c[0].toUpperCase() + c.slice(1)}</button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mb-2 block">Timezone</label>
+                                            <select
+                                                value={digestPrefs.tz}
+                                                onChange={(e) => saveDigest({ tz: e.target.value })}
+                                                className="w-full rounded-2xl border-2 border-[#E2E8F0] px-3 py-2 font-bold focus:border-[#4361EE] outline-none"
+                                                data-testid="digest-tz"
+                                            >
+                                                {TIMEZONES.map((z) => <option key={z} value={z}>{z.replace("_", " ")}</option>)}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mb-2 block flex items-center gap-1"><Clock size={11} /> Send time (local)</label>
+                                            <select
+                                                value={digestPrefs.preferred_hour}
+                                                onChange={(e) => saveDigest({ preferred_hour: parseInt(e.target.value, 10) })}
+                                                className="w-full rounded-2xl border-2 border-[#E2E8F0] px-3 py-2 font-bold focus:border-[#4361EE] outline-none"
+                                                data-testid="digest-hour"
+                                            >
+                                                {Array.from({ length: 24 }).map((_, h) => (
+                                                    <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {digestPrefs.cadence === "weekly" && (
+                                            <div>
+                                                <label className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mb-2 block">Day of week</label>
+                                                <div className="flex gap-1 flex-wrap" data-testid="digest-weekday-row">
+                                                    {WEEKDAYS.map((d, i) => (
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => saveDigest({ preferred_weekday: i })}
+                                                            className={`w-12 py-2 rounded-2xl font-bold text-xs border-2 transition-all ${digestPrefs.preferred_weekday === i ? "bg-[#4361EE] border-[#4361EE] text-white" : "bg-white border-[#E2E8F0] text-[#4A5568] hover:border-[#4361EE]"}`}
+                                                            data-testid={`digest-weekday-${i}`}
+                                                        >{d}</button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div className="mt-5 flex flex-wrap items-center gap-3">
+                                    <button onClick={sendSample} disabled={sendingSample} className="btn-pop-primary inline-flex items-center gap-2 disabled:opacity-50" data-testid="digest-send-sample">
+                                        <Send size={14} /> {sendingSample ? "Sending…" : "Send me a sample now"}
+                                    </button>
+                                    {digestPrefs.last_sent_at && (
+                                        <span className="text-xs font-bold text-[#A0AEC0]" data-testid="digest-last-sent">
+                                            Last sent {new Date(digestPrefs.last_sent_at).toLocaleString()}
+                                        </span>
+                                    )}
+                                    {digestPrefs.next_due_at && digestPrefs.enabled && (
+                                        <span className="text-xs font-bold text-[#057a5b]" data-testid="digest-next-due">
+                                            Next: {new Date(digestPrefs.next_due_at).toLocaleString()}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                )}
 
                 {user.role === "parent" && (
                     <section className="mb-card p-6" data-testid="account-audit-section">
