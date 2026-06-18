@@ -31,6 +31,7 @@ import WritingPractice from "./pages/WritingPractice";
 import Portfolio from "./pages/Portfolio";
 import FamilySettings from "./pages/FamilySettings";
 import InviteAccept from "./pages/InviteAccept";
+import HomePage from "./pages/HomePage";
 import { Toaster } from "./components/ui/sonner";
 import "./App.css";
 
@@ -78,6 +79,7 @@ export default function App() {
                         <Route path="/parent/students/:studentId/portfolio" element={<ProtectedRoute role="parent"><Portfolio /></ProtectedRoute>} />
                         <Route path="/family" element={<ProtectedRoute role="parent"><FamilySettings /></ProtectedRoute>} />
                         <Route path="/invite/accept" element={<InviteAccept />} />
+                        <Route path="/home/:slug" element={<HomePage />} />
                         <Route path="/student/practice/reading/:passageId" element={<ProtectedRoute><ReadingPractice /></ProtectedRoute>} />
                         <Route path="/student/practice/writing/:pieceId" element={<ProtectedRoute><WritingPractice /></ProtectedRoute>} />
                         <Route path="*" element={<Navigate to="/" replace />} />

@@ -29,6 +29,9 @@ export default function MissionForm() {
     });
     const [err, setErr] = useState("");
     const [busy, setBusy] = useState(false);
+    const [loadedMission, setLoadedMission] = useState(null);
+    // Edit-scope: only matters for recurring missions
+    const [editScope, setEditScope] = useState("this");
 
     // AI draft
     const [aiPrompt, setAiPrompt] = useState("");
@@ -64,6 +67,7 @@ export default function MissionForm() {
                     strategy_ids: data.strategy_ids,
                     recurrence_pattern: data.recurrence_pattern || "none",
                 });
+                setLoadedMission(data);
             }
         })();
     }, [id, editing]);
@@ -115,8 +119,14 @@ export default function MissionForm() {
             };
             if (editing) {
                 const { student_id, ...editRest } = payload; // eslint-disable-line no-unused-vars
+                const isRecurring = Boolean(loadedMission?.recurrence_parent_id) || (loadedMission?.recurrence_pattern && loadedMission.recurrence_pattern !== "none");
+                if (isRecurring) editRest.scope = editScope;
                 await api.put(`/missions/${id}`, editRest);
-                toast.success("Mission updated.");
+                toast.success(
+                    isRecurring && editScope !== "this"
+                        ? (editScope === "future" ? "Updated this + future occurrences." : "Updated the whole series.")
+                        : "Mission updated.",
+                );
             } else {
                 if (recurrence_pattern && recurrence_pattern !== "none") {
                     payload.recurrence = { pattern: recurrence_pattern };
@@ -182,33 +192,35 @@ export default function MissionForm() {
                 </h1>
                 <p className="text-[#4A5568] font-semibold mb-6">Small steps. Big wins. 🌱</p>
 
-                {!editing && (
+                {(!editing || editing) && missionKind === "standard" && (
                     <div className="mb-card p-5 mb-5 border-[#FFD166]" data-testid="mission-form-ai-panel">
                         <div className="flex items-center gap-2 mb-2">
                             <Sparkles className="text-[#FFD166]" size={18} />
-                            <h2 className="font-display font-bold text-lg text-[#0B132B]">Draft with AI</h2>
+                            <h2 className="font-display font-bold text-lg text-[#0B132B]">{editing ? "Improve with AI" : "Draft with AI"}</h2>
                             <span className="mb-chip bg-[#FFD166]/30 text-[#876200] text-xs py-0.5 px-2">Optional</span>
                         </div>
                         <p className="text-sm font-semibold text-[#4A5568] mb-3">
-                            Type a one-line idea and let AI fill in the title, steps, skills, and strategies. You can still edit everything below before saving.
+                            {editing
+                                ? "Type a tweak (e.g. 'make it more about animals' or 'shorter, easier steps') — AI will rewrite the title, steps, skills, and strategies. You can still edit before saving."
+                                : "Type a one-line idea and let AI fill in the title, steps, skills, and strategies. You can still edit everything below before saving."}
                         </p>
                         <div className="flex flex-col sm:flex-row gap-3">
                             <input
                                 value={aiPrompt}
                                 onChange={(e) => setAiPrompt(e.target.value)}
-                                placeholder="e.g. Reading practice with our chapter book about dragons"
+                                placeholder={editing ? "Make the steps shorter and add a vocab focus" : "e.g. Reading practice with our chapter book about dragons"}
                                 className="mb-input flex-1"
                                 data-testid="mission-form-ai-prompt"
                             />
                             <button
                                 type="button"
                                 onClick={draftWithAI}
-                                disabled={aiBusy || !form.student_id}
+                                disabled={aiBusy || !form.student_id || !aiPrompt.trim()}
                                 className="btn-pop-secondary flex items-center justify-center gap-2 disabled:opacity-50"
                                 data-testid="mission-form-ai-draft"
                             >
                                 {aiBusy ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
-                                {aiBusy ? "Drafting…" : "Draft for me"}
+                                {aiBusy ? (editing ? "Improving…" : "Drafting…") : (editing ? "Improve it" : "Draft for me")}
                             </button>
                         </div>
                         {aiErr && <p className="text-sm font-bold text-[#EF476F] bg-[#EF476F]/10 rounded-xl px-3 py-2 mt-3" data-testid="mission-form-ai-error">{aiErr}</p>}
@@ -409,6 +421,35 @@ export default function MissionForm() {
                     </div>
 
                     {err && <p className="text-sm font-bold text-[#EF476F] bg-[#EF476F]/10 rounded-xl px-3 py-2" data-testid="mission-form-error">{err}</p>}
+
+                    {editing && loadedMission && (loadedMission.recurrence_parent_id || (loadedMission.recurrence_pattern && loadedMission.recurrence_pattern !== "none")) && (
+                        <div className="mb-card p-4 bg-[#FFF5E6] border-[#FFD166]" data-testid="edit-scope-picker">
+                            <p className="text-xs font-bold uppercase tracking-widest text-[#876200] mb-2">Recurring mission · apply changes to</p>
+                            <div className="grid sm:grid-cols-3 gap-2">
+                                {[
+                                    { v: "this", label: "Just this day", desc: "Only this occurrence." },
+                                    { v: "future", label: "This + future", desc: "This and all later uncompleted occurrences." },
+                                    { v: "series", label: "Entire series", desc: "All uncompleted occurrences. History is preserved." },
+                                ].map((opt) => (
+                                    <button
+                                        key={opt.v}
+                                        type="button"
+                                        onClick={() => setEditScope(opt.v)}
+                                        className={`text-left rounded-2xl border-2 p-3 transition-all ${editScope === opt.v ? "border-[#4361EE] bg-white" : "border-[#E2E8F0] bg-white hover:border-[#4361EE]"}`}
+                                        data-testid={`edit-scope-${opt.v}`}
+                                    >
+                                        <p className="font-bold text-sm text-[#0B132B]">{opt.label}</p>
+                                        <p className="text-xs text-[#4A5568] mt-1">{opt.desc}</p>
+                                    </button>
+                                ))}
+                            </div>
+                            {editScope !== "this" && (
+                                <p className="text-xs font-semibold text-[#876200] mt-2">
+                                    Note: the due date won&apos;t change across occurrences when applying to {editScope === "future" ? "future" : "the whole series"}.
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     <div className="flex gap-3 pt-2">
                         <button type="submit" disabled={busy} className="btn-pop-primary flex-1 flex items-center justify-center gap-2" data-testid="mission-form-submit">

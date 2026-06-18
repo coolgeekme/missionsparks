@@ -6,7 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
 import {
     Users, UserPlus, Copy, Check, ArrowLeft, Mail, Crown, Eye, Shield,
-    Trash2, LogOut, Plus, X, Pencil, Save,
+    Trash2, LogOut, Plus, X, Pencil, Save, Home, Lock, Key, ExternalLink,
 } from "lucide-react";
 
 const ROLE_META = {
@@ -355,6 +355,8 @@ export default function FamilySettings() {
                         </section>
                     )}
 
+                    {canWrite && <HomeDashboardSection fam={fam} reloadFam={() => load(activeId)} />}
+
                     {isOwner && fam.student_ids.length === 0 && fam.members.length === 1 && (
                         <section className="mb-card p-6" data-testid="family-danger-zone">
                             <h2 className="font-display font-extrabold text-xl text-[#EF476F] mb-2">Danger zone</h2>
@@ -368,5 +370,147 @@ export default function FamilySettings() {
                 )}
             </main>
         </div>
+    );
+}
+
+function HomeDashboardSection({ fam, reloadFam }) {
+    const [busy, setBusy] = useState(false);
+    const [kids, setKids] = useState([]);
+    const [pinInputs, setPinInputs] = useState({});
+    const enabled = !!fam.home_dashboard_enabled;
+    const homeUrl = fam.slug ? `${window.location.origin}/home/${fam.slug}` : "";
+
+    useEffect(() => {
+        (async () => {
+            try {
+                const { data } = await api.get("/students");
+                setKids((data || []).filter((s) => fam.student_ids.includes(s.id)));
+            } catch { /* noop */ }
+        })();
+    }, [fam.id, fam.student_ids]);
+
+    const toggle = async () => {
+        setBusy(true);
+        try {
+            await api.put(`/families/${fam.id}/home-dashboard`, { enabled: !enabled });
+            toast.success(!enabled ? "Home page is live." : "Home page disabled.");
+            await reloadFam();
+        } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message); }
+        finally { setBusy(false); }
+    };
+
+    const copyLink = () => {
+        try {
+            navigator.clipboard.writeText(homeUrl);
+            toast.success("Home page URL copied!");
+        } catch { toast.error("Couldn't copy — copy manually."); }
+    };
+
+    const savePin = async (kidId) => {
+        const pin = (pinInputs[kidId] || "").trim();
+        if (!/^\d{4}$/.test(pin)) {
+            toast.error("PIN must be 4 digits.");
+            return;
+        }
+        try {
+            await api.put(`/students/${kidId}/home-pin`, { pin });
+            toast.success("PIN saved.");
+            setPinInputs((m) => ({ ...m, [kidId]: "" }));
+            setKids((arr) => arr.map((s) => s.id === kidId ? { ...s, home_pin_set: true } : s));
+        } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message); }
+    };
+
+    const clearPin = async (kidId) => {
+        if (!window.confirm("Remove this kid's PIN? They won't be able to use the home page.")) return;
+        try {
+            await api.delete(`/students/${kidId}/home-pin`);
+            toast.success("PIN removed.");
+            setKids((arr) => arr.map((s) => s.id === kidId ? { ...s, home_pin_set: false } : s));
+        } catch (e) { toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message); }
+    };
+
+    return (
+        <section className="mb-card p-6" data-testid="home-dashboard-section">
+            <h2 className="font-display font-extrabold text-xl text-[#0B132B] mb-1 flex items-center gap-2">
+                <Home size={20} /> Family home page
+            </h2>
+            <p className="text-sm text-[#4A5568] font-semibold mb-4">
+                A shared-device-friendly page. Bookmark it on your home computer or tablet — kids tap their face and enter their PIN to land straight on their missions. No email/password needed.
+            </p>
+            <div className="flex items-center gap-3 mb-4">
+                <button
+                    onClick={toggle}
+                    disabled={busy}
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${enabled ? "bg-[#06D6A0]" : "bg-[#E2E8F0]"}`}
+                    aria-pressed={enabled}
+                    data-testid="home-dashboard-toggle"
+                >
+                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${enabled ? "translate-x-7" : "translate-x-1"}`} />
+                </button>
+                <span className="font-bold text-[#0B132B]" data-testid="home-dashboard-state">{enabled ? "ON" : "OFF"}</span>
+            </div>
+            {enabled && (
+                <>
+                    <div className="rounded-2xl bg-[#4361EE]/5 border-2 border-[#4361EE]/20 p-4 mb-5" data-testid="home-dashboard-url-card">
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Bookmark this URL</p>
+                        <div className="flex gap-2 mt-2">
+                            <input
+                                readOnly
+                                value={homeUrl}
+                                onClick={(e) => e.target.select()}
+                                className="flex-1 rounded-xl border-2 border-[#E2E8F0] px-3 py-2 text-xs font-mono"
+                                data-testid="home-dashboard-url"
+                            />
+                            <button onClick={copyLink} className="btn-pop-primary text-sm flex items-center gap-1" data-testid="home-dashboard-copy">
+                                <Copy size={14} /> Copy
+                            </button>
+                            <a href={homeUrl} target="_blank" rel="noreferrer" className="btn-pop-ghost text-sm flex items-center gap-1" data-testid="home-dashboard-open">
+                                <ExternalLink size={14} /> Open
+                            </a>
+                        </div>
+                    </div>
+
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mb-2 flex items-center gap-1"><Key size={11} /> Kid PINs</p>
+                    <p className="text-xs text-[#4A5568] font-semibold mb-3">Each kid needs a 4-digit PIN before they can use the home page. 5 wrong tries → 10-min lockout.</p>
+                    <div className="space-y-2" data-testid="home-pin-kids-list">
+                        {kids.length === 0 && <p className="text-sm font-bold text-[#A0AEC0]">No kids linked to this family yet.</p>}
+                        {kids.map((kid) => (
+                            <div key={kid.id} className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-2xl border-2 border-[#E2E8F0]" data-testid={`home-pin-kid-${kid.id}`}>
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#4361EE] to-[#06D6A0] text-white flex items-center justify-center font-bold">{kid.name?.[0]?.toUpperCase()}</div>
+                                    <div>
+                                        <p className="font-bold text-[#0B132B]">{kid.name}</p>
+                                        <p className="text-xs font-semibold text-[#4A5568]">
+                                            {kid.home_pin_set ? <span className="text-[#057a5b]"><Lock size={10} className="inline" /> PIN set</span> : <span className="text-[#EF476F]">No PIN yet</span>}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="password"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={pinInputs[kid.id] || ""}
+                                        onChange={(e) => setPinInputs((m) => ({ ...m, [kid.id]: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+                                        placeholder="4-digit"
+                                        className="w-24 rounded-xl border-2 border-[#E2E8F0] px-3 py-2 text-center font-mono tracking-widest focus:border-[#4361EE] outline-none"
+                                        data-testid={`home-pin-input-${kid.id}`}
+                                        maxLength={4}
+                                    />
+                                    <button onClick={() => savePin(kid.id)} className="btn-pop-primary text-sm" data-testid={`home-pin-save-${kid.id}`}>
+                                        {kid.home_pin_set ? "Change" : "Set"}
+                                    </button>
+                                    {kid.home_pin_set && (
+                                        <button onClick={() => clearPin(kid.id)} className="text-[#EF476F] p-1" data-testid={`home-pin-clear-${kid.id}`}>
+                                            <Trash2 size={14} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+        </section>
     );
 }

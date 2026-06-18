@@ -67,14 +67,26 @@ def create_access_token(user_id: str, email: str) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
-def set_auth_cookie(response: Response, token: str) -> None:
+def create_short_token(user_id: str, email: str, hours: int = 4) -> str:
+    """Shorter-lived session for kids logging in via Home Page PIN."""
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "exp": datetime.now(timezone.utc) + timedelta(hours=hours),
+        "type": "access",
+        "src": "home_pin",
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def set_auth_cookie(response: Response, token: str, max_age: int = 60 * 60 * 24 * 7) -> None:
     response.set_cookie(
         key="access_token",
         value=token,
         httponly=True,
         secure=True,
         samesite="none",
-        max_age=60 * 60 * 24 * 7,
+        max_age=max_age,
         path="/",
     )
 
@@ -96,6 +108,8 @@ class UserPublic(BaseModel):
     families: List[dict] = []  # [{id, name, role: 'owner'|'co_parent'|'viewer'}]
     active_family_id: Optional[str] = None
     active_family_role: Optional[str] = None
+    # Home dashboard context (Iter 18)
+    home_pin_set: bool = False
 
 
 class RegisterRequest(BaseModel):
@@ -170,6 +184,12 @@ class MissionUpdate(BaseModel):
     due_date: Optional[str] = None
     skill_ids: Optional[List[str]] = None
     strategy_ids: Optional[List[str]] = None
+    # Recurring-mission edit scope:
+    #   "this" (default) — only this occurrence
+    #   "future"         — this + all future occurrences in the series (uncompleted only)
+    #   "series"         — every occurrence in the series (uncompleted only)
+    # History (completed instances) is never modified — per product spec.
+    scope: Optional[Literal["this", "future", "series"]] = "this"
 
 
 class MissionDuplicateRequest(BaseModel):
@@ -402,6 +422,7 @@ async def _user_to_public(u: dict) -> "UserPublic":
         families=families_list,
         active_family_id=active_id,
         active_family_role=active_role,
+        home_pin_set=bool(u.get("home_pin_hash")),
     )
 
 
@@ -420,10 +441,12 @@ class FamilyMember(BaseModel):
 class Family(BaseModel):
     id: str
     name: str
+    slug: Optional[str] = None
     owner_user_id: str
     created_at: str
     members: List[FamilyMember] = []
     student_ids: List[str] = []
+    home_dashboard_enabled: bool = False
 
 
 class FamilyCreate(BaseModel):
@@ -518,16 +541,23 @@ async def _sync_user_linked_students(user_id: str) -> None:
 
 async def _ensure_personal_family(parent_user: dict) -> str:
     """If parent has no family, create one (auto-migration). Returns active_family_id."""
-    existing = await db.families.find_one({"members.user_id": parent_user["id"]}, {"_id": 0, "id": 1})
+    existing = await db.families.find_one({"members.user_id": parent_user["id"]}, {"_id": 0, "id": 1, "slug": 1})
     if existing:
         if not parent_user.get("active_family_id"):
             await db.users.update_one({"id": parent_user["id"]}, {"$set": {"active_family_id": existing["id"]}})
+        # Backfill slug if missing
+        if not existing.get("slug"):
+            slug = await _generate_unique_slug(f"{parent_user.get('name') or 'My'} Family")
+            await db.families.update_one({"id": existing["id"]}, {"$set": {"slug": slug}})
         return existing["id"]
     fid = str(uuid.uuid4())
     now = _now_iso()
+    name = f"{parent_user.get('name') or 'My'} Family"
+    slug = await _generate_unique_slug(name)
     fam = {
         "id": fid,
-        "name": f"{parent_user.get('name') or 'My'} Family",
+        "name": name,
+        "slug": slug,
         "owner_user_id": parent_user["id"],
         "created_at": now,
         "members": [{
@@ -537,10 +567,30 @@ async def _ensure_personal_family(parent_user: dict) -> str:
             "invited_by_user_id": None,
         }],
         "student_ids": list(parent_user.get("linked_student_ids", [])),
+        "home_dashboard_enabled": False,
     }
     await db.families.insert_one(dict(fam))
     await db.users.update_one({"id": parent_user["id"]}, {"$set": {"active_family_id": fid}})
     return fid
+
+
+def _slugify(name: str) -> str:
+    s = (name or "").lower().strip()
+    s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
+    return (s[:50]) or "family"
+
+
+async def _generate_unique_slug(name: str) -> str:
+    base = _slugify(name)
+    candidate = base
+    i = 2
+    while await db.families.find_one({"slug": candidate}, {"_id": 0, "id": 1}):
+        candidate = f"{base}-{i}"
+        i += 1
+        if i > 1000:
+            candidate = f"{base}-{uuid.uuid4().hex[:6]}"
+            break
+    return candidate
 
 
 async def _migrate_existing_parents() -> None:
@@ -1240,9 +1290,11 @@ async def create_family(req: FamilyCreate, user: dict = Depends(require_role("pa
         raise HTTPException(status_code=400, detail="Family name is required.")
     now = _now_iso()
     fid = str(uuid.uuid4())
+    slug = await _generate_unique_slug(name)
     fam = {
         "id": fid,
         "name": name,
+        "slug": slug,
         "owner_user_id": user["id"],
         "created_at": now,
         "members": [{
@@ -1252,6 +1304,7 @@ async def create_family(req: FamilyCreate, user: dict = Depends(require_role("pa
             "invited_by_user_id": None,
         }],
         "student_ids": [],
+        "home_dashboard_enabled": False,
     }
     await db.families.insert_one(dict(fam))
     await db.users.update_one({"id": user["id"]}, {"$set": {"active_family_id": fid}})
@@ -1312,6 +1365,142 @@ async def set_active_family(family_id: str, user: dict = Depends(require_role("p
         raise HTTPException(status_code=403, detail="Not a member of this family")
     await db.users.update_one({"id": user["id"]}, {"$set": {"active_family_id": family_id}})
     return {"ok": True, "active_family_id": family_id}
+
+
+# ---------- Family Home Dashboard (Iter 18) ----------
+class HomeDashboardToggle(BaseModel):
+    enabled: bool
+
+
+class HomePinSet(BaseModel):
+    pin: str  # 4 digits
+
+
+class HomePinLogin(BaseModel):
+    student_id: str
+    pin: str
+
+
+@api.put("/families/{family_id}/home-dashboard")
+async def update_home_dashboard(family_id: str, req: HomeDashboardToggle,
+                                 user: dict = Depends(require_role("parent"))):
+    role = await _user_role_in_family(user, family_id)
+    _assert_family_write_role(role)
+    await db.families.update_one(
+        {"id": family_id}, {"$set": {"home_dashboard_enabled": bool(req.enabled)}},
+    )
+    fam = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not fam.get("slug"):
+        slug = await _generate_unique_slug(fam["name"])
+        await db.families.update_one({"id": family_id}, {"$set": {"slug": slug}})
+        fam["slug"] = slug
+    await _audit(user, "family.home_dashboard_toggle", target_type="family",
+                 target_id=family_id, meta={"enabled": bool(req.enabled)})
+    return {"ok": True, "enabled": fam.get("home_dashboard_enabled", False), "slug": fam.get("slug")}
+
+
+@api.put("/students/{student_id}/home-pin")
+async def set_student_home_pin(student_id: str, req: HomePinSet,
+                                user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, student_id)
+    pin = (req.pin or "").strip()
+    if not (pin.isdigit() and len(pin) == 4):
+        raise HTTPException(status_code=400, detail="PIN must be exactly 4 digits.")
+    await db.users.update_one(
+        {"id": student_id},
+        {"$set": {"home_pin_hash": hash_password(pin)}},
+    )
+    # Clear any active lockouts for this student
+    await db.home_pin_attempts.delete_many({"student_id": student_id})
+    await _audit(user, "student.home_pin_set", target_type="student", target_id=student_id)
+    return {"ok": True}
+
+
+@api.delete("/students/{student_id}/home-pin")
+async def clear_student_home_pin(student_id: str, user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, student_id)
+    await db.users.update_one({"id": student_id}, {"$unset": {"home_pin_hash": ""}})
+    await db.home_pin_attempts.delete_many({"student_id": student_id})
+    await _audit(user, "student.home_pin_clear", target_type="student", target_id=student_id)
+    return {"ok": True}
+
+
+@api.get("/home/{slug}")
+async def public_home_dashboard(slug: str):
+    """Public — by family slug. Returns family name + kid tiles.
+    Each tile includes whether the kid has a PIN set."""
+    fam = await db.families.find_one(
+        {"slug": slug, "home_dashboard_enabled": True}, {"_id": 0},
+    )
+    if not fam:
+        raise HTTPException(status_code=404, detail="Home dashboard not available.")
+    students = await db.users.find(
+        {"id": {"$in": fam.get("student_ids", [])}, "role": "student"},
+        {"_id": 0, "id": 1, "name": 1, "home_pin_hash": 1, "student_profile": 1},
+    ).to_list(20)
+    kids = [{
+        "id": s["id"],
+        "name": s["name"],
+        "has_pin": bool(s.get("home_pin_hash")),
+        "grade": (s.get("student_profile") or {}).get("grade"),
+    } for s in students]
+    return {"family_name": fam["name"], "slug": fam["slug"], "kids": kids}
+
+
+@api.post("/home/{slug}/login")
+async def public_home_login(slug: str, req: HomePinLogin, response: Response):
+    """PIN-based kid login from the family home page. 5-strike lockout per
+    student-IP combo (10 min). Issues a 4-hour student session cookie."""
+    fam = await db.families.find_one(
+        {"slug": slug, "home_dashboard_enabled": True}, {"_id": 0, "id": 1, "student_ids": 1},
+    )
+    if not fam:
+        raise HTTPException(status_code=404, detail="Home dashboard not available.")
+    if req.student_id not in (fam.get("student_ids") or []):
+        raise HTTPException(status_code=403, detail="Kid not in this family.")
+    student = await db.users.find_one(
+        {"id": req.student_id, "role": "student"},
+        {"_id": 0, "id": 1, "email": 1, "home_pin_hash": 1, "name": 1},
+    )
+    if not student or not student.get("home_pin_hash"):
+        raise HTTPException(status_code=400, detail="This kid doesn't have a PIN set yet. Ask a grown-up.")
+
+    # Lockout check
+    now = datetime.now(timezone.utc)
+    attempt_row = await db.home_pin_attempts.find_one(
+        {"student_id": req.student_id}, {"_id": 0},
+    )
+    if attempt_row and attempt_row.get("locked_until"):
+        locked_until = datetime.fromisoformat(attempt_row["locked_until"])
+        if locked_until > now:
+            secs = int((locked_until - now).total_seconds())
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many tries. Try again in {secs // 60}m {secs % 60}s.",
+            )
+
+    if not verify_password((req.pin or "").strip(), student["home_pin_hash"]):
+        # Increment fails
+        fails = (attempt_row or {}).get("fails", 0) + 1
+        update = {"fails": fails, "last_fail_at": now.isoformat(), "student_id": req.student_id}
+        if fails >= 5:
+            update["locked_until"] = (now + timedelta(minutes=10)).isoformat()
+            update["fails"] = 0  # reset counter after lock
+        await db.home_pin_attempts.update_one(
+            {"student_id": req.student_id}, {"$set": update}, upsert=True,
+        )
+        remaining = max(0, 5 - fails)
+        if fails >= 5:
+            raise HTTPException(status_code=429, detail="Too many tries. Locked out for 10 minutes.")
+        raise HTTPException(status_code=403, detail=f"Wrong PIN. {remaining} tries left.")
+
+    # Success: clear attempts, issue 4h session
+    await db.home_pin_attempts.delete_one({"student_id": req.student_id})
+    token = create_short_token(student["id"], student["email"], hours=4)
+    set_auth_cookie(response, token, max_age=60 * 60 * 4)
+    await _audit(student, "auth.home_pin_login", target_type="user", target_id=student["id"],
+                 meta={"slug": slug})
+    return {"ok": True, "student_id": student["id"], "name": student["name"]}
 
 
 @api.post("/families/{family_id}/leave")
@@ -1817,11 +2006,53 @@ async def update_mission(mission_id: str, req: MissionUpdate, user: dict = Depen
     if not mission:
         raise HTTPException(status_code=404, detail="Mission not found")
     await _assert_parent_owns_student(user, mission["student_id"])
-    updates = {k: v for k, v in req.model_dump().items() if v is not None}
-    if updates:
+    payload = req.model_dump()
+    scope = payload.pop("scope", "this") or "this"
+    updates = {k: v for k, v in payload.items() if v is not None}
+    if not updates:
+        return mission
+
+    # Find the series this mission belongs to (parent OR child of a recurrence)
+    series_id = mission.get("recurrence_parent_id") or mission_id
+
+    if scope == "this":
         await db.missions.update_one({"id": mission_id}, {"$set": updates})
-    mission = await db.missions.find_one({"id": mission_id}, {"_id": 0})
-    return mission
+    else:
+        # "future"  — this and later occurrences in the series, uncompleted only
+        # "series"  — every occurrence in the series, uncompleted only
+        # "Uncompleted" means: no mission_log row with status='completed' exists for that mission.
+        # Build the candidate query.
+        q = {
+            "$or": [
+                {"id": series_id},
+                {"recurrence_parent_id": series_id},
+            ],
+            "student_id": mission["student_id"],
+        }
+        if scope == "future":
+            q["due_date"] = {"$gte": mission["due_date"]}
+        candidates = await db.missions.find(q, {"_id": 0, "id": 1, "due_date": 1}).to_list(2000)
+        cand_ids = [c["id"] for c in candidates]
+        # Filter out those with a completed log
+        completed_ids = set()
+        if cand_ids:
+            logs = await db.mission_logs.find(
+                {"mission_id": {"$in": cand_ids}, "status": "completed"},
+                {"_id": 0, "mission_id": 1},
+            ).to_list(2000)
+            completed_ids = {l["mission_id"] for l in logs}
+        # Only update uncompleted (history is sacred — per user choice 5b)
+        target_ids = [cid for cid in cand_ids if cid not in completed_ids]
+        # When changing `due_date` for a whole series at once we'd collide. Don't
+        # allow `due_date` to be applied across scopes other than "this".
+        bulk_updates = {k: v for k, v in updates.items() if k != "due_date"}
+        if bulk_updates and target_ids:
+            await db.missions.update_many(
+                {"id": {"$in": target_ids}},
+                {"$set": bulk_updates},
+            )
+    fresh = await db.missions.find_one({"id": mission_id}, {"_id": 0})
+    return fresh
 
 
 @api.delete("/missions/{mission_id}")
@@ -3780,9 +4011,14 @@ async def on_startup():
 
     # Family-group migration: ensure every existing parent has at least one family (Iter 15).
     await _migrate_existing_parents()
+    # Iter 18: backfill slugs on existing families that don't have one
+    async for fam in db.families.find({"slug": {"$in": [None, ""]}}, {"_id": 0, "id": 1, "name": 1}):
+        s = await _generate_unique_slug(fam.get("name") or "family")
+        await db.families.update_one({"id": fam["id"]}, {"$set": {"slug": s, "home_dashboard_enabled": False}})
     await db.family_invites.create_index("token", unique=True)
     await db.family_invites.create_index([("family_id", 1), ("status", 1)])
     await db.families.create_index("members.user_id")
+    await db.families.create_index("slug", unique=True, sparse=True)
 
     # Parent digest scheduler (Iter 17). Hourly tick; sends to anyone whose
     # next_due_at has elapsed.

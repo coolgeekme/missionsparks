@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import MissionTimer from "../components/MissionTimer";
 import { api, formatApiErrorDetail } from "../lib/api";
-import { ArrowLeft, Clock, CheckCircle2, Plus, X, Gamepad2, Zap } from "lucide-react";
+import { ArrowLeft, Clock, CheckCircle2, Plus, X, Gamepad2, Zap, Eye } from "lucide-react";
 
 const STAR_URL = "https://static.prod-images.emergentagent.com/jobs/151314fa-6f88-4a3d-a39f-0044b194f5e9/images/5f587837e7ac036a02af75fb2b488a2a8b33429167fae318cb66d294e807a889.png";
 
@@ -21,6 +21,8 @@ const DIFFICULTIES = [
 export default function MissionDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [search] = useSearchParams();
+    const viewParam = search.get("view") === "1";
     const [mission, setMission] = useState(null);
     const [skills, setSkills] = useState([]);
     const [strategies, setStrategies] = useState([]);
@@ -34,6 +36,11 @@ export default function MissionDetail() {
     const [postStreak, setPostStreak] = useState(null);
     const [err, setErr] = useState("");
     const [busy, setBusy] = useState(false);
+    const [priorLog, setPriorLog] = useState(null);
+
+    // Read-only mode kicks in when this mission already has a completed log
+    // (either passed ?view=1 from the dashboard, or a kid revisits it directly).
+    const viewOnly = (viewParam || !!priorLog) && priorLog?.status === "completed";
 
     // Clue captures (works for digital + audio books)
     const [clueDraft, setClueDraft] = useState("");
@@ -57,14 +64,28 @@ export default function MissionDetail() {
 
     useEffect(() => {
         (async () => {
-            const [m, sk, st] = await Promise.all([
+            const [m, sk, st, lg] = await Promise.all([
                 api.get(`/missions/${id}`),
                 api.get("/skills"),
                 api.get("/strategies"),
+                api.get("/logs", { params: { mission_id: id } }).catch(() => ({ data: [] })),
             ]);
             setMission(m.data);
             setSkills(sk.data);
             setStrategies(st.data);
+            const completedLog = (lg.data || []).find((row) => row.status === "completed");
+            if (completedLog) {
+                setPriorLog(completedLog);
+                // Pre-fill display state so the kid can see what they did
+                const stepMap = {};
+                (m.data.steps || []).forEach((_, i) => { stepMap[i] = true; });
+                setCheckedSteps(stepMap);
+                setDifficulty(completedLog.difficulty_rating);
+                setFeeling(completedLog.feeling);
+                setNote(completedLog.note || "");
+                setUsedStrategies(!!completedLog.used_strategies);
+                setClues(completedLog.clue_captures || []);
+            }
         })();
     }, [id]);
 
@@ -166,6 +187,17 @@ export default function MissionDetail() {
                             <span key={sid} className="mb-chip bg-[#4361EE]/10 text-[#4361EE]">{skillMap[sid].name}</span>
                         ))}
                     </div>
+                    {viewOnly && (
+                        <div className="mt-4 rounded-2xl bg-[#06D6A0]/10 border-2 border-[#06D6A0]/40 p-4 flex items-start gap-3" data-testid="mission-view-only-banner">
+                            <Eye className="text-[#057a5b] flex-shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-bold text-[#0B132B]">You already crushed this mission ✅</p>
+                                <p className="text-sm font-semibold text-[#4A5568] mt-1">
+                                    Here are the steps and what you said about it. You can&apos;t redo it — your spark for this one is already locked in!
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </section>
 
                 <MissionTimer estimatedMinutes={mission.estimated_minutes} />
@@ -193,8 +225,11 @@ export default function MissionDetail() {
                     <section className="mb-card p-6" data-testid="mission-detail-clues">
                     <h2 className="font-display font-bold text-xl text-[#0B132B] mb-1">📝 Clue captures</h2>
                     <p className="text-sm font-semibold text-[#4A5568] mb-3">
-                        Reading on a screen or listening to an audiobook? Type the line or paraphrase what you heard. Paper readers can still underline — both work.
+                        {viewOnly
+                            ? "The clues you saved during this mission:"
+                            : "Reading on a screen or listening to an audiobook? Type the line or paraphrase what you heard. Paper readers can still underline — both work."}
                     </p>
+                    {!viewOnly && (
                     <div className="flex gap-2">
                         <input
                             value={clueDraft}
@@ -220,12 +255,14 @@ export default function MissionDetail() {
                             <Plus size={16} /> Add
                         </button>
                     </div>
+                    )}
                     {clues.length > 0 && (
                         <ul className="mt-3 space-y-2" data-testid="mission-detail-clue-list">
                             {clues.map((c, i) => (
                                 <li key={i} className="flex items-start gap-2 rounded-2xl bg-[#F0F8FF] border-2 border-[#E2E8F0] p-3" data-testid={`mission-detail-clue-${i}`}>
                                     <span className="mb-chip bg-[#4361EE]/10 text-[#4361EE] flex-shrink-0">#{i + 1}</span>
                                     <span className="font-semibold text-[#0B132B] flex-1">{c}</span>
+                                    {!viewOnly && (
                                     <button
                                         type="button"
                                         onClick={() => setClues(clues.filter((_, idx) => idx !== i))}
@@ -235,6 +272,7 @@ export default function MissionDetail() {
                                     >
                                         <X size={14} className="text-[#EF476F]" />
                                     </button>
+                                    )}
                                 </li>
                             ))}
                         </ul>
@@ -251,10 +289,11 @@ export default function MissionDetail() {
                                 <li key={i}>
                                     <button
                                         type="button"
-                                        onClick={() => setCheckedSteps({ ...checkedSteps, [i]: !checked })}
+                                        onClick={() => !viewOnly && setCheckedSteps({ ...checkedSteps, [i]: !checked })}
+                                        disabled={viewOnly}
                                         className={`w-full text-left flex items-center gap-3 rounded-2xl border-2 p-3 transition-all ${
                                             checked ? "bg-[#06D6A0]/10 border-[#06D6A0]" : "bg-white border-[#E2E8F0] hover:border-[#4361EE]"
-                                        }`}
+                                        } ${viewOnly ? "cursor-not-allowed opacity-90" : ""}`}
                                         data-testid={`mission-detail-step-${i}`}
                                     >
                                         <span className={`h-7 w-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${checked ? "border-[#06D6A0] bg-[#06D6A0] text-white" : "border-[#A0AEC0]"}`}>
@@ -268,6 +307,7 @@ export default function MissionDetail() {
                     </ul>
                 </section>
 
+                {!viewOnly && (
                 <section className="mb-card p-6" data-testid="mission-reflection">
                     <h2 className="font-display font-bold text-xl text-[#0B132B] mb-1">Quick reflection</h2>
                     <p className="text-sm font-semibold text-[#4A5568] mb-4">Tap the answers that fit best.</p>
@@ -352,6 +392,7 @@ export default function MissionDetail() {
                         {allStepsDone ? (busy ? "Saving…" : "Finish mission ✨") : "Check off all steps first"}
                     </button>
                 </section>
+                )}
             </main>
         </div>
     );
