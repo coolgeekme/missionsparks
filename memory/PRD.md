@@ -133,6 +133,18 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Resend domain `missionsparks.com` is now verified — emails deliver to any recipient. Sender: `hello@missionsparks.com`.
 - 15/15 digest pytest tests pass (`tests/test_digest.py`). 103/103 across the whole family-aware suite. Zero regressions.
 
+### Iter 18 — Public Home Dashboard + Mission UX (2026-02)
+- **Family slug + 4-digit kid PIN** to bypass full email/password login. Per-family `home_dashboard_enabled` toggle and per-student `home_pin_hash` (bcrypt). Shared iPad-friendly URL: `/home/{slug}`.
+- 5-strike PIN lockout (10 minutes) tracked in `db.home_pin_attempts`. 4-hour session cookie issued on success.
+- Endpoints: `PUT /api/families/{id}/home-dashboard`, `PUT /api/students/{id}/home-pin`, `DELETE /api/students/{id}/home-pin`, `GET /api/home/{slug}` (no-auth), `POST /api/home/{slug}/login` (no-auth).
+- New `HomePage.jsx` (kid-tile picker + PIN modal). `FamilySettings.jsx` got a "Family home page" section: toggle, copyable URL, per-kid PIN setter.
+- **Kid dashboard now shows only TODAY's missions by default** with Past/Today/Future arrow nav + date picker + "Today" jump button.
+- **Completed missions are read-only**: strikethrough title + "Done ✓" chip + "Tap to view the steps you did" label. No redo, no log button.
+- **MissionUpdate now accepts `scope`** = "this" (default) | "future" | "series". Bulk updates skip completed history (`status='completed'` logs); `due_date` only applies to scope=this to avoid series collisions.
+- **AI assistant available on edit** mission form (not just create) — Draft with AI panel.
+- Testing: 13/13 new pytest pass (`tests/test_home_dashboard_and_scope.py`); E2E PIN→student flow verified via Playwright (Enzo PIN 1234 → /student).
+- Fix shipped this iter: `HomePage.jsx submitPin` now calls `refresh()` from AuthContext before navigate, so ProtectedRoute picks up the new kid session.
+
 ### Still open
 - ⚠️ **Sign BAAs with OpenAI (Whisper) + Anthropic (Claude) + MongoDB Atlas dedicated** before any therapist or clinical-track sale.
 - ⚠️ **Rate-limit /api/public/waitlist** before launch (public endpoint, spam risk).
@@ -155,6 +167,7 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 ## Test credentials
 parent@demo.com / demo1234 (linked to Enzo)
 student@demo.com / demo1234
+Enzo home PIN: 1234 (family slug: `demo-parent-family` → /home/demo-parent-family)
 
 ## Test coverage
 - 88/88 non-AI backend tests pass (auth, missions, logs, streak, games, moments, voice, practice, landing/waitlist, research, family games).

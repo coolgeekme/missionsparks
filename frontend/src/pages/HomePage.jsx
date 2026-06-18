@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, formatApiErrorDetail } from "../lib/api";
+import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
 import { Zap, Lock, ArrowRight, Loader2 } from "lucide-react";
 
 export default function HomePage() {
     const { slug } = useParams();
     const navigate = useNavigate();
+    const { refresh } = useAuth();
     const [data, setData] = useState(null);
     const [err, setErr] = useState("");
     const [loading, setLoading] = useState(true);
@@ -39,6 +41,7 @@ export default function HomePage() {
         try {
             await api.post(`/home/${slug}/login`, { student_id: active.id, pin });
             toast.success(`Hi ${active.name}! 🚀`);
+            await refresh();
             navigate("/student");
         } catch (e) {
             setPinErr(formatApiErrorDetail(e.response?.data?.detail) || e.message);
