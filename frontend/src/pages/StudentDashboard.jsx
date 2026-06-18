@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import AvatarPickerModal from "../components/AvatarPickerModal";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../lib/api";
 import {
-    Clock, Sparkles, CheckCircle2, Zap, Heart, ChevronLeft, ChevronRight, Calendar, Eye,
+    Clock, Sparkles, CheckCircle2, Zap, Heart, ChevronLeft, ChevronRight, Calendar, Eye, Smile,
 } from "lucide-react";
 
 const isoDate = (d) => {
@@ -39,6 +40,7 @@ export default function StudentDashboard() {
     const [strategies, setStrategies] = useState([]);
     const [streak, setStreak] = useState(null);
     const [selectedDate, setSelectedDate] = useState(todayISO());
+    const [showAvatarPicker, setShowAvatarPicker] = useState(false);
 
     const skillMap = useMemo(() => Object.fromEntries(skills.map((s) => [s.id, s])), [skills]);
     const stratMap = useMemo(() => Object.fromEntries(strategies.map((s) => [s.id, s])), [strategies]);
@@ -111,6 +113,13 @@ export default function StudentDashboard() {
                             <Link to="/games" className="btn-pop-ghost inline-flex items-center gap-2 text-sm py-2" data-testid="student-games-btn">
                                 <Sparkles size={14} /> Mini-games
                             </Link>
+                            <button
+                                onClick={() => setShowAvatarPicker(true)}
+                                className="btn-pop-ghost inline-flex items-center gap-2 text-sm py-2"
+                                data-testid="student-avatar-edit-btn"
+                            >
+                                <Smile size={14} /> My tile
+                            </button>
                         </div>
                     </div>
                 </header>
@@ -258,6 +267,11 @@ export default function StudentDashboard() {
                     )}
                 </section>
             </main>
+            <AvatarPickerModal
+                open={showAvatarPicker}
+                onClose={() => setShowAvatarPicker(false)}
+                initialName={user?.name}
+            />
         </div>
     );
 }

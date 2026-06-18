@@ -1428,7 +1428,8 @@ async def clear_student_home_pin(student_id: str, user: dict = Depends(require_r
 @api.get("/home/{slug}")
 async def public_home_dashboard(slug: str):
     """Public — by family slug. Returns family name + kid tiles.
-    Each tile includes whether the kid has a PIN set."""
+    Each tile includes whether the kid has a PIN set, current spark streak,
+    open missions today, top interest, and custom avatar (emoji + color)."""
     fam = await db.families.find_one(
         {"slug": slug, "home_dashboard_enabled": True}, {"_id": 0},
     )
@@ -1436,15 +1437,177 @@ async def public_home_dashboard(slug: str):
         raise HTTPException(status_code=404, detail="Home dashboard not available.")
     students = await db.users.find(
         {"id": {"$in": fam.get("student_ids", [])}, "role": "student"},
-        {"_id": 0, "id": 1, "name": 1, "home_pin_hash": 1, "student_profile": 1},
+        {"_id": 0, "id": 1, "name": 1, "home_pin_hash": 1, "student_profile": 1,
+         "avatar_emoji": 1, "avatar_color": 1},
     ).to_list(20)
-    kids = [{
-        "id": s["id"],
-        "name": s["name"],
-        "has_pin": bool(s.get("home_pin_hash")),
-        "grade": (s.get("student_profile") or {}).get("grade"),
-    } for s in students]
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    kids = []
+    for s in students:
+        prof = s.get("student_profile") or {}
+        # Spark streak (current)
+        try:
+            sr = await _compute_streak(s["id"])
+            streak_current = sr.current_streak
+            missions_today = sr.missions_today_count
+            completed_today = sr.completed_today_count
+        except Exception:
+            streak_current, missions_today, completed_today = 0, 0, 0
+        open_today = max(0, missions_today - completed_today)
+        interests = prof.get("interests") or []
+        kids.append({
+            "id": s["id"],
+            "name": s["name"],
+            "has_pin": bool(s.get("home_pin_hash")),
+            "grade": prof.get("grade"),
+            "streak_current": streak_current,
+            "open_missions_today": open_today,
+            "missions_today_count": missions_today,
+            "interest_tag": (interests[0] if interests else None),
+            "avatar_emoji": s.get("avatar_emoji"),
+            "avatar_color": s.get("avatar_color"),
+        })
+    _ = today_iso  # reserved for future "is-today" tags
     return {"family_name": fam["name"], "slug": fam["slug"], "kids": kids}
+
+
+# ---------- Spark of the Day (Iter 19) ----------
+SPARK_KINDS = ("fun_fact", "riddle", "affirmation", "science_nugget")
+
+
+def _next_spark_kind(prev: Optional[str]) -> str:
+    if not prev or prev not in SPARK_KINDS:
+        return SPARK_KINDS[0]
+    return SPARK_KINDS[(SPARK_KINDS.index(prev) + 1) % len(SPARK_KINDS)]
+
+
+async def _generate_spark(family_doc: dict, kind: str) -> dict:
+    """Generate a one-liner Spark of the Day via Claude. Age-targets the
+    youngest kid; weaves in one kid's interest when available. Falls back to
+    a static line if the LLM is unreachable so the home page never breaks."""
+    students = await db.users.find(
+        {"id": {"$in": family_doc.get("student_ids", [])}, "role": "student"},
+        {"_id": 0, "name": 1, "student_profile": 1},
+    ).to_list(20)
+    interests, grades, names = [], [], []
+    for s in students:
+        prof = s.get("student_profile") or {}
+        names.append(s.get("name") or "")
+        interests.extend(prof.get("interests") or [])
+        g = prof.get("grade")
+        if g:
+            try: grades.append(int(str(g).strip()))
+            except Exception: pass
+    youngest_grade = min(grades) if grades else 3
+    interest = (interests[0] if interests else "").strip()
+    label = {
+        "fun_fact": "a delightful one-sentence FUN FACT",
+        "riddle": "a short, kid-safe RIDDLE (one or two sentences, with the answer in parentheses at the end like '(Answer: ...)')",
+        "affirmation": "a warm, encouraging ONE-LINE AFFIRMATION for kids who sometimes struggle to focus",
+        "science_nugget": "a single-sentence cool SCIENCE NUGGET",
+    }[kind]
+    interest_clause = f" The family includes a kid who loves {interest}." if interest else ""
+    user_text = (
+        f"Write {label} for grade-{youngest_grade} kids. {interest_clause} "
+        "Output ONLY the single line, no preamble, no quotes, no emojis at the start."
+    )
+    text = ""
+    try:
+        text = await _ai_chat(
+            "You write tiny, joyful daily snippets for an ADHD-friendly kids' learning app. "
+            "Keep every output to ONE short line (max ~22 words). Age-appropriate. No emojis at the start. "
+            "Never reveal you are an AI. Never include URLs.",
+            user_text,
+        )
+        text = (text or "").strip().strip('"').strip("'")
+        if len(text) > 240:
+            text = text[:237] + "..."
+    except Exception:
+        text = ""
+    if not text:
+        fallback = {
+            "fun_fact": "Octopuses have three hearts and can taste with their arms.",
+            "riddle": "I have hands but cannot clap. What am I? (Answer: a clock.)",
+            "affirmation": "Small steps still count — you're doing great.",
+            "science_nugget": "Your brain uses about 20% of your body's energy.",
+        }
+        text = fallback[kind]
+    return {"kind": kind, "content": text}
+
+
+@api.get("/home/{slug}/spark")
+async def public_home_spark(slug: str):
+    """Public — returns today's Spark for this family. Cached 24h."""
+    fam = await db.families.find_one(
+        {"slug": slug, "home_dashboard_enabled": True},
+        {"_id": 0, "id": 1, "student_ids": 1},
+    )
+    if not fam:
+        raise HTTPException(status_code=404, detail="Home dashboard not available.")
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    cached = await db.home_sparks.find_one(
+        {"family_id": fam["id"], "date": today_iso}, {"_id": 0},
+    )
+    if cached:
+        return {"date": today_iso, "kind": cached["kind"], "content": cached["content"]}
+    # Pick the next kind in the rotation (based on yesterday's row)
+    last = await db.home_sparks.find(
+        {"family_id": fam["id"]}, {"_id": 0, "kind": 1, "date": 1},
+    ).sort("date", -1).limit(1).to_list(1)
+    prev_kind = last[0]["kind"] if last else None
+    kind = _next_spark_kind(prev_kind)
+    generated = await _generate_spark(fam, kind)
+    await db.home_sparks.update_one(
+        {"family_id": fam["id"], "date": today_iso},
+        {"$set": {**generated, "family_id": fam["id"], "date": today_iso,
+                  "created_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"date": today_iso, **generated}
+
+
+# ---------- Custom tile avatars (Iter 19) ----------
+AVATAR_EMOJI_PALETTE = [
+    "🚀", "🦖", "🦄", "🐱", "🐶", "🐼", "🦊", "🐸", "🌟", "🦋", "🐙", "🦁",
+    "🐯", "🐵", "🐧", "🐨", "🦉", "🐢", "🦕", "🍕", "🍩", "⚡", "🌈", "🎨",
+]
+AVATAR_COLOR_PALETTE = [
+    "indigo", "emerald", "pink", "amber", "violet", "teal", "rose", "sky",
+]
+
+
+class AvatarUpdate(BaseModel):
+    emoji: Optional[str] = None
+    color: Optional[str] = None
+
+
+@api.put("/me/avatar")
+async def update_my_avatar(req: AvatarUpdate, user: dict = Depends(require_role("student"))):
+    updates = {}
+    if req.emoji is not None:
+        if req.emoji and req.emoji not in AVATAR_EMOJI_PALETTE:
+            raise HTTPException(status_code=400, detail="Pick an emoji from the palette.")
+        updates["avatar_emoji"] = req.emoji or None
+    if req.color is not None:
+        if req.color and req.color not in AVATAR_COLOR_PALETTE:
+            raise HTTPException(status_code=400, detail="Pick a color from the palette.")
+        updates["avatar_color"] = req.color or None
+    if not updates:
+        return {"ok": True, "emoji": user.get("avatar_emoji"), "color": user.get("avatar_color")}
+    await db.users.update_one({"id": user["id"]}, {"$set": updates})
+    await _audit(user, "student.avatar_update", target_type="user", target_id=user["id"], meta=updates)
+    fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "avatar_emoji": 1, "avatar_color": 1})
+    return {"ok": True, "emoji": fresh.get("avatar_emoji"), "color": fresh.get("avatar_color")}
+
+
+@api.get("/me/avatar")
+async def get_my_avatar(user: dict = Depends(get_current_user)):
+    fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "avatar_emoji": 1, "avatar_color": 1})
+    return {
+        "emoji": (fresh or {}).get("avatar_emoji"),
+        "color": (fresh or {}).get("avatar_color"),
+        "emoji_palette": AVATAR_EMOJI_PALETTE,
+        "color_palette": AVATAR_COLOR_PALETTE,
+    }
 
 
 @api.post("/home/{slug}/login")

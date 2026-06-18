@@ -3,16 +3,35 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api, formatApiErrorDetail } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
-import { Zap, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { Zap, Lock, ArrowRight, Loader2, Sparkles, Flame, Target } from "lucide-react";
+
+// Mirror of backend AVATAR_COLOR_PALETTE → tailwind gradients.
+const COLOR_GRADIENTS = {
+    indigo: "from-[#4361EE] to-[#06D6A0]",
+    emerald: "from-[#06D6A0] to-[#118AB2]",
+    pink: "from-[#EF476F] to-[#FFD166]",
+    amber: "from-[#FFD166] to-[#EF476F]",
+    violet: "from-[#7B2CBF] to-[#4361EE]",
+    teal: "from-[#118AB2] to-[#06D6A0]",
+    rose: "from-[#FB7185] to-[#F472B6]",
+    sky: "from-[#38BDF8] to-[#4361EE]",
+};
+const SPARK_KIND_META = {
+    fun_fact: { label: "Fun fact", icon: Sparkles, color: "#FFD166" },
+    riddle: { label: "Riddle", icon: Sparkles, color: "#7B2CBF" },
+    affirmation: { label: "For you", icon: Sparkles, color: "#06D6A0" },
+    science_nugget: { label: "Did you know?", icon: Sparkles, color: "#118AB2" },
+};
 
 export default function HomePage() {
     const { slug } = useParams();
     const navigate = useNavigate();
     const { refresh } = useAuth();
     const [data, setData] = useState(null);
+    const [spark, setSpark] = useState(null);
     const [err, setErr] = useState("");
     const [loading, setLoading] = useState(true);
-    const [active, setActive] = useState(null); // kid currently entering PIN
+    const [active, setActive] = useState(null);
     const [pin, setPin] = useState("");
     const [busy, setBusy] = useState(false);
     const [pinErr, setPinErr] = useState("");
@@ -22,6 +41,8 @@ export default function HomePage() {
             try {
                 const { data } = await api.get(`/home/${slug}`);
                 setData(data);
+                // Spark is best-effort — don't block the page if AI is slow/down
+                api.get(`/home/${slug}/spark`).then(({ data: s }) => setSpark(s)).catch(() => {});
             } catch (e) {
                 setErr(formatApiErrorDetail(e.response?.data?.detail) || "Home page not available.");
             } finally { setLoading(false); }
@@ -68,10 +89,13 @@ export default function HomePage() {
         );
     }
 
+    const totalOpen = (data.kids || []).reduce((acc, k) => acc + (k.open_missions_today || 0), 0);
+    const sparkMeta = spark ? (SPARK_KIND_META[spark.kind] || SPARK_KIND_META.fun_fact) : null;
+
     return (
-        <div className="min-h-screen flex items-center justify-center p-6" data-testid="home-page">
+        <div className="min-h-screen flex items-start sm:items-center justify-center p-6 py-10" data-testid="home-page">
             <div className="max-w-2xl w-full">
-                <header className="text-center mb-8">
+                <header className="text-center mb-6">
                     <div className="inline-flex items-center gap-2 mb-3">
                         <div className="h-12 w-12 rounded-2xl bg-[#4361EE] flex items-center justify-center text-white shadow-[0_4px_0_0_#3A53CC]">
                             <Zap size={22} fill="currentColor" />
@@ -80,8 +104,35 @@ export default function HomePage() {
                     </div>
                     <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">{data.family_name}</p>
                     <h1 className="font-display font-extrabold text-4xl text-[#0B132B] mt-2">Who&apos;s here? 👋</h1>
-                    <p className="text-[#4A5568] font-semibold mt-1">Tap your name to start your missions.</p>
+                    <p className="text-[#4A5568] font-semibold mt-1">
+                        {totalOpen > 0
+                            ? <>You&apos;ve got <span className="text-[#4361EE]">{totalOpen}</span> mission{totalOpen === 1 ? "" : "s"} to crush today.</>
+                            : "All caught up today — high five! ✋"}
+                    </p>
                 </header>
+
+                {spark && sparkMeta && (
+                    <div
+                        className="mb-6 mb-card p-4 sm:p-5 flex items-start gap-3"
+                        style={{ background: `linear-gradient(135deg, ${sparkMeta.color}14 0%, transparent 70%)` }}
+                        data-testid="home-spark-banner"
+                    >
+                        <div
+                            className="h-10 w-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+                            style={{ background: `${sparkMeta.color}22`, color: sparkMeta.color }}
+                        >
+                            <sparkMeta.icon size={20} />
+                        </div>
+                        <div className="min-w-0 text-left">
+                            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: sparkMeta.color }} data-testid="home-spark-kind">
+                                {sparkMeta.label}
+                            </p>
+                            <p className="font-display font-bold text-[#0B132B] text-base sm:text-lg leading-snug mt-0.5" data-testid="home-spark-content">
+                                {spark.content}
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 {data.kids.length === 0 ? (
                     <div className="mb-card p-8 text-center" data-testid="home-no-kids">
@@ -90,29 +141,56 @@ export default function HomePage() {
                     </div>
                 ) : (
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="home-kid-grid">
-                        {data.kids.map((kid) => (
-                            <button
-                                key={kid.id}
-                                onClick={() => startPin(kid)}
-                                disabled={!kid.has_pin}
-                                className="mb-card mb-card-hover p-6 text-center transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                                data-testid={`home-kid-${kid.id}`}
-                            >
-                                <div className="h-20 w-20 rounded-3xl mx-auto bg-gradient-to-br from-[#4361EE] to-[#06D6A0] text-white flex items-center justify-center text-4xl font-extrabold shadow-lg">
-                                    {kid.name?.[0]?.toUpperCase() || "?"}
-                                </div>
-                                <p className="font-display font-extrabold text-2xl text-[#0B132B] mt-3">{kid.name}</p>
-                                {kid.grade && <p className="text-xs font-bold text-[#A0AEC0] uppercase tracking-widest mt-1">Grade {kid.grade}</p>}
-                                {!kid.has_pin && (
-                                    <p className="text-xs font-bold text-[#EF476F] mt-2">No PIN set — ask a grown-up</p>
-                                )}
-                                {kid.has_pin && (
-                                    <p className="text-xs font-bold text-[#4361EE] mt-2 inline-flex items-center gap-1">
-                                        <Lock size={11} /> Enter PIN <ArrowRight size={11} />
-                                    </p>
-                                )}
-                            </button>
-                        ))}
+                        {data.kids.map((kid) => {
+                            const gradient = COLOR_GRADIENTS[kid.avatar_color] || COLOR_GRADIENTS.indigo;
+                            const initial = kid.name?.[0]?.toUpperCase() || "?";
+                            return (
+                                <button
+                                    key={kid.id}
+                                    onClick={() => startPin(kid)}
+                                    disabled={!kid.has_pin}
+                                    className="mb-card mb-card-hover p-6 text-center transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                                    data-testid={`home-kid-${kid.id}`}
+                                >
+                                    <div className={`h-20 w-20 rounded-3xl mx-auto bg-gradient-to-br ${gradient} text-white flex items-center justify-center text-4xl font-extrabold shadow-lg`}>
+                                        {kid.avatar_emoji || initial}
+                                    </div>
+                                    <p className="font-display font-extrabold text-2xl text-[#0B132B] mt-3" data-testid={`home-kid-name-${kid.id}`}>{kid.name}</p>
+
+                                    <div className="flex items-center justify-center gap-1.5 mt-2 flex-wrap">
+                                        {kid.streak_current > 0 && (
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-[#FFD166]/15 text-[#A07A00] px-2 py-0.5 text-[11px] font-bold" data-testid={`home-kid-streak-${kid.id}`}>
+                                                <Flame size={11} /> {kid.streak_current}
+                                            </span>
+                                        )}
+                                        {kid.open_missions_today > 0 && (
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-[#4361EE]/10 text-[#4361EE] px-2 py-0.5 text-[11px] font-bold" data-testid={`home-kid-open-${kid.id}`}>
+                                                <Target size={11} /> {kid.open_missions_today}
+                                            </span>
+                                        )}
+                                        {kid.missions_today_count > 0 && kid.open_missions_today === 0 && (
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-[#06D6A0]/15 text-[#057a5b] px-2 py-0.5 text-[11px] font-bold" data-testid={`home-kid-done-${kid.id}`}>
+                                                ✓ Done today
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {kid.interest_tag && (
+                                        <p className="text-[11px] font-bold text-[#A0AEC0] mt-2 truncate" data-testid={`home-kid-interest-${kid.id}`}>
+                                            loves {kid.interest_tag}
+                                        </p>
+                                    )}
+
+                                    {!kid.has_pin ? (
+                                        <p className="text-xs font-bold text-[#EF476F] mt-2">No PIN set — ask a grown-up</p>
+                                    ) : (
+                                        <p className="text-xs font-bold text-[#4361EE] mt-2 inline-flex items-center gap-1">
+                                            <Lock size={11} /> Enter PIN <ArrowRight size={11} />
+                                        </p>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
 
@@ -127,8 +205,8 @@ export default function HomePage() {
                             onClick={(e) => e.stopPropagation()}
                             className="bg-white rounded-3xl border-2 border-[#E2E8F0] p-8 max-w-sm w-full text-center"
                         >
-                            <div className="h-16 w-16 rounded-3xl mx-auto bg-gradient-to-br from-[#4361EE] to-[#06D6A0] text-white flex items-center justify-center text-3xl font-extrabold">
-                                {active.name?.[0]?.toUpperCase()}
+                            <div className={`h-16 w-16 rounded-3xl mx-auto bg-gradient-to-br ${COLOR_GRADIENTS[active.avatar_color] || COLOR_GRADIENTS.indigo} text-white flex items-center justify-center text-3xl font-extrabold`}>
+                                {active.avatar_emoji || active.name?.[0]?.toUpperCase()}
                             </div>
                             <h2 className="font-display font-extrabold text-2xl text-[#0B132B] mt-3">Hi, {active.name}!</h2>
                             <p className="text-sm font-semibold text-[#4A5568] mt-1">Type your 4-digit PIN.</p>
