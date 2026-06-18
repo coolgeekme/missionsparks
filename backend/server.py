@@ -6,6 +6,7 @@ load_dotenv(ROOT_DIR / ".env")
 
 import os
 import uuid
+import asyncio
 import secrets
 import logging
 from email_service import send_family_invite_email
@@ -1440,17 +1441,21 @@ async def public_home_dashboard(slug: str):
         {"_id": 0, "id": 1, "name": 1, "home_pin_hash": 1, "student_profile": 1,
          "avatar_emoji": 1, "avatar_color": 1},
     ).to_list(20)
-    today_iso = datetime.now(timezone.utc).date().isoformat()
-    kids = []
-    for s in students:
-        prof = s.get("student_profile") or {}
-        # Spark streak (current)
+    # Parallelize streak computation across kids (was N+1 sequential)
+    async def _safe_streak(sid):
         try:
-            sr = await _compute_streak(s["id"])
+            return await _compute_streak(sid)
+        except Exception:
+            return None
+    streak_results = await asyncio.gather(*[_safe_streak(s["id"]) for s in students])
+    kids = []
+    for s, sr in zip(students, streak_results):
+        prof = s.get("student_profile") or {}
+        if sr is not None:
             streak_current = sr.current_streak
             missions_today = sr.missions_today_count
             completed_today = sr.completed_today_count
-        except Exception:
+        else:
             streak_current, missions_today, completed_today = 0, 0, 0
         open_today = max(0, missions_today - completed_today)
         interests = prof.get("interests") or []
@@ -1466,7 +1471,6 @@ async def public_home_dashboard(slug: str):
             "avatar_emoji": s.get("avatar_emoji"),
             "avatar_color": s.get("avatar_color"),
         })
-    _ = today_iso  # reserved for future "is-today" tags
     return {"family_name": fam["name"], "slug": fam["slug"], "kids": kids}
 
 
@@ -1511,6 +1515,7 @@ async def _generate_spark(family_doc: dict, kind: str) -> dict:
         "Output ONLY the single line, no preamble, no quotes, no emojis at the start."
     )
     text = ""
+    used_fallback = False
     try:
         text = await _ai_chat(
             "You write tiny, joyful daily snippets for an ADHD-friendly kids' learning app. "
@@ -1531,7 +1536,8 @@ async def _generate_spark(family_doc: dict, kind: str) -> dict:
             "science_nugget": "Your brain uses about 20% of your body's energy.",
         }
         text = fallback[kind]
-    return {"kind": kind, "content": text}
+        used_fallback = True
+    return {"kind": kind, "content": text, "used_fallback": used_fallback}
 
 
 @api.get("/home/{slug}/spark")
@@ -1556,13 +1562,16 @@ async def public_home_spark(slug: str):
     prev_kind = last[0]["kind"] if last else None
     kind = _next_spark_kind(prev_kind)
     generated = await _generate_spark(fam, kind)
-    await db.home_sparks.update_one(
-        {"family_id": fam["id"], "date": today_iso},
-        {"$set": {**generated, "family_id": fam["id"], "date": today_iso,
-                  "created_at": datetime.now(timezone.utc).isoformat()}},
-        upsert=True,
-    )
-    return {"date": today_iso, **generated}
+    # Don't cache static fallback — we want to retry the AI on the next page load.
+    if not generated.get("used_fallback"):
+        await db.home_sparks.update_one(
+            {"family_id": fam["id"], "date": today_iso},
+            {"$set": {"kind": generated["kind"], "content": generated["content"],
+                      "family_id": fam["id"], "date": today_iso,
+                      "created_at": datetime.now(timezone.utc).isoformat()}},
+            upsert=True,
+        )
+    return {"date": today_iso, "kind": generated["kind"], "content": generated["content"]}
 
 
 # ---------- Custom tile avatars (Iter 19) ----------
