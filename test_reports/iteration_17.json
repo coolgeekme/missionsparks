@@ -1,0 +1,45 @@
+{
+  "summary": "Iter 18 — Home Dashboard (public PIN-login) + recurring mission edit scope + read-only completed missions. Backend: 13/13 pytest cases PASS (toggle, slug, 4-digit PIN bcrypt hash, clear PIN, public /home no-auth, 404 when disabled, wrong PIN 'X tries left', 5-strike 429 lockout, attempts cleared on success, 4h cookie, /me role=student, scope=this isolates, scope=future updates this+later uncompleted only and does NOT propagate due_date, scope=series updates all uncompleted while keeping completed history sacred). Frontend: HomePage public flow loads, kid tile present, PIN modal opens, wrong-PIN shows inline 'X tries left', correct PIN issues cookie and /api/auth/me returns role=student. Mission edit form HAS scope selector (edit-scope-this/future/series) and AI panel (mission-form-ai-panel/prompt/draft) — both working. Student dashboard renders correctly with Past/Today/Future nav, Done chip and 'Tap to view the steps you did' read-only label for completed missions when accessed directly.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "HomePage.jsx (PIN login → /student redirect)",
+        "issue": "After successful PIN login, navigate('/student') happens immediately but AuthContext.user is still `false` (set during initial /auth/me 401 on the public /home page). ProtectedRoute then bounces the kid to /login despite the cookie being set correctly. Confirmed: cookie IS persisted (httpOnly Secure SameSite=None) and /api/auth/me returns 200 with role=student; navigating to /student via page.goto works perfectly. Fix: HomePage.jsx submitPin must call `refresh()` from `useAuth()` BEFORE navigate('/student').",
+        "selector": "/app/frontend/src/pages/HomePage.jsx line 35-47 (submitPin)",
+        "priority": "HIGH"
+      },
+      {
+        "component": "FamilySettings.jsx (HomeDashboardSection)",
+        "issue": "HomeDashboardSection (data-testid='home-dashboard-section') is NOT rendered on /family for the demo parent who IS the family owner. No 'Home Dashboard' toggle, no per-kid PIN setter visible. testid query returned zero matches for /home|pin/i. The component is gated by `canWrite` at line 358 — likely `canWrite` is false or `fam` is undefined at render time. Kids cannot have a PIN set from the UI, parents cannot toggle the dashboard on/off, and the public /home URL cannot be copied. Backend endpoints work; only the UI wiring is broken.",
+        "selector": "/app/frontend/src/pages/FamilySettings.jsx line 358 ({canWrite && <HomeDashboardSection ...})",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_home_dashboard_and_scope.py",
+    "/app/test_reports/pytest/iter18_home_scope.xml"
+  ],
+  "action_items": [
+    "FIX HomePage.jsx submitPin: call `refresh()` from useAuth() before navigate('/student') so AuthContext picks up the new student session and ProtectedRoute lets them through.",
+    "FIX FamilySettings.jsx: debug why HomeDashboardSection is not rendered for the demo parent (owner). Likely `canWrite` resolution issue — confirm `myRole` is set when fam loads. After fix, verify toggle works and PIN setter saves a 4-digit PIN for Enzo.",
+    "(Optional UX) Add visible 'Past / Today / Future' segmented control labels in addition to prev/today/next arrows — currently only icon arrows + 'Today' button + a native date picker; new requirement language implies explicit segmented nav."
+  ],
+  "critical_code_review_comments": [
+    "HomePage.jsx submitPin does client-side navigation without informing AuthContext — classic stale-state bug. Same pattern would break any auth flow that doesn't go through AuthContext.login/register.",
+    "Cookie set with samesite='none' + secure=True is correct for the preview HTTPS domain; no change needed.",
+    "scope=future correctly excludes due_date from the bulk update (server.py line 2048). Tests confirm.",
+    "Lockout: after 5 fails, code sets fails=0 + locked_until=+10min. Good. Test confirms 429 is returned for subsequent attempts until lock expires."
+  ],
+  "updated_files": ["/app/backend/tests/test_home_dashboard_and_scope.py"],
+  "success_rate": { "backend": "100% (13/13)", "frontend": "70% (5/7 — PIN-redirect & FamilySettings section broken)" },
+  "test_credentials": "parent@demo.com / demo1234 ; student@demo.com / demo1234 ; Enzo PIN: 1234 (set during tests)",
+  "seed_data_creation": "Test creates and deletes TEST_RECUR_* daily-recurring missions; resets db.home_pin_attempts between negative tests.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend for Iter18 fully passes. Two FE bugs blocking the kid PIN journey end-to-end: (1) HomePage.jsx doesn't refresh AuthContext after PIN login, so /student rejects them; (2) HomeDashboardSection is missing on /family so parents can't set up the feature in the UI. Both backend endpoints are healthy — fix is purely frontend wiring. Run test_home_dashboard_and_scope.py to validate backend regressions; for FE re-test, log in as parent, open /family, expect data-testid='home-dashboard-section' + 'home-dashboard-toggle' + per-kid PIN inputs; then log out, open /home/demo-parent-family, click Enzo, enter PIN 1234, expect /student dashboard (not login form).",
+  "rca of the issue": "(1) PIN-login post-redirect: HomePage.jsx never updates AuthProvider state — needs `const { refresh } = useAuth();` and `await refresh(); navigate('/student');`. (2) HomeDashboardSection: gated by `canWrite` (line 358) which depends on `myRole==='owner'||'co_parent'`. Likely race: section renders before `myRole` is computed from `fam.members`, or the owner demo user's membership entry lacks the `role` field server-side. Backend `/api/families` response should be inspected to confirm members[].role for the demo parent. As a defensive fix, the FE can also render the section when the parent is the only member (owner)."
+}
