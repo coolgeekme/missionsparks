@@ -133,6 +133,11 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Resend domain `missionsparks.com` is now verified — emails deliver to any recipient. Sender: `hello@missionsparks.com`.
 - 15/15 digest pytest tests pass (`tests/test_digest.py`). 103/103 across the whole family-aware suite. Zero regressions.
 
+### Iter 19.2 — Dead article links in digest (2026-02)
+- **Bug**: parent reported clicking the "Worth a read" link in the digest landed on a 404. Curl-audit of all 12 curated article URLs in `digest_articles.py` showed **5 of 12 had silently rotted** (CHADD homework, ADDitude praise, ADDitude screen time, Harvard sleep-ADHD, ADDitude mindfulness).
+- **Fix**: replaced each dead URL with a verified live alternative on the same publisher covering the same topic (titles + blurbs still apply 1:1). All 12 now return HTTP 200.
+- **Regression test**: `tests/test_digest_article_urls.py` parametrically GETs every curated URL and fails the build if any returns ≥400. Network-aware — skips automatically when offline (env `SKIP_NETWORK_TESTS=1` to force-skip in CI).
+
 ### Iter 19.1 — Parent Digest stats bug fix (2026-02)
 - **Bug**: every parent's daily/weekly digest showed "0-day streak" + "0 missions completed" for every kid, regardless of actual activity.
 - **Root cause**: `digest_service.py` queried `mission_logs` with the wrong field names — `{"completed": True}` + `completed_at` — but the real schema uses `{"status": "completed"}` + `timestamp`. The window filter never matched anything → counts always 0. Moments display also used a non-existent `text` field instead of `context_note` → "Recent moments" section never rendered.
