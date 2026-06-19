@@ -93,13 +93,14 @@ def compute_next_due(prefs: dict, now_utc: Optional[datetime] = None) -> datetim
 # ---------- Content builder ----------
 async def _compute_streak_for(student_id: str) -> dict:
     # Mirror server._compute_streak's contract but inlined to avoid circular import.
+    # NOTE: mission_logs uses `status='completed'` + `timestamp` (NOT `completed`/`completed_at`).
     if _db is None:
         return {"current_streak": 0, "longest_streak": 0}
     logs = await _db.mission_logs.find(
-        {"student_id": student_id, "completed": True},
-        {"_id": 0, "completed_at": 1},
-    ).sort("completed_at", -1).to_list(2000)
-    dates = sorted({l["completed_at"][:10] for l in logs if l.get("completed_at")}, reverse=True)
+        {"student_id": student_id, "status": "completed"},
+        {"_id": 0, "timestamp": 1},
+    ).sort("timestamp", -1).to_list(2000)
+    dates = sorted({l["timestamp"][:10] for l in logs if l.get("timestamp")}, reverse=True)
     if not dates:
         return {"current_streak": 0, "longest_streak": 0}
     today = datetime.now(timezone.utc).date()
@@ -130,20 +131,22 @@ async def _compute_streak_for(student_id: str) -> dict:
 
 
 async def _student_window_summary(student_id: str, hours_back: int) -> dict:
-    """Returns a per-student snapshot of activity in the given window."""
+    """Returns a per-student snapshot of activity in the given window.
+    mission_logs schema: status='completed' + timestamp (ISO string).
+    """
     if _db is None:
         return {}
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours_back)).isoformat()
     missions_total = await _db.missions.count_documents({"student_id": student_id})
     logs = await _db.mission_logs.find(
-        {"student_id": student_id, "completed_at": {"$gte": cutoff}},
-        {"_id": 0, "game_score": 1, "game_key": 1, "completed_at": 1},
+        {"student_id": student_id, "status": "completed", "timestamp": {"$gte": cutoff}},
+        {"_id": 0, "game_score": 1, "game_key": 1, "game_played": 1, "timestamp": 1},
     ).to_list(500)
     moments = await _db.moments.find(
         {"student_id": student_id, "timestamp": {"$gte": cutoff}},
-        {"_id": 0, "text": 1, "emotion": 1, "timestamp": 1, "moment_type": 1},
+        {"_id": 0, "context_note": 1, "transcript": 1, "notes": 1, "moment_type": 1, "timestamp": 1},
     ).sort("timestamp", -1).to_list(50)
-    games_played = [l for l in logs if l.get("game_key")]
+    games_played = [l for l in logs if l.get("game_played") and l.get("game_key")]
     top_game = None
     if games_played:
         top = max(games_played, key=lambda x: x.get("game_score") or 0)
@@ -277,10 +280,12 @@ def _kid_card_html(name: str, snap: dict) -> str:
 
     moments_html = ""
     if moments:
+        def _moment_text(m: dict) -> str:
+            return (m.get("context_note") or m.get("transcript") or m.get("notes") or "").strip()
         items = "".join([
-            f"<li style='margin:6px 0;color:#4A5568;'><em>“{_escape((m.get('text') or '')[:140])}”</em> "
-            f"<span style='color:#A0AEC0;font-size:12px;'>({_escape(m.get('moment_type') or m.get('emotion') or 'moment')})</span></li>"
-            for m in moments if m.get("text")
+            f"<li style='margin:6px 0;color:#4A5568;'><em>“{_escape(_moment_text(m)[:140])}”</em> "
+            f"<span style='color:#A0AEC0;font-size:12px;'>({_escape(m.get('moment_type') or 'moment')})</span></li>"
+            for m in moments if _moment_text(m)
         ])
         if items:
             moments_html = f"<p style='margin:12px 0 4px;font-weight:700;color:#0B132B;'>Recent moments</p><ul style='margin:0;padding-left:18px;'>{items}</ul>"
@@ -396,8 +401,9 @@ def _text_kid_block(name: str, snap: dict) -> str:
         suf = f" — top score {top['score']} on {top['game_key']}" if top else ""
         lines.append(f"Mini-games played: {snap['games_played']}{suf}")
     for m in (snap.get("moments") or []):
-        if m.get("text"):
-            lines.append(f"Moment: \"{m['text'][:120]}\"")
+        txt = (m.get("context_note") or m.get("transcript") or m.get("notes") or "").strip()
+        if txt:
+            lines.append(f"Moment: \"{txt[:120]}\"")
     return "\n".join(lines)
 
 

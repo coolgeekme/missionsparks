@@ -349,3 +349,89 @@ def test_dispatch_due_digests_respects_enabled_gate():
     n = asyncio.run(_run())
     assert isinstance(n, int)
     assert n >= 0
+
+
+
+def test_student_window_summary_counts_completed_missions():
+    """REGRESSION (Iter 19 bug): the digest was reading `completed`/`completed_at`
+    on mission_logs, but the schema is `status='completed'` + `timestamp`. As a
+    result every parent saw "0 missions completed" + "0-day streak" regardless
+    of actual activity. This locks the contract."""
+    sys.path.insert(0, "/app/backend")
+    import digest_service as ds
+    import uuid as _uuid
+    from motor.motor_asyncio import AsyncIOMotorClient
+
+    async def _run():
+        client = AsyncIOMotorClient(os.environ["MONGO_URL"])
+        db = client[os.environ["DB_NAME"]]
+        ds.configure(db, None)
+
+        student_id = f"test-digest-kid-{_uuid.uuid4()}"
+        # Seed 3 completed mission_logs within last 24h
+        now = datetime.now(timezone.utc)
+        log_ids = []
+        for i in range(3):
+            lid = str(_uuid.uuid4())
+            log_ids.append(lid)
+            await db.mission_logs.insert_one({
+                "id": lid,
+                "mission_id": str(_uuid.uuid4()),
+                "student_id": student_id,
+                "status": "completed",  # the correct field name
+                "timestamp": (now - timedelta(hours=i + 1)).isoformat(),
+                "reflection": "ok",
+                "game_played": i == 0,
+                "game_key": "word_match" if i == 0 else None,
+                "game_score": 220 if i == 0 else None,
+            })
+        # Seed one log OUTSIDE the window (40h ago) — should NOT be counted in daily
+        await db.mission_logs.insert_one({
+            "id": str(_uuid.uuid4()),
+            "mission_id": str(_uuid.uuid4()),
+            "student_id": student_id,
+            "status": "completed",
+            "timestamp": (now - timedelta(hours=40)).isoformat(),
+            "game_played": False,
+        })
+        # Seed one moment with context_note
+        moment_id = str(_uuid.uuid4())
+        await db.moments.insert_one({
+            "id": moment_id,
+            "student_id": student_id,
+            "logged_by_user_id": "test-parent",
+            "logged_by_role": "parent",
+            "timestamp": (now - timedelta(hours=2)).isoformat(),
+            "moment_type": "focus_breakthrough",
+            "intensity": 3,
+            "context_note": "She crushed the math worksheet.",
+        })
+
+        try:
+            # Daily window
+            daily = await ds._student_window_summary(student_id, 24)
+            assert daily["missions_completed"] == 3, f"expected 3 daily missions, got {daily['missions_completed']}"
+            assert daily["games_played"] == 1
+            assert daily["top_game"] == {"game_key": "word_match", "score": 220}
+            assert len(daily["moments"]) == 1
+
+            # Weekly window — includes the 40h-ago log
+            weekly = await ds._student_window_summary(student_id, 24 * 7)
+            assert weekly["missions_completed"] == 4
+
+            # Streak: 1 day (today's completions). Lock the contract.
+            streak = await ds._compute_streak_for(student_id)
+            assert streak["current_streak"] >= 1, f"expected >=1, got {streak}"
+
+            # Kid card HTML should reflect "X missions completed" (not 0)
+            html = ds._kid_card_html("TestKid", daily)
+            assert "3 missions completed" in html, html
+            assert "0 missions completed" not in html
+            # And the moment should render in HTML
+            assert "She crushed" in html
+        finally:
+            await db.mission_logs.delete_many({"student_id": student_id})
+            await db.moments.delete_many({"student_id": student_id})
+            client.close()
+
+    asyncio.run(_run())
