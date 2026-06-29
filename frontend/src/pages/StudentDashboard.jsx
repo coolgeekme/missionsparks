@@ -147,16 +147,31 @@ export default function StudentDashboard() {
                                 </div>
                             </div>
                             <div className="flex items-end gap-2" data-testid="student-streak-week">
-                                {streak.week.map((d) => (
-                                    <div key={d.date} className="flex flex-col items-center gap-1">
-                                        <div className={`h-9 w-9 rounded-xl flex items-center justify-center border-2 ${d.completed ? "bg-[#06D6A0] border-[#06D6A0] text-white" : d.is_today ? "bg-white border-[#4361EE] text-[#4361EE]" : "bg-white border-[#E2E8F0] text-[#A0AEC0]"}`} title={d.date}>
-                                            {d.completed ? <CheckCircle2 size={18} /> : <span className="text-xs font-extrabold">{Number(d.date.slice(-2))}</span>}
+                                {streak.week.map((d) => {
+                                    const kind = d.kind || (d.completed ? "completed" : "missed");
+                                    const cls = {
+                                        completed: "bg-[#06D6A0] border-[#06D6A0] text-white",
+                                        freeze: "bg-[#118AB2]/15 border-[#118AB2] text-[#118AB2]",
+                                        weekend: "bg-[#F8FAFC] border-dashed border-[#A0AEC0] text-[#A0AEC0]",
+                                        missed: "bg-white border-[#EF476F]/30 text-[#EF476F]/70",
+                                        pending: "bg-white border-[#4361EE] text-[#4361EE]",
+                                    }[kind] || "bg-white border-[#E2E8F0] text-[#A0AEC0]";
+                                    const label = {
+                                        completed: <CheckCircle2 size={18} />,
+                                        freeze: <span className="text-base" aria-label="freeze">❄</span>,
+                                        weekend: <span className="text-xs font-bold">·</span>,
+                                    }[kind] || <span className="text-xs font-extrabold">{Number(d.date.slice(-2))}</span>;
+                                    return (
+                                        <div key={d.date} className="flex flex-col items-center gap-1" data-testid={`streak-day-${kind}`}>
+                                            <div className={`h-9 w-9 rounded-xl flex items-center justify-center border-2 ${cls}`} title={`${d.date} · ${kind}`}>
+                                                {label}
+                                            </div>
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#A0AEC0]">
+                                                {DOW_LABELS[new Date(d.date + "T00:00:00").getDay()]}
+                                            </span>
                                         </div>
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#A0AEC0]">
-                                            {DOW_LABELS[new Date(d.date + "T00:00:00").getDay()]}
-                                        </span>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </section>

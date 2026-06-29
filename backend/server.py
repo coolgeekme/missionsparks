@@ -1426,6 +1426,136 @@ async def clear_student_home_pin(student_id: str, user: dict = Depends(require_r
     return {"ok": True}
 
 
+# ---------- Streak Freezes (Iter 20) ----------
+class StreakFreezeCreate(BaseModel):
+    date: str  # YYYY-MM-DD (UTC) — the day to skip
+    reason: Optional[str] = None
+
+
+class StreakFreeze(BaseModel):
+    id: str
+    student_id: str
+    date: str
+    granted_by_user_id: str
+    granted_by_name: Optional[str] = None
+    reason: Optional[str] = None
+    created_at: str
+
+
+def _validate_freeze_date(d: str) -> str:
+    if not d or len(d) != 10:
+        raise HTTPException(status_code=400, detail="Date must be YYYY-MM-DD.")
+    try:
+        parsed = datetime.fromisoformat(d).date()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Date must be a valid YYYY-MM-DD.") from None
+    today = datetime.now(timezone.utc).date()
+    if parsed > today:
+        raise HTTPException(status_code=400, detail="You can't freeze a future date.")
+    # Max 60 days back — keep history sane
+    if (today - parsed).days > 60:
+        raise HTTPException(status_code=400, detail="Freezes can only cover the last 60 days.")
+    return parsed.isoformat()
+
+
+@api.post("/students/{student_id}/freezes", response_model=StreakFreeze)
+async def grant_streak_freeze(student_id: str, req: StreakFreezeCreate,
+                              user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, student_id)
+    d = _validate_freeze_date(req.date)
+    # Idempotent: refuse if a freeze already exists for this day
+    existing = await db.streak_freezes.find_one(
+        {"student_id": student_id, "date": d}, {"_id": 0},
+    )
+    if existing:
+        raise HTTPException(status_code=409, detail="This date already has a freeze.")
+    # If the kid already completed a mission that day, no freeze needed
+    day_start = f"{d}T00:00:00+00:00"
+    day_end = f"{d}T23:59:59.999999+00:00"
+    completed = await db.mission_logs.find_one(
+        {"student_id": student_id, "status": "completed",
+         "timestamp": {"$gte": day_start, "$lte": day_end}},
+        {"_id": 0, "id": 1},
+    )
+    if completed:
+        raise HTTPException(status_code=400, detail="Kid already completed a mission that day — no freeze needed.")
+    # Quota: 4 per calendar month UTC
+    granted = await _freezes_this_month(db, student_id)
+    if granted >= MAX_FREEZES_PER_MONTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Out of freezes — limit is {MAX_FREEZES_PER_MONTH} per kid per month.",
+        )
+    fid = str(uuid.uuid4())
+    doc = {
+        "id": fid,
+        "student_id": student_id,
+        "date": d,
+        "granted_by_user_id": user["id"],
+        "granted_by_name": user.get("name"),
+        "reason": (req.reason or "").strip()[:240] or None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.streak_freezes.insert_one(doc)
+    await _audit(user, "streak.freeze_grant", target_type="student", target_id=student_id,
+                 meta={"date": d, "freeze_id": fid})
+    return StreakFreeze(**{k: v for k, v in doc.items() if k != "_id"})
+
+
+@api.get("/students/{student_id}/freezes")
+async def list_streak_freezes(student_id: str, user: dict = Depends(get_current_user)):
+    if user["role"] == "student":
+        if user["id"] != student_id:
+            raise HTTPException(status_code=403, detail="Not your kid")
+    else:
+        await _assert_parent_owns_student(user, student_id, write=False)
+    today = datetime.now(timezone.utc).date()
+    month_prefix = today.isoformat()[:7] + "-"
+    freezes = await db.streak_freezes.find(
+        {"student_id": student_id}, {"_id": 0},
+    ).sort("date", -1).to_list(200)
+    granted_this_month = sum(1 for f in freezes if (f.get("date") or "").startswith(month_prefix))
+    return {
+        "freezes": freezes,
+        "granted_this_month": granted_this_month,
+        "remaining_this_month": max(0, MAX_FREEZES_PER_MONTH - granted_this_month),
+        "monthly_cap": MAX_FREEZES_PER_MONTH,
+    }
+
+
+@api.delete("/students/{student_id}/freezes/{freeze_id}")
+async def revoke_streak_freeze(student_id: str, freeze_id: str,
+                                user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, student_id)
+    res = await db.streak_freezes.delete_one({"id": freeze_id, "student_id": student_id})
+    if not res.deleted_count:
+        raise HTTPException(status_code=404, detail="Freeze not found.")
+    await _audit(user, "streak.freeze_revoke", target_type="student", target_id=student_id,
+                 meta={"freeze_id": freeze_id})
+    return {"ok": True}
+
+
+# ---------- Family weekend-mode toggle (Iter 20) ----------
+class WeekendModeUpdate(BaseModel):
+    mode: str  # "all_days" | "weekdays_only"
+
+
+@api.put("/families/{family_id}/streak-weekend-mode")
+async def set_family_weekend_mode(family_id: str, req: WeekendModeUpdate,
+                                   user: dict = Depends(require_role("parent"))):
+    if req.mode not in (WEEKEND_MODE_ALL, WEEKEND_MODE_WEEKDAYS):
+        raise HTTPException(status_code=400, detail="Mode must be all_days or weekdays_only.")
+    fam = await db.families.find_one({"id": family_id}, {"_id": 0})
+    if not fam:
+        raise HTTPException(status_code=404, detail="Family not found.")
+    role = await _user_role_in_family(user, family_id)
+    _assert_family_write_role(role)
+    await db.families.update_one({"id": family_id}, {"$set": {"streak_weekend_mode": req.mode}})
+    await _audit(user, "family.streak_weekend_mode", target_type="family",
+                 target_id=family_id, meta={"mode": req.mode})
+    return {"ok": True, "mode": req.mode}
+
+
 @api.get("/home/{slug}")
 async def public_home_dashboard(slug: str):
     """Public — by family slug. Returns family name + kid tiles.
@@ -2311,6 +2441,21 @@ async def list_logs(
 
 
 # ---------- Streak ----------
+from streak_service import (  # noqa: E402
+    compute_streak as _compute_streak_snapshot,
+    freezes_this_month as _freezes_this_month,
+    MAX_FREEZES_PER_MONTH,
+    WEEKEND_MODE_ALL,
+    WEEKEND_MODE_WEEKDAYS,
+)
+
+
+class StreakWeekDay(BaseModel):
+    date: str
+    kind: str  # completed | freeze | weekend | missed | pending
+    is_today: bool
+
+
 class StreakResponse(BaseModel):
     current_streak: int
     longest_streak: int
@@ -2319,91 +2464,29 @@ class StreakResponse(BaseModel):
     missions_today_count: int
     last_completed_date: Optional[str] = None
     week: List[dict] = []
-    freeze_used_in_run: bool = False  # "kind day off" applied to keep current streak alive
-
-
-def _date_from_iso(ts: str) -> str:
-    """Return YYYY-MM-DD from an ISO timestamp."""
-    try:
-        return datetime.fromisoformat(ts.replace("Z", "+00:00")).date().isoformat()
-    except Exception:
-        return ts[:10] if ts else ""
+    freezes_used_in_run: int = 0
+    freezes_remaining_month: int = 0
+    freezes_granted_this_month: int = 0
+    weekend_mode: str = WEEKEND_MODE_ALL
+    # backwards-compat alias
+    freeze_used_in_run: bool = False
 
 
 async def _compute_streak(student_id: str) -> StreakResponse:
-    logs = await db.mission_logs.find(
-        {"student_id": student_id, "status": "completed"}, {"_id": 0, "timestamp": 1}
-    ).to_list(5000)
-    completed_dates = sorted({_date_from_iso(lg["timestamp"]) for lg in logs if lg.get("timestamp")})
-
-    today = datetime.now(timezone.utc).date()
-    today_iso = today.isoformat()
-
-    # longest streak across all days
-    longest = 0
-    cur = 0
-    prev = None
-    for d in completed_dates:
-        try:
-            dt = datetime.fromisoformat(d).date()
-        except Exception:
-            continue
-        if prev is not None and (dt - prev).days == 1:
-            cur += 1
-        else:
-            cur = 1
-        longest = max(longest, cur)
-        prev = dt
-
-    # current streak — count consecutive days ending today or yesterday, forgiving ONE missed day
-    # per run (the "kind day off"). This avoids shame when an ADHD-leaning kid misses a single day.
-    date_set = set(completed_dates)
-    current = 0
-    freeze_total = 1
-    freeze_used_in_run = False
-    anchor = today if today_iso in date_set else (today - timedelta(days=1))
-    cursor = anchor
-    while True:
-        if cursor.isoformat() in date_set:
-            current += 1
-            cursor = cursor - timedelta(days=1)
-        else:
-            if freeze_total > 0 and current > 0:
-                freeze_total -= 1
-                freeze_used_in_run = True
-                cursor = cursor - timedelta(days=1)
-            else:
-                break
-
-    # today's mission counts
-    todays_missions = await db.missions.count_documents({"student_id": student_id, "due_date": today_iso})
-    completed_today_logs = await db.mission_logs.find(
-        {"student_id": student_id, "status": "completed"}, {"_id": 0, "mission_id": 1, "timestamp": 1}
-    ).to_list(2000)
-    todays_mission_ids = {
-        m["id"]
-        for m in await db.missions.find(
-            {"student_id": student_id, "due_date": today_iso}, {"_id": 0, "id": 1}
-        ).to_list(1000)
-    }
-    completed_today_mids = {lg["mission_id"] for lg in completed_today_logs if _date_from_iso(lg["timestamp"]) == today_iso}
-    completed_today_count = len(todays_mission_ids & completed_today_mids)
-
-    # week trail: 7 days ending today
-    week = []
-    for i in range(6, -1, -1):
-        d = (today - timedelta(days=i)).isoformat()
-        week.append({"date": d, "completed": d in date_set, "is_today": d == today_iso})
-
+    snap = await _compute_streak_snapshot(db, student_id)
     return StreakResponse(
-        current_streak=current,
-        longest_streak=longest,
-        completed_today=today_iso in date_set,
-        completed_today_count=completed_today_count,
-        missions_today_count=todays_missions,
-        last_completed_date=(completed_dates[-1] if completed_dates else None),
-        week=week,
-        freeze_used_in_run=freeze_used_in_run,
+        current_streak=snap.current_streak,
+        longest_streak=snap.longest_streak,
+        completed_today=snap.completed_today,
+        completed_today_count=snap.completed_today_count,
+        missions_today_count=snap.missions_today_count,
+        last_completed_date=snap.last_completed_date,
+        week=snap.week,
+        freezes_used_in_run=snap.freezes_used_in_run,
+        freezes_remaining_month=snap.freezes_remaining_month,
+        freezes_granted_this_month=snap.freezes_granted_this_month,
+        weekend_mode=snap.weekend_mode,
+        freeze_used_in_run=(snap.freezes_used_in_run > 0),
     )
 
 

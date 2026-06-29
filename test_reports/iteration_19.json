@@ -1,0 +1,34 @@
+{
+  "summary": "Iter 20 (streak refactor + freezes + weekend mode + daily-rotating digest) end-to-end testing. Backend: 31/31 (7 unit + 16 new API integration + 8 regression streak/digest) PASS. Frontend: streak-freeze-manager renders with 3/4 quota chip + Grant button + existing freeze list + delete; family settings shows streak-weekend-section with both cards and click toggles + toast; student dashboard week-trail renders all kind-specific data-testids (completed/freeze/weekend/missed); public home page still loads. No regressions found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_streak_freezes_api.py",
+    "/app/backend/tests/test_streak_freezes.py",
+    "/app/test_reports/pytest/iter20_api.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "streak_service.compute_streak: when anchor walks back through freezes, freezes_used could exceed the actual freezes that bridge a completion — current code resets to 0 only if NO completion is hit at all, which is correct, but consider documenting the case where a freeze is at the anchor (today) with no prior completion — currently it's counted then zeroed out, which is fine but subtle.",
+    "GET /api/students/{id}/freezes returns the raw freeze docs to clients without 'sort by date desc' applied consistently across the FE — backend already sorts -1 by date which is good. No issue.",
+    "POST /api/students/{id}/freezes returns 200 (not 201) for resource creation — minor REST style nit, not breaking.",
+    "Backend digest_weekly_tips collection has at least one legacy doc with cache_key=None (left over from pre-Iter20 weekly cache); harmless but consider a one-time cleanup."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_streak_freezes_api.py (new — 16 API integration tests)"
+  ],
+  "success_rate": {"backend": "100% (31/31)", "frontend": "100% of verifiable elements (7/7 critical data-testids confirmed; UI grant-submit was inconclusive due to test script default-date collision with existing freeze, not a product bug — flow fully verified at API)"},
+  "test_credentials": "parent@demo.com/demo1234, student@demo.com/demo1234, coparent@demo.com/demo1234 — all working.",
+  "seed_data_creation": "Created TEST_-prefixed freezes for ~40-55 days back during tests; all cleaned up. Created one transient secondary parent (other-{uuid}@example.com) for the 403 cross-permission test — not deleted (no DELETE user endpoint).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Demo family weekend mode is currently 'weekdays_only' (restored after the toggle test). Demo family has one existing freeze for 2026-06-28 (sick day) — leave intact for FE regression tests. New API test file /app/backend/tests/test_streak_freezes_api.py covers 16 endpoint scenarios; reuse for Iter 20+ regression. The grant-freeze UI form defaults the date to yesterday (today-1) and uses a textarea for reason; future Playwright scripts should override the date input AFTER clicking 'Grant a freeze' to expand the form.",
+  "rca_of_the_issue": "N/A — no bugs found in Iter 20 batch."
+}

@@ -356,6 +356,7 @@ export default function FamilySettings() {
                     )}
 
                     {canWrite && <HomeDashboardSection fam={fam} reloadFam={() => load(activeId)} />}
+                    {canWrite && <StreakWeekendSection fam={fam} reloadFam={() => load(activeId)} />}
 
                     {isOwner && fam.student_ids.length === 0 && fam.members.length === 1 && (
                         <section className="mb-card p-6" data-testid="family-danger-zone">
@@ -511,6 +512,57 @@ function HomeDashboardSection({ fam, reloadFam }) {
                     </div>
                 </>
             )}
+        </section>
+    );
+}
+
+
+function StreakWeekendSection({ fam, reloadFam }) {
+    const [mode, setMode] = useState(fam.streak_weekend_mode === "weekdays_only" ? "weekdays_only" : "all_days");
+    const [busy, setBusy] = useState(false);
+
+    useEffect(() => {
+        setMode(fam.streak_weekend_mode === "weekdays_only" ? "weekdays_only" : "all_days");
+    }, [fam.streak_weekend_mode]);
+
+    const save = async (newMode) => {
+        setBusy(true);
+        try {
+            await api.put(`/families/${fam.id}/streak-weekend-mode`, { mode: newMode });
+            setMode(newMode);
+            toast.success(newMode === "weekdays_only" ? "Weekends now auto-skip" : "Every day counts now");
+            reloadFam?.();
+        } catch (e) {
+            toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message);
+        } finally { setBusy(false); }
+    };
+
+    return (
+        <section className="mb-card p-6 mt-4" data-testid="streak-weekend-section">
+            <h2 className="font-display font-extrabold text-xl text-[#0B132B] mb-1">Spark streak — weekend rule</h2>
+            <p className="text-sm font-semibold text-[#4A5568] mb-4">
+                Choose how spark streaks treat Saturdays and Sundays for everyone in <strong>{fam.name}</strong>.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3">
+                <button
+                    onClick={() => !busy && save("all_days")}
+                    className={`rounded-2xl border-2 p-4 text-left transition-all ${mode === "all_days" ? "border-[#4361EE] bg-[#4361EE]/5" : "border-[#E2E8F0] hover:border-[#A0AEC0]"} ${busy ? "opacity-60" : ""}`}
+                    disabled={busy}
+                    data-testid="weekend-mode-all"
+                >
+                    <p className="font-display font-extrabold text-base text-[#0B132B]">Every day counts</p>
+                    <p className="text-xs font-semibold text-[#4A5568] mt-1">A missed Saturday or Sunday will break the streak — unless you grant a freeze.</p>
+                </button>
+                <button
+                    onClick={() => !busy && save("weekdays_only")}
+                    className={`rounded-2xl border-2 p-4 text-left transition-all ${mode === "weekdays_only" ? "border-[#4361EE] bg-[#4361EE]/5" : "border-[#E2E8F0] hover:border-[#A0AEC0]"} ${busy ? "opacity-60" : ""}`}
+                    disabled={busy}
+                    data-testid="weekend-mode-weekdays"
+                >
+                    <p className="font-display font-extrabold text-base text-[#0B132B]">Weekdays only</p>
+                    <p className="text-xs font-semibold text-[#4A5568] mt-1">Sat & Sun are skipped — kids only need missions Mon-Fri to keep the streak alive.</p>
+                </button>
+            </div>
         </section>
     );
 }

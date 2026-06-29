@@ -12,7 +12,7 @@ import asyncio
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 import pytz
@@ -92,42 +92,18 @@ def compute_next_due(prefs: dict, now_utc: Optional[datetime] = None) -> datetim
 
 # ---------- Content builder ----------
 async def _compute_streak_for(student_id: str) -> dict:
-    # Mirror server._compute_streak's contract but inlined to avoid circular import.
-    # NOTE: mission_logs uses `status='completed'` + `timestamp` (NOT `completed`/`completed_at`).
+    """Use the canonical streak compute (same function the kid dashboard calls).
+    Fixes Iter 19 bug where digest showed different streak than dashboard."""
     if _db is None:
         return {"current_streak": 0, "longest_streak": 0}
-    logs = await _db.mission_logs.find(
-        {"student_id": student_id, "status": "completed"},
-        {"_id": 0, "timestamp": 1},
-    ).sort("timestamp", -1).to_list(2000)
-    dates = sorted({l["timestamp"][:10] for l in logs if l.get("timestamp")}, reverse=True)
-    if not dates:
-        return {"current_streak": 0, "longest_streak": 0}
-    today = datetime.now(timezone.utc).date()
-    current = 0
-    d = today
-    date_set = set(dates)
-    while d.isoformat() in date_set:
-        current += 1
-        d = d - timedelta(days=1)
-    if current == 0 and (today - timedelta(days=1)).isoformat() in date_set:
-        # Allow grace if last completion was yesterday
-        d = today - timedelta(days=1)
-        while d.isoformat() in date_set:
-            current += 1
-            d = d - timedelta(days=1)
-    # Longest run
-    sorted_asc = sorted(dates)
-    longest = run = 1
-    for i in range(1, len(sorted_asc)):
-        prev = datetime.fromisoformat(sorted_asc[i - 1]).date()
-        cur = datetime.fromisoformat(sorted_asc[i]).date()
-        if (cur - prev).days == 1:
-            run += 1
-            longest = max(longest, run)
-        else:
-            run = 1
-    return {"current_streak": current, "longest_streak": longest}
+    from streak_service import compute_streak  # local import to avoid cycle on module load
+    snap = await compute_streak(_db, student_id)
+    return {
+        "current_streak": snap.current_streak,
+        "longest_streak": snap.longest_streak,
+        "freezes_used_in_run": snap.freezes_used_in_run,
+        "freezes_remaining_month": snap.freezes_remaining_month,
+    }
 
 
 async def _student_window_summary(student_id: str, hours_back: int) -> dict:
@@ -161,17 +137,37 @@ async def _student_window_summary(student_id: str, hours_back: int) -> dict:
     }
 
 
+_TIP_FOCUSES = [
+    ("momentum", "Help the parent reinforce a small WIN their kid just had — anchor identity ('you are someone who…')"),
+    ("regulation", "Help the parent support emotional REGULATION when the kid gets dysregulated or overwhelmed."),
+    ("connection", "Help the parent build CONNECTION (low-stakes 1:1 time, shared interest, body-doubling)."),
+    ("self-esteem", "Help the parent grow the kid's SELF-ESTEEM through process praise and competence-building."),
+    ("transition", "Help the parent ease TRANSITIONS (school↔home, screens↔homework, day↔bedtime)."),
+    ("focus", "Help the parent build sustained FOCUS via movement primers, body-doubling, and chunking."),
+    ("sleep", "Help the parent improve SLEEP routine — wind-down rituals, screen distance, brain-dump."),
+]
+
+
+def _tip_focus_for(student_id: str, today: date) -> tuple[str, str]:
+    """Pick a daily-rotating focus seeded by (student_id, day-of-year). Stable
+    within a day, fresh across days."""
+    seed = (hash(student_id) + today.toordinal()) % len(_TIP_FOCUSES)
+    return _TIP_FOCUSES[seed]
+
+
 async def _weekly_tips_for_student(student_id: str, profile: Optional[dict]) -> list[dict]:
-    """Returns 3 off-app personalized tips. Cached for 7 days per student."""
+    """Returns 3 off-app personalized tips. Cached for 24h per student per focus
+    angle, so daily digests rotate fresh content each day (Iter 20 fix for #6)."""
     if _db is None:
         return []
+    today = datetime.now(timezone.utc).date()
+    focus_key, focus_brief = _tip_focus_for(student_id, today)
+    cache_key = f"{today.isoformat()}::{focus_key}"
     cached = await _db.digest_weekly_tips.find_one(
-        {"student_id": student_id}, {"_id": 0},
+        {"student_id": student_id, "cache_key": cache_key}, {"_id": 0},
     )
     if cached:
-        gen_at = datetime.fromisoformat(cached["generated_at"])
-        if datetime.now(timezone.utc) - gen_at < timedelta(days=7):
-            return cached.get("tips", [])
+        return cached.get("tips", [])
     # Generate fresh
     interests = (profile or {}).get("interests") or []
     sensitivities = (profile or {}).get("sensitivities") or []
@@ -180,10 +176,12 @@ async def _weekly_tips_for_student(student_id: str, profile: Optional[dict]) -> 
     reading_level = (profile or {}).get("reading_level") or ""
     prompt = (
         "You are a warm, evidence-informed coach helping a parent of a child with ADHD-friendly support needs. "
-        "Suggest exactly 3 SHORT, SPECIFIC, OFF-APP activities the family can do together this week to support "
-        "the child's focus, regulation, or self-esteem. Each tip must be: (a) doable in under 30 minutes, "
+        f"TODAY'S FOCUS: {focus_brief}\n\n"
+        "Suggest exactly 3 SHORT, SPECIFIC, OFF-APP activities the family can do TODAY/THIS WEEK to support "
+        "the child along the focus above. Each tip must be: (a) doable in under 30 minutes, "
         "(b) low-prep, (c) tied to ADHD research (executive function, dopamine regulation, body-doubling, "
-        "co-regulation, mastery loops), and (d) tied to the child's interests when possible.\n\n"
+        "co-regulation, mastery loops), and (d) tied to the child's interests when possible. "
+        "AVOID repeating commonplace tips like 'use a timer' or 'set a routine' — be specific and novel.\n\n"
         "Return ONLY valid JSON: a list of 3 objects with keys: title (<= 7 words), why (1 sentence on the "
         "underlying mechanism), how (1-2 sentences on doing it). No preamble, no markdown.\n\n"
         f"Child grade: {grade}\nReading level: {reading_level}\n"
@@ -217,12 +215,16 @@ async def _weekly_tips_for_student(student_id: str, profile: Optional[dict]) -> 
         except Exception as e:  # noqa: BLE001
             logger.warning("Tip generation failed for student %s: %s", student_id, e)
     if not tips:
-        # Static evidence-backed fallback
-        tips = _FALLBACK_TIPS
+        # Static evidence-backed fallback — picks 3 from a larger pool seeded by day
+        # so even fallback rotates daily.
+        pool = _FALLBACK_TIPS
+        idx = today.toordinal() % len(pool)
+        tips = (pool[idx:] + pool[:idx])[:3]
     now_iso = datetime.now(timezone.utc).isoformat()
     await _db.digest_weekly_tips.update_one(
-        {"student_id": student_id},
-        {"$set": {"student_id": student_id, "tips": tips, "generated_at": now_iso}},
+        {"student_id": student_id, "cache_key": cache_key},
+        {"$set": {"student_id": student_id, "cache_key": cache_key,
+                  "tips": tips, "focus": focus_key, "generated_at": now_iso}},
         upsert=True,
     )
     return tips
@@ -243,6 +245,41 @@ _FALLBACK_TIPS = [
         "title": "Two-minute bedtime brain dump",
         "why": "Externalizing tomorrow's worries shortens sleep latency.",
         "how": "Right before brushing teeth, ask 'what's one thing you're thinking about for tomorrow?' Write it on a sticky together.",
+    },
+    {
+        "title": "Name-it-to-tame-it big feeling",
+        "why": "Labeling an emotion engages the prefrontal cortex and lowers amygdala arousal.",
+        "how": "Next time they melt down, slowly say 'sounds like that's frustration showing up'. Don't fix it — just name it.",
+    },
+    {
+        "title": "Choose the first 2 minutes",
+        "why": "Starting is the hardest step for ADHD brains; commitment to a small open beats willpower.",
+        "how": "Pick the dreaded task. Set a timer for 2 minutes. Promise they can stop after. Most kids keep going.",
+    },
+    {
+        "title": "Process praise > person praise",
+        "why": "'You worked really hard on that' grows grit; 'you're so smart' grows fear of failure (Dweck).",
+        "how": "Today, give one piece of praise that names a specific behavior — not a trait. Watch their face change.",
+    },
+    {
+        "title": "Pre-bed phone parking",
+        "why": "Blue light + dopamine spikes from short-form video erode REM sleep, which kids with ADHD already miss.",
+        "how": "Create a 'phones charge in the kitchen' rule, with you doing it first. The rule must be the same for everyone.",
+    },
+    {
+        "title": "Five-senses cool-down",
+        "why": "Grounding through senses interrupts the stress cycle in ~90 seconds.",
+        "how": "When tempers heat up, name together: 5 things you see, 4 you hear, 3 you can touch, 2 you smell, 1 you taste.",
+    },
+    {
+        "title": "Interest-bridge a chore",
+        "why": "Pairing a low-interest task with a high-interest one borrows dopamine to power the boring half.",
+        "how": "Loud music they pick + the dish stack. Pokemon audiobook + sweeping. Their playlist is the trade.",
+    },
+    {
+        "title": "One-on-one 'special time' (10 minutes)",
+        "why": "Predictable connection drops behavior problems by ~30% in studies of parent-child play.",
+        "how": "Tell them: 'Tonight, 10 minutes, you choose what we do, no phones, no siblings.' Do it. Repeat tomorrow.",
     },
 ]
 

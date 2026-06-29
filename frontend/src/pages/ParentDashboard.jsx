@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import EvidenceBadge from "../components/EvidenceBadge";
+import StreakFreezeManager from "../components/StreakFreezeManager";
 import { Popover, PopoverTrigger, PopoverContent } from "../components/ui/popover";
 import { api, formatApiErrorDetail } from "../lib/api";
 import {
@@ -386,6 +387,18 @@ export default function ParentDashboard() {
                                     </span>
                                 </div>
                             )}
+                        </div>
+                        <div className="mb-3">
+                            <StreakFreezeManager
+                                studentId={selectedStudent.id}
+                                studentName={selectedStudent.name}
+                                onChanged={async () => {
+                                    try {
+                                        const { data } = await api.get(`/streak/${selectedStudent.id}`);
+                                        setStudentStreak(data);
+                                    } catch { /* noop */ }
+                                }}
+                            />
                         </div>
                         <p className="text-sm font-semibold text-[#4A5568] mb-3">
                             Optional notes the AI will use when drafting missions (grade, reading level, interests, struggles, motivation).
