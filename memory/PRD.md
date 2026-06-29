@@ -133,6 +133,15 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Resend domain `missionsparks.com` is now verified — emails deliver to any recipient. Sender: `hello@missionsparks.com`.
 - 15/15 digest pytest tests pass (`tests/test_digest.py`). 103/103 across the whole family-aware suite. Zero regressions.
 
+### Iter 20 — Streak refactor + Freezes + Weekend mode + Email variety (2026-02) [Batch 1 of 6-item request]
+- **NEW `/app/backend/streak_service.py`** — single canonical streak compute used by BOTH the kid dashboard (`/api/streak`) and the parent digest (`_compute_streak_for`). Killed the duplicate logic that caused dashboard/email mismatch.
+- **Removed the hardcoded "1 free freeze"** that was silently keeping streaks alive when a kid actually missed a day. Real misses now break the streak.
+- **Parent-granted Streak Freezes**: `db.streak_freezes` collection. Endpoints: POST/GET/DELETE `/api/students/{id}/freezes`. Quota: 4 per kid per calendar month UTC. Rejects duplicates, future dates, >60-day-old dates, and dates the kid already completed.
+- **Family-level weekend toggle**: `PUT /api/families/{id}/streak-weekend-mode` with `all_days` (default) | `weekdays_only`. In weekdays_only mode, Sat/Sun automatically skip without breaking streak.
+- **Email content variety**: digest tips cache shortened from 7d → 1d AND keyed by `'{date}::{focus_key}'` where focus rotates daily across 7 angles (momentum/regulation/connection/self-esteem/transition/focus/sleep). Fallback pool expanded from 3 → 10 evidence-backed tips, rotated by day-of-year so even AI-down days vary.
+- **UI**: `StreakFreezeManager` component on Parent Dashboard (per-kid quota chip + grant form + freeze list with revoke). `StreakWeekendSection` on Family Settings. Student week-trail now shows ❄ freeze chips, dashed-border weekend dots, and red-tinted missed days.
+- **Testing**: 79/79 backend tests pass including new `tests/test_streak_freezes.py` (7 unit) + testing-agent-added `test_streak_freezes_api.py` (16 integration). Frontend Playwright: 100% of critical data-testids verified. Zero bugs.
+
 ### Iter 19.2 — Dead article links in digest (2026-02)
 - **Bug**: parent reported clicking the "Worth a read" link in the digest landed on a 404. Curl-audit of all 12 curated article URLs in `digest_articles.py` showed **5 of 12 had silently rotted** (CHADD homework, ADDitude praise, ADDitude screen time, Harvard sleep-ADHD, ADDitude mindfulness).
 - **Fix**: replaced each dead URL with a verified live alternative on the same publisher covering the same topic (titles + blurbs still apply 1:1). All 12 now return HTTP 200.
