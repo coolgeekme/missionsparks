@@ -28,6 +28,12 @@ export default function Account() {
     const [digestSaving, setDigestSaving] = useState(false);
     const [sendingSample, setSendingSample] = useState(false);
 
+    // Verify PIN (parent-only, Iter 21)
+    const [verifyPinSet, setVerifyPinSet] = useState(false);
+    const [verifyPinDraft, setVerifyPinDraft] = useState("");
+    const [verifyPinBusy, setVerifyPinBusy] = useState(false);
+    const [verifyPinEditing, setVerifyPinEditing] = useState(false);
+
     useEffect(() => {
         if (user && user.id) setDiscardAudio(!!user.discard_audio);
     }, [user]);
@@ -35,8 +41,40 @@ export default function Account() {
     useEffect(() => {
         if (user && user.role === "parent") {
             api.get("/me/digest-preferences").then(({ data }) => setDigestPrefs(data)).catch(() => {});
+            api.get("/me/verify-pin").then(({ data }) => setVerifyPinSet(!!data.is_set)).catch(() => {});
         }
     }, [user?.id, user?.role]);
+
+    const saveVerifyPin = async () => {
+        if (!/^\d{4}$/.test(verifyPinDraft)) {
+            toast.error("Verify PIN must be exactly 4 digits.");
+            return;
+        }
+        setVerifyPinBusy(true);
+        try {
+            await api.put("/me/verify-pin", { pin: verifyPinDraft });
+            setVerifyPinSet(true);
+            setVerifyPinDraft("");
+            setVerifyPinEditing(false);
+            toast.success("Verify PIN saved.");
+        } catch (e) {
+            toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message);
+        } finally { setVerifyPinBusy(false); }
+    };
+
+    const clearVerifyPin = async () => {
+        if (!window.confirm("Remove your verify PIN? Any missions set to 'Grown-up PIN' verification will require another linked parent's PIN.")) return;
+        setVerifyPinBusy(true);
+        try {
+            await api.delete("/me/verify-pin");
+            setVerifyPinSet(false);
+            setVerifyPinDraft("");
+            setVerifyPinEditing(false);
+            toast.success("Verify PIN removed.");
+        } catch (e) {
+            toast.error(formatApiErrorDetail(e.response?.data?.detail) || e.message);
+        } finally { setVerifyPinBusy(false); }
+    };
 
     const saveAudio = async (next) => {
         setSaving(true);
@@ -275,6 +313,73 @@ export default function Account() {
                                         </span>
                                     )}
                                 </div>
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                {user.role === "parent" && (
+                    <section className="mb-card p-6" data-testid="verify-pin-section">
+                        <div className="flex items-start gap-3">
+                            <div className="h-12 w-12 rounded-2xl bg-[#4361EE]/15 text-[#4361EE] flex items-center justify-center">
+                                <Shield />
+                            </div>
+                            <div className="flex-1">
+                                <h2 className="font-display font-bold text-xl text-[#0B132B]">Verify PIN</h2>
+                                <p className="text-sm text-[#4A5568] font-semibold mt-1">
+                                    A 4-digit code you type on your kid's device when a mission is marked "Grown-up PIN". Not the same as your login password or the home-page PIN.
+                                </p>
+                                {!verifyPinEditing && (
+                                    <div className="mt-3 flex items-center gap-2 flex-wrap">
+                                        {verifyPinSet ? (
+                                            <span className="mb-chip bg-[#06D6A0]/15 text-[#057a5b]" data-testid="verify-pin-status-set">✓ PIN is set</span>
+                                        ) : (
+                                            <span className="mb-chip bg-[#FFD166]/25 text-[#876200]" data-testid="verify-pin-status-unset">No PIN set yet</span>
+                                        )}
+                                        <button
+                                            onClick={() => setVerifyPinEditing(true)}
+                                            className="btn-pop-ghost text-sm"
+                                            data-testid="verify-pin-edit-btn"
+                                        >
+                                            {verifyPinSet ? "Change PIN" : "Set PIN"}
+                                        </button>
+                                        {verifyPinSet && (
+                                            <button
+                                                onClick={clearVerifyPin}
+                                                disabled={verifyPinBusy}
+                                                className="text-sm font-bold text-[#EF476F] hover:underline"
+                                                data-testid="verify-pin-clear-btn"
+                                            >Remove PIN</button>
+                                        )}
+                                    </div>
+                                )}
+                                {verifyPinEditing && (
+                                    <div className="mt-3 flex items-center gap-2 flex-wrap">
+                                        <input
+                                            type="password"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            value={verifyPinDraft}
+                                            onChange={(e) => setVerifyPinDraft(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                                            placeholder="••••"
+                                            className="w-32 rounded-2xl border-2 border-[#E2E8F0] px-3 py-2 font-mono text-center text-2xl tracking-[0.5em] focus:border-[#4361EE] outline-none"
+                                            data-testid="verify-pin-input"
+                                            maxLength={4}
+                                            autoFocus
+                                        />
+                                        <button
+                                            onClick={saveVerifyPin}
+                                            disabled={verifyPinBusy || verifyPinDraft.length !== 4}
+                                            className="btn-pop-primary text-sm disabled:opacity-50"
+                                            data-testid="verify-pin-save"
+                                        >{verifyPinBusy ? "Saving…" : "Save PIN"}</button>
+                                        <button
+                                            onClick={() => { setVerifyPinEditing(false); setVerifyPinDraft(""); }}
+                                            className="btn-pop-ghost text-sm"
+                                            data-testid="verify-pin-cancel"
+                                        >Cancel</button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </section>

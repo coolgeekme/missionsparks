@@ -26,6 +26,8 @@ export default function MissionForm() {
         skill_ids: [],
         strategy_ids: [],
         recurrence_pattern: "none",  // "none" | "daily" | "weekdays" | "weekends" | "weekly"
+        verification: "trust",       // trust | parent_pin | photo | async_review
+        auto_approve_hours: 24,
     });
     const [err, setErr] = useState("");
     const [busy, setBusy] = useState(false);
@@ -66,6 +68,8 @@ export default function MissionForm() {
                     skill_ids: data.skill_ids,
                     strategy_ids: data.strategy_ids,
                     recurrence_pattern: data.recurrence_pattern || "none",
+                    verification: data.verification || "trust",
+                    auto_approve_hours: data.auto_approve_hours ?? 24,
                 });
                 setLoadedMission(data);
             }
@@ -343,6 +347,47 @@ export default function MissionForm() {
                             )}
                         </div>
                     )}
+
+                    {/* Verification (Iter 21) */}
+                    <div data-testid="mission-form-verification-section">
+                        <label className="block text-sm font-bold text-[#0B132B] mb-2">Verification</label>
+                        <div className="grid sm:grid-cols-2 gap-2">
+                            {[
+                                { v: "trust", l: "Trust", d: "Kid self-completes (default).", i: "✅" },
+                                { v: "parent_pin", l: "Grown-up PIN", d: "A grown-up enters their verify PIN at completion.", i: "🔐" },
+                                { v: "photo", l: "Photo proof", d: "Kid attaches a photo of the done work.", i: "📸" },
+                                { v: "async_review", l: "Grown-up review", d: "Kid marks 'ready'. A grown-up approves later.", i: "⏳" },
+                            ].map((o) => (
+                                <button
+                                    key={o.v}
+                                    type="button"
+                                    onClick={() => setForm({ ...form, verification: o.v })}
+                                    className={`text-left rounded-2xl border-2 p-3 transition-all ${form.verification === o.v ? "border-[#4361EE] bg-[#4361EE]/5" : "border-[#E2E8F0] hover:border-[#A0AEC0]"}`}
+                                    data-testid={`mission-form-verification-${o.v}`}
+                                >
+                                    <p className="font-display font-extrabold text-sm text-[#0B132B]">
+                                        <span className="mr-1.5">{o.i}</span>{o.l}
+                                    </p>
+                                    <p className="text-xs font-semibold text-[#4A5568] mt-0.5">{o.d}</p>
+                                </button>
+                            ))}
+                        </div>
+                        {form.verification === "async_review" && (
+                            <div className="mt-3 flex items-center gap-2 text-sm">
+                                <label className="font-semibold text-[#0B132B]">Auto-approve after</label>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={168}
+                                    value={form.auto_approve_hours}
+                                    onChange={(e) => setForm({ ...form, auto_approve_hours: Math.max(0, Math.min(168, Number(e.target.value) || 0)) })}
+                                    className="w-20 rounded-lg border-2 border-[#E2E8F0] px-2 py-1 font-mono text-center focus:border-[#4361EE] outline-none"
+                                    data-testid="mission-form-auto-approve-hours"
+                                />
+                                <span className="font-semibold text-[#4A5568]">hours (0 disables — approval required)</span>
+                            </div>
+                        )}
+                    </div>
 
                     <div>
                         <label className="block text-sm font-bold text-[#0B132B] mb-2">Steps</label>

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import EvidenceBadge from "../components/EvidenceBadge";
 import StreakFreezeManager from "../components/StreakFreezeManager";
+import PendingReviewsPanel from "../components/PendingReviewsPanel";
 import { Popover, PopoverTrigger, PopoverContent } from "../components/ui/popover";
 import { api, formatApiErrorDetail } from "../lib/api";
 import {
@@ -368,6 +369,17 @@ export default function ParentDashboard() {
                     </form>
                     {linkErr && <p className="text-sm font-bold text-[#EF476F] mt-2" data-testid="parent-link-error">{linkErr}</p>}
                 </section>
+
+                <PendingReviewsPanel
+                    onChanged={async () => {
+                        if (selectedStudent) {
+                            try {
+                                const { data } = await api.get(`/streak/${selectedStudent.id}`);
+                                setStudentStreak(data);
+                            } catch { /* noop */ }
+                        }
+                    }}
+                />
 
                 {selectedStudent && (
                     <section className="mb-card p-6" data-testid="parent-profile-card">

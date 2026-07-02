@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import MissionTimer from "../components/MissionTimer";
+import VerificationGateModal from "../components/VerificationGateModal";
 import { api, formatApiErrorDetail } from "../lib/api";
-import { ArrowLeft, Clock, CheckCircle2, Plus, X, Gamepad2, Zap, Eye } from "lucide-react";
+import { ArrowLeft, Clock, CheckCircle2, Plus, X, Gamepad2, Zap, Eye, Shield, Camera } from "lucide-react";
 
 const STAR_URL = "https://static.prod-images.emergentagent.com/jobs/151314fa-6f88-4a3d-a39f-0044b194f5e9/images/5f587837e7ac036a02af75fb2b488a2a8b33429167fae318cb66d294e807a889.png";
 
@@ -37,6 +38,9 @@ export default function MissionDetail() {
     const [err, setErr] = useState("");
     const [busy, setBusy] = useState(false);
     const [priorLog, setPriorLog] = useState(null);
+    // Verification gate (Iter 21)
+    const [showVerifyGate, setShowVerifyGate] = useState(false);
+    const [pendingReview, setPendingReview] = useState(false);
 
     // Read-only mode kicks in when this mission already has a completed log
     // (either passed ?view=1 from the dashboard, or a kid revisits it directly).
@@ -96,6 +100,20 @@ export default function MissionDetail() {
             setErr("Pick how it felt and how hard it was.");
             return;
         }
+        setErr("");
+        // Route through the verification gate if this mission requires it.
+        const verification = mission?.verification || "trust";
+        if (verification !== "trust") {
+            setShowVerifyGate(true);
+            return;
+        }
+        await sendLog({});
+    };
+
+    // Actually POSTs the log. Called directly for trust missions, or via the
+    // verification gate's onProceed callback (which supplies parent_verify_token /
+    // photo_data / nothing depending on the mode).
+    const sendLog = async (extra) => {
         setBusy(true);
         setErr("");
         try {
@@ -106,15 +124,22 @@ export default function MissionDetail() {
                 feeling,
                 note,
                 clue_captures: clues,
+                ...extra,
             });
             setCreatedLogId(createdLog.id);
+            if (createdLog.verification_status === "pending") {
+                setPendingReview(true);
+            }
             try {
                 const { data } = await api.get("/streak");
                 setPostStreak(data);
             } catch { /* non-blocking */ }
             setSubmitted(true);
+            setShowVerifyGate(false);
         } catch (e) {
             setErr(formatApiErrorDetail(e.response?.data?.detail) || e.message);
+            // Keep the verification modal open if it was source of the call so the
+            // kid can re-try (bad PIN, missing photo, etc).
         } finally {
             setBusy(false);
         }
@@ -130,6 +155,28 @@ export default function MissionDetail() {
     }
 
     if (submitted) {
+        if (pendingReview) {
+            return (
+                <div className="min-h-screen" data-testid="mission-pending-review">
+                    <Navbar />
+                    <main className="max-w-2xl mx-auto p-6 md:p-10 text-center">
+                        <div className="h-32 w-32 rounded-full bg-[#4361EE]/10 flex items-center justify-center mx-auto">
+                            <Clock size={64} className="text-[#4361EE]" />
+                        </div>
+                        <h1 className="font-display font-extrabold text-4xl text-[#0B132B] mt-6">Sent for review ⏳</h1>
+                        <p className="text-[#4A5568] font-semibold mt-2 max-w-md mx-auto">
+                            Great work! A grown-up will look at what you did and give you the spark.
+                            You'll see it once they approve.
+                        </p>
+                        <div className="mt-8">
+                            <Link to="/student" className="btn-pop-primary inline-flex items-center gap-2" data-testid="pending-review-home">
+                                Back to my missions
+                            </Link>
+                        </div>
+                    </main>
+                </div>
+            );
+        }
         return (
             <div className="min-h-screen" data-testid="mission-success">
                 <Navbar />
@@ -179,8 +226,23 @@ export default function MissionDetail() {
                 <section className="mb-card p-6">
                     <h1 className="font-display font-extrabold text-3xl text-[#0B132B]" data-testid="mission-detail-title">{mission.title}</h1>
                     {mission.description && <p className="text-[#4A5568] font-semibold mt-2">{mission.description}</p>}
-                    <div className="flex items-center gap-2 text-sm font-bold text-[#4A5568] mt-3">
-                        <Clock size={14} /> {mission.estimated_minutes} min
+                    <div className="flex items-center gap-2 text-sm font-bold text-[#4A5568] mt-3 flex-wrap">
+                        <span className="inline-flex items-center gap-1"><Clock size={14} /> {mission.estimated_minutes} min</span>
+                        {mission.verification && mission.verification !== "trust" && (
+                            <span
+                                className="inline-flex items-center gap-1 rounded-full bg-[#4361EE]/10 text-[#4361EE] px-2 py-0.5 text-[11px]"
+                                data-testid={`mission-detail-verification-${mission.verification}`}
+                                title={{
+                                    parent_pin: "Requires a grown-up's PIN at the end.",
+                                    photo: "Requires a photo of your work.",
+                                    async_review: "A grown-up reviews before it counts.",
+                                }[mission.verification]}
+                            >
+                                {mission.verification === "parent_pin" && <><Shield size={11} /> Grown-up PIN</>}
+                                {mission.verification === "photo" && <><Camera size={11} /> Photo proof</>}
+                                {mission.verification === "async_review" && <>⏳ Grown-up review</>}
+                            </span>
+                        )}
                     </div>
                     <div className="flex flex-wrap gap-2 mt-3">
                         {mission.skill_ids.map((sid) => skillMap[sid] && (
@@ -394,6 +456,14 @@ export default function MissionDetail() {
                 </section>
                 )}
             </main>
+            <VerificationGateModal
+                open={showVerifyGate}
+                mode={mission?.verification}
+                missionId={id}
+                missionTitle={mission?.title}
+                onClose={() => setShowVerifyGate(false)}
+                onProceed={(extra) => sendLog(extra)}
+            />
         </div>
     );
 }

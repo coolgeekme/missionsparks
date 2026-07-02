@@ -1,0 +1,41 @@
+{
+  "summary": "Iter 21 per-mission verification tested end-to-end. Backend: 23/23 iter21 tests PASS (1 skipped for coparent). Frontend: all data-testids present, VerificationGateModal renders PIN / photo / async panels, mission-pending-review success screen shows after async submit, verify badges render on student dashboard, PendingReviewsPanel renders on parent dashboard, verify-pin section on Account page works, MissionForm has 4 verification option cards + conditional auto_approve_hours input.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/digest (article_rotation_on_send_sample)", "issue": "Pre-existing regression unrelated to Iter 21: only 1 article slug ('chadd-school-routines') seen instead of >=11 expected. Not caused by verification changes."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MissionDetail reflection-submit", "issue": "Missions with 0 steps can never be completed because `allStepsDone` requires `steps.length > 0`. Pre-existing but blocks any user creating a step-less mission (including AI-drafted or 'quick' ones).", "selector": "[data-testid='reflection-submit']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter21_verification.py",
+    "/app/test_reports/pytest/iter21_results.xml"
+  ],
+  "action_items": [
+    "Consider fixing allStepsDone logic so 0-step missions can complete (change `steps.length > 0 && ...` to `steps.length === 0 || steps.every(...)`). Pre-existing but likely to bite users of new verification-only missions with no explicit steps.",
+    "Look at article rotation logic — only one article slug is being surfaced consistently."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 4701 lines — should be split into modules (auth, missions, logs, verification, digest, scheduler).",
+    "_MAX_PHOTO_BYTES is 2.5MB despite user-facing message and problem statement quoting 2MB. Consider lowering to 2_000_000 or updating the copy for consistency.",
+    "photo `content_type` defaults to 'image/jpeg' for raw base64 (no data URL) — no header sniffing / magic-byte validation. Server currently trusts client. Consider decoding first bytes to confirm actual image type.",
+    "Auto-approve tick is duplicated between server.py and the test file. Would be cleaner to extract into a callable function (e.g., `run_auto_approve_once()`) that both the scheduler and admin/test endpoints could invoke.",
+    "GET /api/logs/{log_id}/photo has no HTTP cache headers — every parent load will re-transfer full binary. Add ETag or Cache-Control since photos are immutable."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter21_verification.py (new)"
+  ],
+  "success_rate": {"backend": "100% (23/23 iter21, 1 skipped coparent)", "frontend": "100% of required Iter 21 data-testids/flows validated"},
+  "test_credentials": "parent@demo.com/demo1234 (verify PIN set to 7788 during tests), student@demo.com/demo1234. coparent@demo.com login not working — was skipped.",
+  "seed_data_creation": "Created ~15 TEST_iter21_* missions across parent_pin/photo/async_review/trust and a handful of pending_review logs (approved/rejected/pending). Foreign parent 'foreignparent_<uuid>@test.com' was created and pytest.skipped when register endpoint refused (not a blocker).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_iter21_verification.py cleans db.parent_verify_attempts at start of TestParentPinFlow (via motor) to avoid rate-limit bleed between runs. Uses /api/streak/{student_id} (not query param) for parent-side streak reads. Photo tests generate a valid JPEG with PIL. Auto-approve test uses motor directly and re-implements the tick loop in-process — safe because scheduler logic is short.",
+  "rca of the issue": "For the 0-step-mission finish bug: `const allStepsDone = mission && mission.steps.length > 0 && mission.steps.every(...)` in /app/frontend/src/pages/MissionDetail.jsx line 96. When steps is [] the expression is false forever."
+}

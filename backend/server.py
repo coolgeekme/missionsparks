@@ -175,6 +175,15 @@ class MissionCreate(BaseModel):
     skill_ids: List[str] = []
     strategy_ids: List[str] = []
     recurrence: Optional[MissionRecurrence] = None
+    # Verification (Iter 21):
+    #   "trust"        — kid self-completes, streak instant (default)
+    #   "parent_pin"   — parent enters their 4-digit verify PIN at completion time
+    #   "photo"        — kid attaches a photo of their work; auto-completes
+    #   "async_review" — kid marks "ready"; parent approves later; streak on approval
+    verification: Literal["trust", "parent_pin", "photo", "async_review"] = "trust"
+    # For async_review: hours after "ready" before an unreviewed log auto-approves.
+    # 0 disables the safety net. Default 24h so parents can't accidentally break streaks.
+    auto_approve_hours: int = 24
 
 
 class MissionUpdate(BaseModel):
@@ -185,6 +194,8 @@ class MissionUpdate(BaseModel):
     due_date: Optional[str] = None
     skill_ids: Optional[List[str]] = None
     strategy_ids: Optional[List[str]] = None
+    verification: Optional[Literal["trust", "parent_pin", "photo", "async_review"]] = None
+    auto_approve_hours: Optional[int] = None
     # Recurring-mission edit scope:
     #   "this" (default) — only this occurrence
     #   "future"         — this + all future occurrences in the series (uncompleted only)
@@ -274,6 +285,8 @@ class Mission(BaseModel):
     mission_type: str = "standard"  # "standard" | "reading_passage" | "writing_prompt"
     linked_passage_id: Optional[str] = None
     linked_writing_id: Optional[str] = None
+    verification: str = "trust"
+    auto_approve_hours: int = 24
 
 
 class PracticeMissionRequest(BaseModel):
@@ -293,6 +306,13 @@ class MissionLogCreate(BaseModel):
     feeling: Optional[Literal["bad", "okay", "good"]] = None
     note: Optional[str] = ""
     clue_captures: List[str] = []
+    # Verification (Iter 21):
+    #   Kid passes a short-lived parent-PIN verification token here when completing a
+    #   mission that requires "parent_pin" verification. Backend consumes the token
+    #   (single-use, 2min TTL) and refuses the log otherwise.
+    parent_verify_token: Optional[str] = None
+    # For "photo"-verified missions: base64 (data URL or raw) of a small JPEG.
+    photo_data: Optional[str] = None
 
 
 class MissionLog(BaseModel):
@@ -309,6 +329,14 @@ class MissionLog(BaseModel):
     game_key: Optional[str] = None
     game_score: Optional[int] = None
     timestamp: str
+    # Verification (Iter 21)
+    verification: str = "trust"                         # mirror of mission.verification at log time
+    verification_status: str = "not_required"           # not_required | pending | approved | rejected
+    verified_by_user_id: Optional[str] = None
+    verified_at: Optional[str] = None
+    photo_id: Optional[str] = None                      # id in db.mission_photos
+    rejected_reason: Optional[str] = None
+    auto_approved: bool = False
 
 
 class LinkStudentRequest(BaseModel):
@@ -2147,6 +2175,8 @@ async def create_mission(req: MissionCreate, user: dict = Depends(require_role("
         "created_at": now_iso,
         "recurrence_pattern": pattern if pattern != "none" else None,
         "recurrence_parent_id": None,
+        "verification": req.verification,
+        "auto_approve_hours": max(0, min(req.auto_approve_hours, 168)),
     }
     await db.missions.insert_one(dict(base))
 
@@ -2369,6 +2399,59 @@ async def delete_mission(mission_id: str, user: dict = Depends(require_role("par
 
 
 # ---------- Mission logs ----------
+_MAX_PHOTO_BYTES = 2_500_000  # 2.5 MB after base64 (~1.8MB image) — client should compress
+
+
+def _decode_photo_payload(data: str) -> tuple[bytes, str]:
+    """Accept a data URL ('data:image/jpeg;base64,...') or raw base64 for a JPEG/PNG.
+    Returns (raw_bytes, content_type). Rejects if too large or wrong mime."""
+    if not data or not isinstance(data, str):
+        raise HTTPException(status_code=400, detail="Photo data is empty.")
+    content_type = "image/jpeg"
+    b64 = data
+    if data.startswith("data:"):
+        try:
+            head, b64 = data.split(",", 1)
+            # head looks like "data:image/jpeg;base64"
+            mime = head.split(";", 1)[0][5:]
+            if mime not in ("image/jpeg", "image/png", "image/webp"):
+                raise HTTPException(status_code=400, detail="Only JPEG, PNG, or WebP photos.")
+            content_type = mime
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=400, detail="Malformed photo data URL.") from None
+    try:
+        raw = base64.b64decode(b64, validate=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Photo is not valid base64.") from None
+    if len(raw) > _MAX_PHOTO_BYTES:
+        raise HTTPException(status_code=413, detail="Photo is too large — please compress under 2 MB.")
+    if len(raw) < 200:
+        raise HTTPException(status_code=400, detail="Photo is too small to be real.")
+    return raw, content_type
+
+
+async def _consume_parent_verify_token(token: str, mission_student_id: str) -> str:
+    """Look up a single-use, short-lived parent-PIN verification token.
+    Deletes on success. Returns the verifying parent's user_id or raises 403."""
+    if not token:
+        raise HTTPException(status_code=403, detail="This mission needs a grown-up's PIN.")
+    now = datetime.now(timezone.utc)
+    doc = await db.parent_verify_tokens.find_one_and_delete({"token": token})
+    if not doc:
+        raise HTTPException(status_code=403, detail="This PIN prompt has expired — ask the grown-up to try again.")
+    try:
+        exp = datetime.fromisoformat(doc["expires_at"])
+    except Exception:
+        exp = now  # treat as expired
+    if now > exp:
+        raise HTTPException(status_code=403, detail="This PIN prompt has expired — ask the grown-up to try again.")
+    if doc.get("student_id") != mission_student_id:
+        raise HTTPException(status_code=403, detail="That PIN wasn't for this student.")
+    return doc["parent_id"]
+
+
 @api.post("/missions/{mission_id}/log", response_model=MissionLog)
 async def create_log(mission_id: str, req: MissionLogCreate, user: dict = Depends(require_role("student"))):
     mission = await db.missions.find_one({"id": mission_id}, {"_id": 0})
@@ -2376,12 +2459,56 @@ async def create_log(mission_id: str, req: MissionLogCreate, user: dict = Depend
         raise HTTPException(status_code=404, detail="Mission not found")
     if mission["student_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="Not your mission")
+
+    verification = mission.get("verification", "trust")
+    is_completion = req.status == "completed"
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    # By default the log's declared status is what the kid submitted.
+    log_status = req.status
+    verification_status = "not_required"
+    verified_by = None
+    verified_at = None
+    photo_id = None
+
+    # ---- verification gating on completion ----
+    if is_completion:
+        if verification == "trust":
+            verification_status = "not_required"
+        elif verification == "parent_pin":
+            verified_by = await _consume_parent_verify_token(req.parent_verify_token or "", mission["student_id"])
+            verification_status = "approved"
+            verified_at = now_iso
+        elif verification == "photo":
+            if not req.photo_data:
+                raise HTTPException(status_code=400, detail="This mission needs a photo before it counts.")
+            raw, ctype = _decode_photo_payload(req.photo_data)
+            photo_id = str(uuid.uuid4())
+            await db.mission_photos.insert_one({
+                "id": photo_id,
+                "mission_id": mission_id,
+                "student_id": user["id"],
+                "content_type": ctype,
+                "size_bytes": len(raw),
+                "data": raw,  # stored as bson binary
+                "created_at": now_iso,
+            })
+            verification_status = "approved"
+            verified_at = now_iso
+        elif verification == "async_review":
+            # Kid marks "ready" — log is pending until parent approves. Streak does
+            # NOT count until status flips to 'completed'.
+            log_status = "pending_review"
+            verification_status = "pending"
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown verification mode: {verification}")
+
     log_id = str(uuid.uuid4())
     doc = {
         "id": log_id,
         "mission_id": mission_id,
         "student_id": user["id"],
-        "status": req.status,
+        "status": log_status,
         "used_strategies": req.used_strategies,
         "difficulty_rating": req.difficulty_rating,
         "feeling": req.feeling,
@@ -2390,11 +2517,232 @@ async def create_log(mission_id: str, req: MissionLogCreate, user: dict = Depend
         "game_played": False,
         "game_key": None,
         "game_score": None,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": now_iso,
+        "verification": verification,
+        "verification_status": verification_status,
+        "verified_by_user_id": verified_by,
+        "verified_at": verified_at,
+        "photo_id": photo_id,
+        "rejected_reason": None,
+        "auto_approved": False,
     }
     await db.mission_logs.insert_one(doc)
     doc.pop("_id", None)
     return MissionLog(**doc)
+
+
+# ---------- Parent verify-PIN (Iter 21) ----------
+class VerifyPinSet(BaseModel):
+    pin: str
+
+
+class VerifyPinPromptRequest(BaseModel):
+    pin: str
+
+
+@api.get("/me/verify-pin")
+async def get_my_verify_pin_status(user: dict = Depends(require_role("parent"))):
+    fresh = await db.users.find_one({"id": user["id"]}, {"_id": 0, "parent_verify_pin_hash": 1})
+    return {"is_set": bool((fresh or {}).get("parent_verify_pin_hash"))}
+
+
+@api.put("/me/verify-pin")
+async def set_my_verify_pin(req: VerifyPinSet, user: dict = Depends(require_role("parent"))):
+    if not req.pin or not req.pin.isdigit() or len(req.pin) != 4:
+        raise HTTPException(status_code=400, detail="Verify PIN must be exactly 4 digits.")
+    hashed = hash_password(req.pin)
+    await db.users.update_one({"id": user["id"]}, {"$set": {"parent_verify_pin_hash": hashed}})
+    await _audit(user, "parent.verify_pin_set", target_type="user", target_id=user["id"])
+    return {"ok": True, "is_set": True}
+
+
+@api.delete("/me/verify-pin")
+async def clear_my_verify_pin(user: dict = Depends(require_role("parent"))):
+    await db.users.update_one({"id": user["id"]}, {"$unset": {"parent_verify_pin_hash": ""}})
+    await _audit(user, "parent.verify_pin_clear", target_type="user", target_id=user["id"])
+    return {"ok": True, "is_set": False}
+
+
+@api.post("/missions/{mission_id}/verify-pin")
+async def prompt_verify_pin(mission_id: str, req: VerifyPinPromptRequest,
+                             user: dict = Depends(require_role("student"))):
+    """Kid enters a parent's 4-digit verify PIN on THEIR device. Backend checks
+    against every parent linked to this student. On match, issues a single-use
+    token valid for 2 minutes that the kid can then attach to their next log."""
+    mission = await db.missions.find_one({"id": mission_id}, {"_id": 0})
+    if not mission or mission["student_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    if not req.pin or not req.pin.isdigit() or len(req.pin) != 4:
+        raise HTTPException(status_code=400, detail="PIN must be 4 digits.")
+    # Rate-limit: 5 failed attempts per student per 10 minutes
+    ten_min_ago = (datetime.now(timezone.utc) - timedelta(minutes=10)).isoformat()
+    recent_fails = await db.parent_verify_attempts.count_documents(
+        {"student_id": user["id"], "success": False, "at": {"$gte": ten_min_ago}},
+    )
+    if recent_fails >= 5:
+        raise HTTPException(status_code=429, detail="Too many tries — wait a bit and ask a grown-up.")
+    # Find parents linked to this kid
+    parents = await db.users.find(
+        {"role": "parent", "linked_student_ids": user["id"], "parent_verify_pin_hash": {"$exists": True}},
+        {"_id": 0, "id": 1, "parent_verify_pin_hash": 1},
+    ).to_list(20)
+    matched_parent = None
+    for p in parents:
+        try:
+            if verify_password(req.pin, p["parent_verify_pin_hash"]):
+                matched_parent = p
+                break
+        except Exception:
+            continue
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.parent_verify_attempts.insert_one({
+        "student_id": user["id"],
+        "mission_id": mission_id,
+        "success": bool(matched_parent),
+        "at": now_iso,
+    })
+    if not matched_parent:
+        remaining = max(0, 5 - recent_fails - 1)
+        raise HTTPException(status_code=403, detail=f"That's not the right PIN. {remaining} tries left.")
+    token = secrets.token_urlsafe(24)
+    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=2)).isoformat()
+    await db.parent_verify_tokens.insert_one({
+        "token": token,
+        "parent_id": matched_parent["id"],
+        "student_id": user["id"],
+        "mission_id": mission_id,
+        "expires_at": expires_at,
+        "created_at": now_iso,
+    })
+    return {"ok": True, "token": token, "expires_at": expires_at}
+
+
+# ---------- Async-review approve/reject ----------
+class LogRejectBody(BaseModel):
+    reason: Optional[str] = None
+
+
+async def _load_log_for_parent(log_id: str, user: dict) -> dict:
+    log = await db.mission_logs.find_one({"id": log_id}, {"_id": 0})
+    if not log:
+        raise HTTPException(status_code=404, detail="Log not found")
+    await _assert_parent_owns_student(user, log["student_id"], write=False)
+    return log
+
+
+@api.post("/logs/{log_id}/approve", response_model=MissionLog)
+async def approve_log(log_id: str, user: dict = Depends(require_role("parent"))):
+    log = await _load_log_for_parent(log_id, user)
+    if log.get("verification_status") != "pending":
+        raise HTTPException(status_code=400, detail="This log isn't waiting for review.")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.mission_logs.update_one(
+        {"id": log_id},
+        {"$set": {
+            "status": "completed",
+            "verification_status": "approved",
+            "verified_by_user_id": user["id"],
+            "verified_at": now_iso,
+        }},
+    )
+    await _audit(user, "log.approve", target_type="mission_log", target_id=log_id)
+    fresh = await db.mission_logs.find_one({"id": log_id}, {"_id": 0})
+    return MissionLog(**fresh)
+
+
+@api.post("/logs/{log_id}/reject", response_model=MissionLog)
+async def reject_log(log_id: str, req: LogRejectBody, user: dict = Depends(require_role("parent"))):
+    log = await _load_log_for_parent(log_id, user)
+    if log.get("verification_status") != "pending":
+        raise HTTPException(status_code=400, detail="This log isn't waiting for review.")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.mission_logs.update_one(
+        {"id": log_id},
+        {"$set": {
+            "status": "rejected",
+            "verification_status": "rejected",
+            "verified_by_user_id": user["id"],
+            "verified_at": now_iso,
+            "rejected_reason": (req.reason or "").strip()[:240] or None,
+        }},
+    )
+    await _audit(user, "log.reject", target_type="mission_log", target_id=log_id,
+                 meta={"reason": req.reason or ""})
+    fresh = await db.mission_logs.find_one({"id": log_id}, {"_id": 0})
+    return MissionLog(**fresh)
+
+
+@api.get("/pending-reviews", response_model=List[dict])
+async def list_pending_reviews(user: dict = Depends(require_role("parent"))):
+    kid_ids = await _accessible_student_ids(user)
+    if not kid_ids:
+        return []
+    logs = await db.mission_logs.find(
+        {"student_id": {"$in": kid_ids}, "verification_status": "pending"},
+        {"_id": 0},
+    ).sort("timestamp", -1).to_list(200)
+    if not logs:
+        return []
+    mission_ids = list({l["mission_id"] for l in logs})
+    kid_ids_used = list({l["student_id"] for l in logs})
+    missions = {
+        m["id"]: m for m in await db.missions.find(
+            {"id": {"$in": mission_ids}}, {"_id": 0},
+        ).to_list(500)
+    }
+    kids = {
+        u["id"]: u for u in await db.users.find(
+            {"id": {"$in": kid_ids_used}}, {"_id": 0, "id": 1, "name": 1},
+        ).to_list(500)
+    }
+    now = datetime.now(timezone.utc)
+    out = []
+    for lg in logs:
+        m = missions.get(lg["mission_id"]) or {}
+        auto_hrs = m.get("auto_approve_hours") or 0
+        try:
+            ts = datetime.fromisoformat(lg["timestamp"])
+        except Exception:
+            ts = now
+        auto_at = None
+        hrs_remaining = None
+        if auto_hrs and auto_hrs > 0:
+            auto_at_dt = ts + timedelta(hours=auto_hrs)
+            auto_at = auto_at_dt.isoformat()
+            hrs_remaining = max(0, int((auto_at_dt - now).total_seconds() // 3600))
+        out.append({
+            "log_id": lg["id"],
+            "mission_id": lg["mission_id"],
+            "mission_title": m.get("title") or "Mission",
+            "student_id": lg["student_id"],
+            "student_name": (kids.get(lg["student_id"]) or {}).get("name"),
+            "note": lg.get("note") or "",
+            "feeling": lg.get("feeling"),
+            "difficulty_rating": lg.get("difficulty_rating"),
+            "submitted_at": lg["timestamp"],
+            "auto_approve_at": auto_at,
+            "hours_until_auto_approve": hrs_remaining,
+            "photo_id": lg.get("photo_id"),
+        })
+    return out
+
+
+@api.get("/logs/{log_id}/photo")
+async def get_log_photo(log_id: str, user: dict = Depends(get_current_user)):
+    log = await db.mission_logs.find_one({"id": log_id}, {"_id": 0})
+    if not log or not log.get("photo_id"):
+        raise HTTPException(status_code=404, detail="No photo on this log.")
+    # Auth: kid owns it, or parent has access to that kid
+    if user["role"] == "student":
+        if user["id"] != log["student_id"]:
+            raise HTTPException(status_code=403, detail="Not your log")
+    else:
+        await _assert_parent_owns_student(user, log["student_id"], write=False)
+    photo = await db.mission_photos.find_one({"id": log["photo_id"]}, {"_id": 0})
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found.")
+    from fastapi.responses import Response as FastResponse  # local import to avoid noise at top
+    return FastResponse(content=bytes(photo["data"]), media_type=photo.get("content_type") or "image/jpeg")
 
 
 class GamePlayRequest(BaseModel):
@@ -4290,7 +4638,51 @@ async def on_startup():
             except Exception as e:  # noqa: BLE001
                 logger.exception("Digest tick failed: %s", e)
 
+        async def _auto_approve_tick():
+            """Iter 21: auto-approve any pending_review logs whose parent-set
+            grace window has expired. Runs every 10 min."""
+            try:
+                pending = await db.mission_logs.find(
+                    {"verification_status": "pending"}, {"_id": 0},
+                ).to_list(500)
+                if not pending:
+                    return
+                mids = list({p["mission_id"] for p in pending})
+                missions = {
+                    m["id"]: m for m in await db.missions.find(
+                        {"id": {"$in": mids}}, {"_id": 0, "id": 1, "auto_approve_hours": 1},
+                    ).to_list(1000)
+                }
+                now = datetime.now(timezone.utc)
+                approved = 0
+                for lg in pending:
+                    m = missions.get(lg["mission_id"]) or {}
+                    hrs = m.get("auto_approve_hours") or 0
+                    if hrs <= 0:
+                        continue
+                    try:
+                        ts = datetime.fromisoformat(lg["timestamp"])
+                    except Exception:
+                        continue
+                    if now < ts + timedelta(hours=hrs):
+                        continue
+                    await db.mission_logs.update_one(
+                        {"id": lg["id"]},
+                        {"$set": {
+                            "status": "completed",
+                            "verification_status": "approved",
+                            "verified_at": now.isoformat(),
+                            "auto_approved": True,
+                        }},
+                    )
+                    approved += 1
+                if approved:
+                    logger.info("Auto-approved %s pending mission logs.", approved)
+            except Exception as e:  # noqa: BLE001
+                logger.exception("Auto-approve tick failed: %s", e)
+
         scheduler.add_job(_digest_tick, "cron", minute=5, id="digest_tick", replace_existing=True)
+        scheduler.add_job(_auto_approve_tick, "cron", minute="*/10", id="auto_approve_tick", replace_existing=True)
         scheduler.start()
         app.state.digest_scheduler = scheduler
         logger.info("Digest scheduler started (hourly at :05).")

@@ -269,6 +269,21 @@ export default function StudentDashboard() {
                                             {m.skill_ids.slice(0, 1).map((sid) => skillMap[sid] && (
                                                 <span key={sid} className="mb-chip bg-[#4361EE]/10 text-[#4361EE]">{skillMap[sid].name}</span>
                                             ))}
+                                            {m.verification && m.verification !== "trust" && !done && (
+                                                <span
+                                                    className="mb-chip bg-[#4361EE]/10 text-[#4361EE]"
+                                                    data-testid={`mission-verify-badge-${m.id}`}
+                                                    title={{
+                                                        parent_pin: "Needs a grown-up's PIN",
+                                                        photo: "Needs a photo",
+                                                        async_review: "Needs a grown-up to review",
+                                                    }[m.verification]}
+                                                >
+                                                    {m.verification === "parent_pin" && "🔐 Grown-up PIN"}
+                                                    {m.verification === "photo" && "📸 Photo"}
+                                                    {m.verification === "async_review" && "⏳ Review"}
+                                                </span>
+                                            )}
                                         </div>
                                         {done && (
                                             <p className="text-xs font-bold text-[#057a5b] mt-3 inline-flex items-center gap-1" data-testid={`mission-view-only-${m.id}`}>
