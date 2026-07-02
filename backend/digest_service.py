@@ -537,6 +537,20 @@ async def _build_and_send(parent_user: dict, *, force: bool = False) -> dict:
     if email_id:
         updates["digest_preferences.last_sent_at"] = now.isoformat()
         updates["digest_preferences.last_email_message_id"] = email_id
+        # Iter 22: fire a push in parallel with the email so opted-in parents
+        # get a nudge to open the digest.
+        try:
+            import push_service as _push  # local import to avoid cycle
+            await _push.send_push_to_user(
+                parent_user["id"],
+                pref_key="parent_digest_ready",
+                title="📬 Your MissionSparks digest",
+                body=subject,
+                url="/parent",
+                tag=f"digest-{email_id}",
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Push after digest failed for %s: %s", parent_user["email"], e)
     else:
         logger.warning(
             "Digest send failed for %s — will retry at %s",

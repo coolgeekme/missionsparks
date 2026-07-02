@@ -11,6 +11,7 @@ import secrets
 import logging
 from email_service import send_family_invite_email
 import digest_service
+import push_service
 import bcrypt
 import jwt
 from datetime import datetime, timezone, timedelta
@@ -1527,6 +1528,23 @@ async def grant_streak_freeze(student_id: str, req: StreakFreezeCreate,
     await db.streak_freezes.insert_one(doc)
     await _audit(user, "streak.freeze_grant", target_type="student", target_id=student_id,
                  meta={"date": d, "freeze_id": fid})
+    # Notify OTHER parents of the same kid (Iter 22 co-parent activity)
+    try:
+        other_parents = await _linked_parent_ids(student_id)
+        kid = await db.users.find_one({"id": student_id}, {"_id": 0, "name": 1})
+        for pid in other_parents:
+            if pid == user["id"]:
+                continue
+            await push_service.send_push_to_user(
+                pid,
+                pref_key="parent_coparent_activity",
+                title=f"❄️ {user.get('name') or 'A co-parent'} granted a freeze",
+                body=f"{(kid or {}).get('name', 'The kid')} — {d}{': ' + req.reason if req.reason else ''}",
+                url="/parent",
+                tag=f"coparent-freeze-{fid}",
+            )
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Coparent freeze push failed: %s", e)
     return StreakFreeze(**{k: v for k, v in doc.items() if k != "_id"})
 
 
@@ -1566,6 +1584,80 @@ async def revoke_streak_freeze(student_id: str, freeze_id: str,
 # ---------- Family weekend-mode toggle (Iter 20) ----------
 class WeekendModeUpdate(BaseModel):
     mode: str  # "all_days" | "weekdays_only"
+
+
+# ---------- Push notifications (Iter 22) ----------
+class PushKeys(BaseModel):
+    p256dh: str
+    auth: str
+
+
+class PushSubscribeReq(BaseModel):
+    endpoint: str
+    keys: PushKeys
+
+
+class PushUnsubscribeReq(BaseModel):
+    endpoint: str
+
+
+class NotificationPrefsUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    parent_streak_at_risk: Optional[bool] = None
+    parent_kid_completed: Optional[bool] = None
+    parent_pending_review: Optional[bool] = None
+    parent_coparent_activity: Optional[bool] = None
+    parent_digest_ready: Optional[bool] = None
+    kid_missions_morning: Optional[bool] = None
+    kid_streak_milestone: Optional[bool] = None
+    kid_pack_unlocked: Optional[bool] = None
+
+
+@api.get("/push/vapid-public-key")
+async def get_vapid_public_key():
+    """Public — the frontend needs this to subscribe. Safe to expose."""
+    return {"public_key": os.environ.get("VAPID_PUBLIC_KEY", "")}
+
+
+@api.post("/push/subscribe")
+async def push_subscribe(req: PushSubscribeReq, request: Request,
+                          user: dict = Depends(get_current_user)):
+    ua = request.headers.get("User-Agent", "")[:200]
+    await push_service.upsert_subscription(
+        user["id"], req.endpoint, req.keys.p256dh, req.keys.auth, user_agent=ua,
+    )
+    await _audit(user, "push.subscribe", target_type="user", target_id=user["id"])
+    return {"ok": True}
+
+
+@api.post("/push/unsubscribe")
+async def push_unsubscribe(req: PushUnsubscribeReq, user: dict = Depends(get_current_user)):
+    n = await push_service.remove_subscription(req.endpoint)
+    await _audit(user, "push.unsubscribe", target_type="user", target_id=user["id"])
+    return {"ok": True, "removed": n}
+
+
+@api.get("/me/notification-prefs")
+async def get_my_notification_prefs(user: dict = Depends(get_current_user)):
+    prefs = await push_service.get_user_prefs(user["id"])
+    sub_count = await db.push_subscriptions.count_documents({"user_id": user["id"]})
+    return {"prefs": prefs, "device_count": sub_count}
+
+
+@api.put("/me/notification-prefs")
+async def update_my_notification_prefs(req: NotificationPrefsUpdate,
+                                        user: dict = Depends(get_current_user)):
+    current = await push_service.get_user_prefs(user["id"])
+    for k, v in req.model_dump(exclude_none=True).items():
+        current[k] = bool(v)
+    await db.users.update_one({"id": user["id"]}, {"$set": {"notification_prefs": current}})
+    await _audit(user, "push.prefs_update", target_type="user", target_id=user["id"], meta=current)
+    return {"prefs": current}
+
+
+@api.post("/push/test")
+async def push_test(user: dict = Depends(get_current_user)):
+    return await push_service.send_test_push(user["id"])
 
 
 @api.put("/families/{family_id}/streak-weekend-mode")
@@ -2194,6 +2286,22 @@ async def create_mission(req: MissionCreate, user: dict = Depends(require_role("
             await db.missions.insert_one(inst)
 
     out = await db.missions.find_one({"id": mission_id}, {"_id": 0})
+    # Co-parent activity notification (Iter 22) — ping OTHER parents linked to this kid.
+    try:
+        other_parents = await _linked_parent_ids(req.student_id)
+        for pid in other_parents:
+            if pid == user["id"]:
+                continue
+            await push_service.send_push_to_user(
+                pid,
+                pref_key="parent_coparent_activity",
+                title=f"📝 {user.get('name') or 'A co-parent'} added a mission",
+                body=f"'{req.title}' for {req.due_date}",
+                url="/parent",
+                tag=f"coparent-mission-{mission_id}",
+            )
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Coparent mission push failed: %s", e)
     return out
 
 
@@ -2544,7 +2652,96 @@ async def create_log(mission_id: str, req: MissionLogCreate, user: dict = Depend
     }
     await db.mission_logs.insert_one(doc)
     doc.pop("_id", None)
+
+    # ---- Push notification triggers (Iter 22) ----
+    if is_completion:
+        try:
+            await _fire_completion_pushes(mission, doc, user)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Push trigger failed for log %s: %s", log_id, e)
+
     return MissionLog(**doc)
+
+
+async def _linked_parent_ids(student_id: str) -> list[str]:
+    """All parent user_ids who have this student linked (owners + co-parents)."""
+    parents = await db.users.find(
+        {"role": "parent", "linked_student_ids": student_id},
+        {"_id": 0, "id": 1},
+    ).to_list(50)
+    return [p["id"] for p in parents]
+
+
+async def _fire_completion_pushes(mission: dict, log_doc: dict, kid: dict) -> None:
+    """Called after a mission_log is inserted. Fires:
+      - parent_pending_review    (async_review submissions)
+      - parent_kid_completed     (kid finished ALL of today's missions)
+      - kid_streak_milestone     (streak hits 3/5/7/10/14/21/30/50/100 days)
+    Each is gated by the recipient's notification prefs (see push_service)."""
+    parent_ids = await _linked_parent_ids(mission["student_id"])
+
+    # 1) async_review pending → notify every parent
+    if log_doc.get("verification_status") == "pending":
+        for pid in parent_ids:
+            await push_service.send_push_to_user(
+                pid,
+                pref_key="parent_pending_review",
+                title=f"🎯 {kid.get('name', 'Your kid')} needs your review",
+                body=f"'{mission.get('title', 'Mission')}' — tap to approve or send back",
+                url="/parent",
+                tag=f"pending-{log_doc['id']}",
+                require_interaction=True,
+            )
+
+    # 2) Kid just wrapped up ALL of today's missions (only for completed status, not pending)
+    if log_doc.get("status") == "completed":
+        try:
+            snap = await _compute_streak_snapshot(db, mission["student_id"])
+            if (snap.missions_today_count > 0
+                    and snap.completed_today_count == snap.missions_today_count):
+                for pid in parent_ids:
+                    await push_service.send_push_to_user(
+                        pid,
+                        pref_key="parent_kid_completed",
+                        title=f"🎉 {kid.get('name', 'Your kid')} finished today",
+                        body=f"All {snap.missions_today_count} of today's missions — nice!",
+                        url="/parent",
+                        tag=f"all-done-{mission['student_id']}-{snap.missions_today_count}",
+                    )
+            # 3) Streak milestone celebration — notify the KID on their device
+            milestones = {3, 5, 7, 10, 14, 21, 30, 50, 100}
+            if snap.current_streak in milestones and snap.completed_today:
+                await push_service.send_push_to_user(
+                    mission["student_id"],
+                    pref_key="kid_streak_milestone",
+                    title=f"🔥 {snap.current_streak}-day streak!",
+                    body="Amazing work — keep the sparks flying.",
+                    url="/student",
+                    tag=f"streak-{snap.current_streak}",
+                )
+            # 4) Kid Studio unlock — first time the streak crosses the family's threshold.
+            fresh = await db.users.find_one(
+                {"id": mission["student_id"]},
+                {"_id": 0, "student_profile": 1, "studio_unlocked_at": 1},
+            ) or {}
+            threshold = int((fresh.get("student_profile") or {}).get("game_studio_unlock_streak", 7))
+            if (snap.current_streak >= threshold
+                    and not fresh.get("studio_unlocked_at")):
+                await db.users.update_one(
+                    {"id": mission["student_id"]},
+                    {"$set": {"studio_unlocked_at": datetime.now(timezone.utc).isoformat()}},
+                )
+                await push_service.send_push_to_user(
+                    mission["student_id"],
+                    pref_key="kid_pack_unlocked",
+                    title="🎨 Kid Studio unlocked!",
+                    body="You unlocked the Studio — build your own game pack now.",
+                    url="/student/studio",
+                    tag="studio-unlock",
+                    require_interaction=True,
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Streak-based push notify failed: %s", e)
 
 
 # ---------- Parent verify-PIN (Iter 21) ----------
@@ -4650,6 +4847,7 @@ async def on_startup():
     # Parent digest scheduler (Iter 17). Hourly tick; sends to anyone whose
     # next_due_at has elapsed.
     digest_service.configure(db, _ai_chat)
+    push_service.configure(db)
     try:
         from apscheduler.schedulers.asyncio import AsyncIOScheduler  # noqa: WPS433
         scheduler = AsyncIOScheduler(timezone="UTC")
@@ -4705,8 +4903,96 @@ async def on_startup():
             except Exception as e:  # noqa: BLE001
                 logger.exception("Auto-approve tick failed: %s", e)
 
+        async def _streak_at_risk_tick():
+            """Iter 22 — every hour, find kids who:
+              - haven't completed any mission TODAY,
+              - have missions due today,
+              - have a current streak of 2+ days (so it's worth saving),
+              - and it's between 4pm and 9pm UTC (a nudge window).
+            Notify every linked parent (opt-in). Fires once per kid per day."""
+            try:
+                now = datetime.now(timezone.utc)
+                if not (16 <= now.hour <= 21):
+                    return
+                today = now.date().isoformat()
+                # De-dup: skip kids already notified today
+                already_notified = {
+                    d["student_id"]
+                    for d in await db.push_streak_risk_sent.find(
+                        {"date": today}, {"_id": 0, "student_id": 1}
+                    ).to_list(5000)
+                }
+                # Load kids with missions today
+                kids_with_missions = await db.missions.distinct("student_id", {"due_date": today})
+                for kid_id in kids_with_missions:
+                    if kid_id in already_notified:
+                        continue
+                    snap = await _compute_streak_snapshot(db, kid_id)
+                    if snap.current_streak < 2:
+                        continue
+                    if snap.completed_today_count > 0:
+                        continue
+                    kid = await db.users.find_one({"id": kid_id}, {"_id": 0, "name": 1})
+                    parent_ids = await _linked_parent_ids(kid_id)
+                    hours_left = 24 - now.hour
+                    for pid in parent_ids:
+                        await push_service.send_push_to_user(
+                            pid,
+                            pref_key="parent_streak_at_risk",
+                            title=f"⚠️ {(kid or {}).get('name', 'Your kid')}'s streak is at risk",
+                            body=f"{snap.current_streak}-day streak — {hours_left}h left today. Grant a freeze or tap them to jump in.",
+                            url="/parent",
+                            tag=f"streak-risk-{kid_id}-{today}",
+                            require_interaction=True,
+                        )
+                    await db.push_streak_risk_sent.insert_one({
+                        "student_id": kid_id, "date": today,
+                        "sent_at": now.isoformat(),
+                    })
+            except Exception as e:  # noqa: BLE001
+                logger.exception("Streak-at-risk tick failed: %s", e)
+
+        async def _morning_missions_tick():
+            """Iter 22 — at 07:00 UTC daily, ping every kid who has missions today."""
+            try:
+                now = datetime.now(timezone.utc)
+                if now.hour != 7:  # cron is hourly at :10 but we gate to a specific hour
+                    return
+                today = now.date().isoformat()
+                already = {
+                    d["student_id"]
+                    for d in await db.push_morning_sent.find(
+                        {"date": today}, {"_id": 0, "student_id": 1}
+                    ).to_list(5000)
+                }
+                kids_with_missions = await db.missions.aggregate([
+                    {"$match": {"due_date": today}},
+                    {"$group": {"_id": "$student_id", "count": {"$sum": 1}}},
+                ]).to_list(5000)
+                for row in kids_with_missions:
+                    kid_id = row["_id"]
+                    if kid_id in already:
+                        continue
+                    n = row["count"]
+                    await push_service.send_push_to_user(
+                        kid_id,
+                        pref_key="kid_missions_morning",
+                        title=f"🚀 Good morning!",
+                        body=f"{n} mission{'s' if n != 1 else ''} waiting for you today.",
+                        url="/student",
+                        tag=f"morning-{kid_id}-{today}",
+                    )
+                    await db.push_morning_sent.insert_one({
+                        "student_id": kid_id, "date": today,
+                        "sent_at": now.isoformat(),
+                    })
+            except Exception as e:  # noqa: BLE001
+                logger.exception("Morning missions tick failed: %s", e)
+
         scheduler.add_job(_digest_tick, "cron", minute=5, id="digest_tick", replace_existing=True)
         scheduler.add_job(_auto_approve_tick, "cron", minute="*/10", id="auto_approve_tick", replace_existing=True)
+        scheduler.add_job(_streak_at_risk_tick, "cron", minute=15, id="streak_risk_tick", replace_existing=True)
+        scheduler.add_job(_morning_missions_tick, "cron", minute=10, id="morning_missions_tick", replace_existing=True)
         scheduler.start()
         app.state.digest_scheduler = scheduler
         logger.info("Digest scheduler started (hourly at :05).")

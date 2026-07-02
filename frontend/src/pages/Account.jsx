@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { api, formatApiErrorDetail } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
+import NotificationSettingsPanel from "../components/NotificationSettingsPanel";
 import { toast } from "sonner";
 import { ArrowLeft, Mic, Download, Trash2, Shield, History, Mail, Send, Clock } from "lucide-react";
 
@@ -317,6 +318,8 @@ export default function Account() {
                         </div>
                     </section>
                 )}
+
+                <NotificationSettingsPanel role={user.role} />
 
                 {user.role === "parent" && (
                     <section className="mb-card p-6" data-testid="verify-pin-section">

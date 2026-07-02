@@ -1,0 +1,48 @@
+{
+  "summary": "Iter 22 Web Push + PWA testing. Backend: 21/23 iter22 tests PASS + 7/7 push_service unit tests PASS. Frontend: SW registers at scope=/, NotificationSettingsPanel renders on both parent and student /account pages, notification-enable-btn click failure handled gracefully with toast (expected in headless). ONE CRITICAL bug: POST /api/push/test returns 500 (unhandled ValueError bubbles up from VAPID key deserialization inside webpush() → not caught by _send_one_sync's WebPushException-only handler).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/push/test (and any real trigger that hits _send_one_sync)",
+        "issue": "Returns HTTP 500 when a subscription exists. Backend log shows: 'ValueError: Could not deserialize key data ... ASN.1 parsing error: invalid length' raised by cryptography inside pywebpush.webpush(). Two root causes: (a) VAPID_PRIVATE_KEY in /app/backend/.env is malformed / not a valid PEM after the '\\n' → newline substitution — cryptography cannot parse it. (b) push_service._send_one_sync only catches WebPushException, so ANY key-loading/serialization error escapes → 500 to the client. Even after the VAPID key is fixed, the handler should wrap the whole webpush() call in a broad try/except (Exception) and return (False, None) so operators aren't served 500s if the key config drifts.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter22_push_endpoints.py",
+    "/app/backend/tests/test_push_service.py",
+    "/app/test_reports/pytest/iter22_results.xml"
+  ],
+  "action_items": [
+    "1. Fix VAPID_PRIVATE_KEY in /app/backend/.env — the PEM currently fails deserialization. Either regenerate a fresh EC prime256v1 key (openssl ecparam -genkey -name prime256v1 -noout -out priv.pem) and store it correctly, OR switch push_service to use the raw base64url-encoded private scalar (pywebpush accepts both). Confirm push_service._vapid_private_key() returns a value that `serialization.load_pem_private_key(...)` can parse.",
+    "2. Harden push_service._send_one_sync — replace `except WebPushException` with `except Exception as ex` so key/serialization/network errors also count as a failed send and never propagate a 500 to the API layer.",
+    "3. (nice-to-have) Add a startup sanity check that logs an error if VAPID_PRIVATE_KEY fails to load — surfaces misconfig at boot rather than at first push."
+  ],
+  "critical_code_review_comments": [
+    "push_service._send_one_sync only catches WebPushException — any cryptography/import/network error bubbles as 500. Should catch Exception broadly and log.",
+    "server.py is now ~5000 lines. Refactor into routers (push, digest, missions, verification, family) — long overdue.",
+    "PUT /api/me/notification-prefs stores raw dict without updated_at timestamp — consider adding for audit/debug.",
+    "GET /api/push/vapid-public-key returns empty string if env var missing — should 500 or log a startup warning so misconfig is visible.",
+    "Same _fire_completion_pushes swallows all exceptions (good for resilience) but does NOT log which trigger failed — hard to debug production issues."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter22_push_endpoints.py (new — 16 HTTP endpoint tests)"
+  ],
+  "success_rate": {
+    "backend": "91% (21/23 iter22 HTTP + 7/7 push_service unit) — 2 endpoint tests fail due to the /api/push/test 500 bug",
+    "frontend": "100% of Iter 22 data-testids/flows verified (panel, enable-btn, graceful toast, SW registration, student view)"
+  },
+  "test_credentials": "parent@demo.com/demo1234 · student@demo.com/demo1234",
+  "seed_data_creation": "Test inserted then deleted a fake push_subscription row for parent@demo.com during subscribe/dedupe test. No stale test data expected.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After the VAPID key fix, re-run: `cd /app/backend && python -m pytest tests/test_iter22_push_endpoints.py tests/test_push_service.py -v`. All 30 should pass. To reproduce the 500: `curl -c /tmp/c -X POST https://.../api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"parent@demo.com\",\"password\":\"demo1234\"}'` then subscribe a fake endpoint, then POST /api/push/test → 500. Backend log emits the ASN.1 traceback. push_service unit tests do NOT exercise the real key path (they patch _send_one_sync), which is why they still pass.",
+  "rca of the issue": "1) VAPID_PRIVATE_KEY env var contents produce an unparseable PEM after '\\n'→newline substitution — cryptography raises ValueError('ASN.1 parsing error: invalid length'). 2) push_service._send_one_sync catches only WebPushException, so this ValueError propagates out of asyncio.to_thread → out of send_push_to_user → up through the FastAPI route → 500. Fix requires BOTH regenerating/reformatting the VAPID key AND broadening the exception handler for defense-in-depth."
+}
