@@ -133,6 +133,20 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Resend domain `missionsparks.com` is now verified — emails deliver to any recipient. Sender: `hello@missionsparks.com`.
 - 15/15 digest pytest tests pass (`tests/test_digest.py`). 103/103 across the whole family-aware suite. Zero regressions.
 
+### Iter 22 — PWA + Web Push notifications (Batch 3, 2026-07)
+- **Full PWA scaffolding**: `manifest.json` (name, theme, icons), 4 icon sizes (192/512/512-maskable + 180-apple-touch), notification badge, service worker at `/sw.js` registered from `index.js` on load. Apple PWA meta tags in `index.html`.
+- **VAPID keypair** generated with `cryptography`; PEM private key + base64url public key stored in `/app/backend/.env`. Public key exposed via `GET /api/push/vapid-public-key`.
+- **`push_service.py`** — new backend module. Preloads a `py_vapid.Vapid` instance ONCE at startup and passes it to `pywebpush.webpush()` (avoids `Vapid.from_string`'s PEM-hostile parser). `_send_one_sync` has a defense-in-depth broad exception handler so key/network errors never bubble to a 500. Auto-prunes 404/410 subscriptions.
+- **Preferences model**: 9 keys (`enabled` + 5 parent + 3 kid). `PUT /api/me/notification-prefs` merges partial updates; ignores unknown keys.
+- **Endpoints**: `GET /api/push/vapid-public-key`, `POST /api/push/subscribe`, `POST /api/push/unsubscribe`, `GET/PUT /api/me/notification-prefs`, `POST /api/push/test`.
+- **8 triggers wired** (all opt-in, all preference-gated):
+    Parent: `parent_pending_review` (async submission), `parent_kid_completed` (all today's missions done), `parent_streak_at_risk` (hourly job, 4-9pm UTC, dedup daily), `parent_coparent_activity` (mission create + freeze grant), `parent_digest_ready` (after digest email).
+    Kid: `kid_streak_milestone` (3/5/7/10/14/21/30/50/100 days), `kid_pack_unlocked` (first cross of family unlock threshold, idempotent via `users.studio_unlocked_at`), `kid_missions_morning` (daily 7am UTC).
+- **Scheduler**: 2 new jobs (`streak_risk_tick` @ :15, `morning_missions_tick` @ :10) alongside `digest_tick` + `auto_approve_tick`. De-dup via `db.push_streak_risk_sent` / `db.push_morning_sent`.
+- **UI**: `NotificationSettingsPanel` on `/account` for BOTH parents and kids (role-aware pref list). iOS-standalone gate: banner instructs "Add to Home Screen first" when running from Safari tab.
+- **Fix from testing agent RCA**: pywebpush called `Vapid.from_string(pem)` internally which fails on PEM (only accepts raw/DER b64url). Fix: preload `Vapid.from_pem()` and pass the instance. Also broadened `_send_one_sync` exception catch.
+- **Testing**: 90/90 tests pass (7 push service unit + 23 iter22 endpoint + 60 regression). Frontend Playwright verified: SW registers, panel renders on both roles, unsupported-browser banner shows correctly, enable-button failure toast works. Full push delivery requires a real browser (not testable in headless Playwright — expected).
+
 ### Iter 21 — Per-mission Verification (Trust / Parent-PIN / Photo / Async-review) (2026-07)
 - **Verification field** on every mission (`trust` default | `parent_pin` | `photo` | `async_review`). Picked at create/edit time via card selector on MissionForm.
 - **Parent verify PIN** — separate 4-digit code on Account page (bcrypt-hashed, cleared via DELETE). Kid enters it on the completion modal → backend issues a single-use 2-min token → token attached to /log call → verified.

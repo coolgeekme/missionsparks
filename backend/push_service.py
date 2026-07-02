@@ -19,22 +19,39 @@ from datetime import datetime, timezone
 from typing import Optional, Any
 
 from pywebpush import WebPushException, webpush  # type: ignore
+from py_vapid import Vapid  # type: ignore
 
 logger = logging.getLogger(__name__)
 
 # Wired at startup by server.on_event("startup")
 _db = None
+# Pre-loaded Vapid instance — parses the PEM ONCE and lets pywebpush skip its own
+# `Vapid.from_string` (which only accepts raw/DER base64url, not PEM).
+_vapid_signer: Optional[Vapid] = None
 
 
 def configure(db) -> None:
-    global _db
+    global _db, _vapid_signer
     _db = db
+    _vapid_signer = _load_vapid_signer()
+    if _vapid_signer is None:
+        logger.warning("Push notifications disabled — VAPID_PRIVATE_KEY missing or unparseable.")
+    else:
+        logger.info("Push service configured with VAPID key.")
 
 
-def _vapid_private_key() -> str:
-    # Multi-line PEM comes in as one line with literal '\n' — decode it.
+def _load_vapid_signer() -> Optional[Vapid]:
     raw = os.environ.get("VAPID_PRIVATE_KEY", "")
-    return raw.replace("\\n", "\n")
+    if not raw:
+        return None
+    # Env files store PEM as one line with literal '\n' — restore newlines.
+    pem = raw.replace("\\n", "\n").strip()
+    try:
+        v = Vapid.from_pem(pem.encode())
+        return v
+    except Exception as e:  # noqa: BLE001
+        logger.error("Failed to load VAPID private key: %s", e)
+        return None
 
 
 def _vapid_claims() -> dict:
@@ -108,20 +125,26 @@ async def remove_subscription(endpoint: str) -> int:
 
 
 def _send_one_sync(sub_doc: dict, payload: dict) -> tuple[bool, Optional[int]]:
-    """Sync webpush call — must run in a thread to avoid blocking the loop."""
+    """Sync webpush call — must run in a thread to avoid blocking the loop.
+    Broad exception catch so key-parsing/network errors never propagate up to
+    the API layer as a 500 (defense-in-depth alongside the Vapid pre-load)."""
+    if _vapid_signer is None:
+        return False, None
     try:
         webpush(
             subscription_info={"endpoint": sub_doc["endpoint"], "keys": sub_doc["keys"]},
             data=json.dumps(payload),
-            vapid_private_key=_vapid_private_key(),
+            vapid_private_key=_vapid_signer,
             vapid_claims=_vapid_claims(),
             ttl=60 * 60 * 24,  # 24h
         )
         return True, None
     except WebPushException as ex:
         code = ex.response.status_code if getattr(ex, "response", None) is not None else None
-        # 404 / 410 mean the subscription is dead — caller will prune.
         return False, code
+    except Exception as ex:  # noqa: BLE001
+        logger.warning("Push send error for endpoint %s: %s", sub_doc.get("endpoint", "")[:60], ex)
+        return False, None
 
 
 async def send_push_to_user(
