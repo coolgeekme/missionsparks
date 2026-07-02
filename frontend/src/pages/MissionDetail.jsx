@@ -93,7 +93,7 @@ export default function MissionDetail() {
         })();
     }, [id]);
 
-    const allStepsDone = mission && mission.steps.length > 0 && mission.steps.every((_, i) => checkedSteps[i]);
+    const allStepsDone = mission && (mission.steps.length === 0 || mission.steps.every((_, i) => checkedSteps[i]));
 
     const submit = async () => {
         if (!feeling || !difficulty) {

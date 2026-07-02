@@ -2399,26 +2399,36 @@ async def delete_mission(mission_id: str, user: dict = Depends(require_role("par
 
 
 # ---------- Mission logs ----------
-_MAX_PHOTO_BYTES = 2_500_000  # 2.5 MB after base64 (~1.8MB image) — client should compress
+_MAX_PHOTO_BYTES = 2_000_000  # 2 MB after base64 decoding
+_IMAGE_MAGIC = {
+    b"\xff\xd8\xff": "image/jpeg",
+    b"\x89PNG\r\n\x1a\n": "image/png",
+    b"RIFF": "image/webp",  # webp has 'RIFF....WEBP' — sniff first 4 chars
+}
+
+
+def _sniff_image_type(raw: bytes) -> Optional[str]:
+    if raw.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if raw.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
+        return "image/webp"
+    return None
 
 
 def _decode_photo_payload(data: str) -> tuple[bytes, str]:
-    """Accept a data URL ('data:image/jpeg;base64,...') or raw base64 for a JPEG/PNG.
-    Returns (raw_bytes, content_type). Rejects if too large or wrong mime."""
+    """Accept a data URL ('data:image/jpeg;base64,...') or raw base64 for a JPEG/PNG/WebP.
+    Returns (raw_bytes, content_type). Rejects if too large, too small, or magic
+    bytes don't match a real image. Trust-nothing on client-declared MIME."""
     if not data or not isinstance(data, str):
         raise HTTPException(status_code=400, detail="Photo data is empty.")
-    content_type = "image/jpeg"
     b64 = data
+    declared_ct: Optional[str] = None
     if data.startswith("data:"):
         try:
             head, b64 = data.split(",", 1)
-            # head looks like "data:image/jpeg;base64"
-            mime = head.split(";", 1)[0][5:]
-            if mime not in ("image/jpeg", "image/png", "image/webp"):
-                raise HTTPException(status_code=400, detail="Only JPEG, PNG, or WebP photos.")
-            content_type = mime
-        except HTTPException:
-            raise
+            declared_ct = head.split(";", 1)[0][5:] or None
         except Exception:
             raise HTTPException(status_code=400, detail="Malformed photo data URL.") from None
     try:
@@ -2429,7 +2439,13 @@ def _decode_photo_payload(data: str) -> tuple[bytes, str]:
         raise HTTPException(status_code=413, detail="Photo is too large — please compress under 2 MB.")
     if len(raw) < 200:
         raise HTTPException(status_code=400, detail="Photo is too small to be real.")
-    return raw, content_type
+    sniffed = _sniff_image_type(raw)
+    if not sniffed:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, or WebP photos.")
+    # If the client declared a MIME, insist it match what we actually see.
+    if declared_ct and declared_ct != sniffed:
+        raise HTTPException(status_code=400, detail="Photo bytes don't match the declared image type.")
+    return raw, sniffed
 
 
 async def _consume_parent_verify_token(token: str, mission_student_id: str) -> str:
@@ -2742,7 +2758,15 @@ async def get_log_photo(log_id: str, user: dict = Depends(get_current_user)):
     if not photo:
         raise HTTPException(status_code=404, detail="Photo not found.")
     from fastapi.responses import Response as FastResponse  # local import to avoid noise at top
-    return FastResponse(content=bytes(photo["data"]), media_type=photo.get("content_type") or "image/jpeg")
+    return FastResponse(
+        content=bytes(photo["data"]),
+        media_type=photo.get("content_type") or "image/jpeg",
+        headers={
+            # Photos are immutable — safe to cache in the parent's browser for a day
+            "Cache-Control": "private, max-age=86400, immutable",
+            "ETag": f'"{log["photo_id"]}"',
+        },
+    )
 
 
 class GamePlayRequest(BaseModel):

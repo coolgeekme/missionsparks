@@ -179,19 +179,25 @@ def test_freeze_quota_helper(db):
 
     async def _run_test():
         try:
-            today_iso = datetime.now(timezone.utc).date().isoformat()
+            today = datetime.now(timezone.utc).date()
+            today_iso = today.isoformat()
             month_prefix = today_iso[:7]
-            # Insert 3 freezes this month and 1 last month
+            # Seed 3 freezes ALL in the current month — pick the middle of the month
+            # so we don't accidentally cross a month boundary.
+            year = today.year
+            month = today.month
             for i in range(3):
-                day = (datetime.now(timezone.utc).date() - timedelta(days=i)).isoformat()
+                day = f"{year:04d}-{month:02d}-{(i + 5):02d}"
                 await db.streak_freezes.insert_one({
                     "id": str(uuid.uuid4()), "student_id": sid, "date": day,
                     "granted_by_user_id": "test", "created_at": today_iso,
                 })
+            # Seed 1 freeze in a different month (previous month) — should NOT count.
+            prev_month = month - 1 if month > 1 else 12
+            prev_year = year if month > 1 else year - 1
             await db.streak_freezes.insert_one({
                 "id": str(uuid.uuid4()), "student_id": sid,
-                "date": f"{int(month_prefix[:4])-1}-12-15" if month_prefix[5:] == "01"
-                        else f"{month_prefix[:5]}{int(month_prefix[5:])-1:02d}-15",
+                "date": f"{prev_year:04d}-{prev_month:02d}-15",
                 "granted_by_user_id": "test", "created_at": today_iso,
             })
             n = await ss.freezes_this_month(db, sid)

@@ -133,6 +133,18 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Resend domain `missionsparks.com` is now verified — emails deliver to any recipient. Sender: `hello@missionsparks.com`.
 - 15/15 digest pytest tests pass (`tests/test_digest.py`). 103/103 across the whole family-aware suite. Zero regressions.
 
+### Iter 21 — Per-mission Verification (Trust / Parent-PIN / Photo / Async-review) (2026-07)
+- **Verification field** on every mission (`trust` default | `parent_pin` | `photo` | `async_review`). Picked at create/edit time via card selector on MissionForm.
+- **Parent verify PIN** — separate 4-digit code on Account page (bcrypt-hashed, cleared via DELETE). Kid enters it on the completion modal → backend issues a single-use 2-min token → token attached to /log call → verified.
+- **Photo proof** — client-side JPEG compression down to ~1600px @ 0.82q before base64 upload. Backend validates magic bytes (JPEG/PNG/WebP), max 2MB, min 200B. Stored in `db.mission_photos` as BSON binary. Served via `GET /api/logs/{id}/photo` with immutable Cache-Control.
+- **Async review** — kid marks "ready" → log created with `status='pending_review'` + `verification_status='pending'` → streak DOES NOT count. Parent sees `PendingReviewsPanel` on dashboard → approve → status flips to completed. Reject → status='rejected' + optional reason.
+- **Auto-approve safety net** — `auto_approve_hours` (0-168, default 24) per mission. New `auto_approve_tick` APScheduler job runs every 10 minutes and flips overdue pending logs to approved with `auto_approved=true`.
+- **Rate-limit** — 5 wrong parent-PIN entries in 10 minutes → 429 lockout (`db.parent_verify_attempts`).
+- **Cross-family authz** — parent B cannot approve/reject parent A's kid's log (403 via `_assert_parent_owns_student`).
+- **UI**: `VerificationGateModal` (PIN keypad / photo picker / async confirm), `PendingReviewsPanel` on ParentDashboard, verification badge on StudentDashboard mission cards, distinct "Sent for review ⏳" success screen for async submissions, "Verify PIN" section on Account.
+- **Bug fixed in same batch**: 0-step missions can never complete (previously `allStepsDone` required `steps.length > 0`) — now completes if there are no steps. Pre-existing but exposed by verification-only missions.
+- **Testing**: 67/67 tests pass (23 new Iter 21 integration tests + 7 streak + 16 digest + 21 home-dashboard/scope). Frontend Playwright: 100% of data-testids verified. Zero blockers.
+
 ### Iter 20 — Streak refactor + Freezes + Weekend mode + Email variety (2026-02) [Batch 1 of 6-item request]
 - **NEW `/app/backend/streak_service.py`** — single canonical streak compute used by BOTH the kid dashboard (`/api/streak`) and the parent digest (`_compute_streak_for`). Killed the duplicate logic that caused dashboard/email mismatch.
 - **Removed the hardcoded "1 free freeze"** that was silently keeping streaks alive when a kid actually missed a day. Real misses now break the streak.
