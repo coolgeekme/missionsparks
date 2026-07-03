@@ -1,18 +1,26 @@
-import { useMemo, useState } from "react";
-
-const DEFAULT_PUZZLES = [
-    "The brave dragon flew over the mountain",
-    "Roz watched the tiny bird build a nest",
-    "We can solve hard problems one step at a time",
-];
+import { useEffect, useMemo, useState } from "react";
+import { SENTENCE_PUZZLES } from "./content_pools";
+import { fetchFreshPack } from "../lib/freshPack";
 
 const shuffle = (arr) => arr.map((v) => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+const ROUND_SIZE = 4;
 
 export default function SentenceBuilder({ onComplete, content }) {
-    const PUZZLES = useMemo(
-        () => (content?.sentences?.length ? content.sentences.slice(0, 5) : DEFAULT_PUZZLES),
-        [content],
-    );
+    const [freshPack, setFreshPack] = useState(null);
+    useEffect(() => {
+        if (content?.sentences?.length) return;
+        let alive = true;
+        fetchFreshPack("sentence-builder").then((p) => {
+            if (alive && p && Array.isArray(p.sentences) && p.sentences.length) setFreshPack(p);
+        });
+        return () => { alive = false; };
+    }, [content]);
+
+    const PUZZLES = useMemo(() => {
+        if (content?.sentences?.length) return content.sentences.slice(0, 5);
+        const source = (freshPack?.sentences?.length ? freshPack.sentences : SENTENCE_PUZZLES);
+        return shuffle(source).slice(0, ROUND_SIZE);
+    }, [content, freshPack]);
     const puzzles = useMemo(
         () => PUZZLES.map((s) => ({
             target: s.split(" "),

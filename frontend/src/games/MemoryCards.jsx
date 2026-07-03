@@ -1,13 +1,29 @@
 import { useMemo, useState, useEffect } from "react";
+import { MEMORY_EMOJI_POOLS } from "./content_pools";
+import { fetchFreshPack } from "../lib/freshPack";
 
-const DEFAULT_EMOJIS = ["🚀", "🦊", "🌈", "🐢", "⭐", "🍀"];
 const shuffle = (arr) => arr.map((v) => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+const ROUND_SIZE = 6;
 
 export default function MemoryCards({ onComplete, content }) {
-    const EMOJIS = useMemo(
-        () => (content?.items?.length ? content.items.slice(0, 8) : DEFAULT_EMOJIS),
-        [content],
-    );
+    const [freshPack, setFreshPack] = useState(null);
+    useEffect(() => {
+        if (content?.items?.length) return;
+        let alive = true;
+        fetchFreshPack("memory-cards").then((p) => {
+            if (alive && p && Array.isArray(p.items) && p.items.length) setFreshPack(p);
+        });
+        return () => { alive = false; };
+    }, [content]);
+
+    const EMOJIS = useMemo(() => {
+        if (content?.items?.length) return content.items.slice(0, 8);
+        // Pick a random theme pool, then a fresh subset per mount.
+        const source = (freshPack?.items?.length
+            ? freshPack.items
+            : shuffle(MEMORY_EMOJI_POOLS)[0]);
+        return shuffle(source).slice(0, ROUND_SIZE);
+    }, [content, freshPack]);
     const initial = useMemo(() => shuffle([...EMOJIS, ...EMOJIS]).map((e, i) => ({ id: i, emoji: e })), [EMOJIS]);
     const [revealed, setRevealed] = useState({}); // id -> true
     const [matched, setMatched] = useState({}); // id -> true

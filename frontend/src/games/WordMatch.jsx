@@ -1,21 +1,30 @@
-import { useMemo, useState } from "react";
-
-const DEFAULT_PAIRS = [
-    { word: "Brave", meaning: "Ready to face something scary" },
-    { word: "Curious", meaning: "Wanting to learn or know more" },
-    { word: "Sturdy", meaning: "Strong and not easy to break" },
-    { word: "Eager", meaning: "Very excited to do something" },
-    { word: "Gentle", meaning: "Soft, kind, and careful" },
-    { word: "Clever", meaning: "Smart and quick to figure things out" },
-];
+import { useEffect, useMemo, useState } from "react";
+import { WORD_PAIRS } from "./content_pools";
+import { fetchFreshPack } from "../lib/freshPack";
 
 const shuffle = (arr) => arr.map((v) => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+const ROUND_SIZE = 6;
 
 export default function WordMatch({ onComplete, content }) {
-    const PAIRS = useMemo(
-        () => (content?.pairs?.length ? content.pairs.slice(0, 12) : DEFAULT_PAIRS),
-        [content],
-    );
+    // AI-generated weekly fresh pack — overrides the pool when available.
+    const [freshPack, setFreshPack] = useState(null);
+    useEffect(() => {
+        // Explicit pack (from a Kid Studio pack via ?packId=) wins outright.
+        if (content?.pairs?.length) return;
+        let alive = true;
+        fetchFreshPack("word-match").then((p) => {
+            if (alive && p && Array.isArray(p.pairs) && p.pairs.length) setFreshPack(p);
+        });
+        return () => { alive = false; };
+    }, [content]);
+
+    // Pick a fresh subset of size ROUND_SIZE each mount so kids don't see the
+    // same words back-to-back.
+    const PAIRS = useMemo(() => {
+        if (content?.pairs?.length) return content.pairs.slice(0, 12);
+        const source = (freshPack?.pairs?.length ? freshPack.pairs : WORD_PAIRS);
+        return shuffle(source).slice(0, ROUND_SIZE);
+    }, [content, freshPack]);
     const initial = useMemo(() => ({
         words: shuffle(PAIRS.map((p) => p.word)),
         meanings: shuffle(PAIRS.map((p) => p.meaning)),

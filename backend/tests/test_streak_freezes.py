@@ -75,9 +75,13 @@ def test_streak_continues_if_completed_today(db):
 
     async def _run_test():
         try:
-            now = datetime.now(timezone.utc)
-            await _seed_completion(db, sid, now - timedelta(hours=1))
-            await _seed_completion(db, sid, now - timedelta(days=1))
+            # Anchor at noon UTC today + noon UTC yesterday so time-of-day never
+            # straddles a day boundary (flakiness fix).
+            today = datetime.now(timezone.utc).date()
+            noon_today = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc) + timedelta(hours=12)
+            noon_yest = noon_today - timedelta(days=1)
+            await _seed_completion(db, sid, noon_today)
+            await _seed_completion(db, sid, noon_yest)
             snap = await ss.compute_streak(db, sid)
             assert snap.current_streak == 2
             assert snap.completed_today is True
@@ -92,10 +96,10 @@ def test_freeze_bridges_a_missed_day(db):
 
     async def _run_test():
         try:
-            now = datetime.now(timezone.utc)
-            today = now.date()
-            await _seed_completion(db, sid, now - timedelta(hours=1))                # today
-            await _seed_completion(db, sid, now - timedelta(days=2, hours=1))        # 2 days ago
+            today = datetime.now(timezone.utc).date()
+            noon_today = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc) + timedelta(hours=12)
+            await _seed_completion(db, sid, noon_today)                             # today
+            await _seed_completion(db, sid, noon_today - timedelta(days=2))         # 2 days ago
             # Freeze yesterday
             yesterday = (today - timedelta(days=1)).isoformat()
             await db.streak_freezes.insert_one({
@@ -103,7 +107,7 @@ def test_freeze_bridges_a_missed_day(db):
                 "student_id": sid,
                 "date": yesterday,
                 "granted_by_user_id": "test-parent",
-                "created_at": now.isoformat(),
+                "created_at": noon_today.isoformat(),
             })
             snap = await ss.compute_streak(db, sid)
             assert snap.current_streak == 2, snap

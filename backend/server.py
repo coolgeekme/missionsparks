@@ -1660,6 +1660,119 @@ async def push_test(user: dict = Depends(get_current_user)):
     return await push_service.send_test_push(user["id"])
 
 
+# ---------- Weekly fresh mini-game packs (Iter 23) ----------
+FRESH_PACK_GAME_KEYS = {"word-match", "memory-cards", "sentence-builder"}
+
+
+def _iso_week_key() -> str:
+    """YYYY-Www — the same for 7 days, so caching per (student, key, week) rotates weekly."""
+    d = datetime.now(timezone.utc)
+    iso = d.isocalendar()
+    return f"{iso[0]}-W{iso[1]:02d}"
+
+
+async def _generate_fresh_pack_content(game_key: str, student: dict) -> Optional[dict]:
+    """Ask Claude for a fresh content payload tailored to the kid's reading
+    level + interests. Returns the shape each game component expects, or None
+    on failure (caller falls back to expanded default pool)."""
+    prof = student.get("student_profile") or {}
+    grade = prof.get("grade") or "3"
+    reading = prof.get("reading_level") or ""
+    interests = ", ".join(prof.get("interests") or []) or "(none)"
+    if game_key == "word-match":
+        user_text = (
+            f"Generate 12 vocabulary pairs for a grade-{grade} kid (reading level: {reading}). "
+            f"Kid's interests: {interests}. Return ONLY a JSON object like "
+            '{"pairs":[{"word":"...","meaning":"..."}, ...]} with exactly 12 items. '
+            "Words should be varied difficulty, age-appropriate, and where possible tied to interests. "
+            "Meanings must be one short sentence in kid-friendly language."
+        )
+    elif game_key == "memory-cards":
+        user_text = (
+            f"Pick 8 emoji characters for a memory-match game themed around this kid's interests: {interests}. "
+            "Return ONLY JSON like " '{"items":["🚀","🦊",...]} with exactly 8 items. '
+            "Use popular emojis kids recognize; avoid political/religious/adult ones."
+        )
+    elif game_key == "sentence-builder":
+        user_text = (
+            f"Generate 6 short kid-friendly sentences for grade-{grade} (reading level: {reading}). "
+            f"Weave in this kid's interests when possible: {interests}. "
+            "Each sentence must be 5-7 words, no punctuation except one period at the end. "
+            "Return ONLY JSON like " '{"sentences":["...","..."]} with exactly 6 items.'
+        )
+    else:
+        return None
+    try:
+        raw = await _ai_chat(
+            system_message="You output strict JSON only. No preamble, no markdown fences, no commentary.",
+            user_text=user_text,
+        )
+        raw = (raw or "").strip()
+        if raw.startswith("```"):
+            raw = raw.strip("`")
+            if raw.lower().startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+        data = json.loads(raw)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("fresh-pack AI gen failed for %s: %s", game_key, e)
+        return None
+    # Validate shape
+    if game_key == "word-match":
+        pairs = data.get("pairs") if isinstance(data, dict) else None
+        if not isinstance(pairs, list) or not pairs:
+            return None
+        clean = [
+            {"word": str(p["word"])[:40], "meaning": str(p["meaning"])[:120]}
+            for p in pairs if isinstance(p, dict) and p.get("word") and p.get("meaning")
+        ][:12]
+        return {"pairs": clean} if len(clean) >= 4 else None
+    if game_key == "memory-cards":
+        items = data.get("items") if isinstance(data, dict) else None
+        if not isinstance(items, list) or not items:
+            return None
+        clean = [str(x)[:8] for x in items if isinstance(x, str) and x.strip()][:8]
+        return {"items": clean} if len(clean) >= 6 else None
+    if game_key == "sentence-builder":
+        sentences = data.get("sentences") if isinstance(data, dict) else None
+        if not isinstance(sentences, list) or not sentences:
+            return None
+        clean = [
+            str(s).strip().rstrip(".").rstrip("!").rstrip("?")
+            for s in sentences if isinstance(s, str) and len(s.split()) >= 3 and len(s.split()) <= 10
+        ][:6]
+        return {"sentences": clean} if len(clean) >= 3 else None
+    return None
+
+
+@api.get("/games/fresh-pack/{game_key}")
+async def get_fresh_pack(game_key: str, user: dict = Depends(require_role("student"))):
+    """Weekly AI-generated content override for the given mini-game. Cached in
+    db.weekly_fresh_packs per (student_id, game_key, iso_week). Falls back
+    silently to null so client uses its expanded default pool."""
+    if game_key not in FRESH_PACK_GAME_KEYS:
+        raise HTTPException(status_code=400, detail="No fresh pack available for this game.")
+    week = _iso_week_key()
+    cached = await db.weekly_fresh_packs.find_one(
+        {"student_id": user["id"], "game_key": game_key, "week": week},
+        {"_id": 0},
+    )
+    if cached:
+        return {"week": week, "game_key": game_key, "content": cached.get("content"), "cached": True}
+    student = await db.users.find_one({"id": user["id"]}, {"_id": 0, "student_profile": 1})
+    content = await _generate_fresh_pack_content(game_key, student or {})
+    if content:
+        await db.weekly_fresh_packs.update_one(
+            {"student_id": user["id"], "game_key": game_key, "week": week},
+            {"$set": {
+                "student_id": user["id"], "game_key": game_key, "week": week,
+                "content": content, "created_at": datetime.now(timezone.utc).isoformat(),
+            }},
+            upsert=True,
+        )
+    return {"week": week, "game_key": game_key, "content": content, "cached": False}
+
+
 @api.put("/families/{family_id}/streak-weekend-mode")
 async def set_family_weekend_mode(family_id: str, req: WeekendModeUpdate,
                                    user: dict = Depends(require_role("parent"))):

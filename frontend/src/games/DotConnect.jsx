@@ -1,27 +1,34 @@
 import { useMemo, useState } from "react";
 
-const N = 10;
 const shuffle = (arr) => arr.map((v) => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
 
-// Place N dots non-overlapping in a 100x100 grid (approx).
-function placeDots() {
+// Randomize dot count per play — 8/10/12/15/20 dots — with progressively tighter
+// spacing at higher counts so the play feels different every time.
+function pickDotCount() {
+    const options = [8, 10, 12, 12, 15, 20];
+    return options[Math.floor(Math.random() * options.length)];
+}
+
+function placeDots(N) {
     const dots = [];
     let safety = 0;
-    while (dots.length < N && safety < 500) {
+    // Adaptive minimum distance so higher-N rounds still fit the 100x100 grid.
+    const minDist = Math.max(10, 60 / Math.sqrt(N));
+    while (dots.length < N && safety < 1500) {
         safety++;
-        const x = 8 + Math.random() * 84;
-        const y = 8 + Math.random() * 84;
-        if (dots.every((d) => Math.hypot(d.x - x, d.y - y) > 18)) {
+        const x = 6 + Math.random() * 88;
+        const y = 6 + Math.random() * 88;
+        if (dots.every((d) => Math.hypot(d.x - x, d.y - y) > minDist)) {
             dots.push({ x, y });
         }
     }
-    // Assign labels 1..N in shuffled order
-    const labels = shuffle(Array.from({ length: N }, (_, i) => i + 1));
+    const labels = shuffle(Array.from({ length: dots.length }, (_, i) => i + 1));
     return dots.map((d, i) => ({ ...d, n: labels[i] }));
 }
 
 export default function DotConnect({ onComplete }) {
-    const dots = useMemo(placeDots, []);
+    const N = useMemo(pickDotCount, []);
+    const dots = useMemo(() => placeDots(N), [N]);
     const [next, setNext] = useState(1);
     const [tapped, setTapped] = useState([]);
     const [errorFlash, setErrorFlash] = useState(false);
@@ -44,7 +51,7 @@ export default function DotConnect({ onComplete }) {
     return (
         <div data-testid="game-dot-connect">
             <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-bold text-[#4A5568]">Tap the dots in order from 1 to 10.</p>
+                <p className="text-sm font-bold text-[#4A5568]">Tap the dots in order from 1 to {N}.</p>
                 <span className="mb-chip bg-[#4361EE]/10 text-[#4361EE]" data-testid="dot-connect-next">Next: {next > N ? "✓" : next}</span>
             </div>
             <div className={`relative h-80 rounded-3xl bg-[#F0F8FF] border-2 ${errorFlash ? "border-[#EF476F]" : "border-[#E2E8F0]"} overflow-hidden`}>
@@ -63,22 +70,25 @@ export default function DotConnect({ onComplete }) {
                         );
                     })}
                 </svg>
-                {dots.map((d) => (
-                    <button
-                        key={d.n}
-                        onClick={() => tap(d.n)}
-                        className={`absolute -translate-x-1/2 -translate-y-1/2 h-12 w-12 rounded-full border-4 font-extrabold font-display transition-all ${
-                            tapped.includes(d.n)
-                                ? "bg-[#06D6A0] border-[#05B488] text-white"
-                                : "bg-white border-[#4361EE] text-[#4361EE] hover:scale-110"
-                        }`}
-                        style={{ left: `${d.x}%`, top: `${d.y}%` }}
-                        data-testid={`dot-${d.n}`}
-                        disabled={tapped.includes(d.n)}
-                    >
-                        {d.n}
-                    </button>
-                ))}
+                {dots.map((d) => {
+                    const size = N > 15 ? "h-10 w-10 text-sm" : "h-12 w-12";
+                    return (
+                        <button
+                            key={d.n}
+                            onClick={() => tap(d.n)}
+                            className={`absolute -translate-x-1/2 -translate-y-1/2 ${size} rounded-full border-4 font-extrabold font-display transition-all ${
+                                tapped.includes(d.n)
+                                    ? "bg-[#06D6A0] border-[#05B488] text-white"
+                                    : "bg-white border-[#4361EE] text-[#4361EE] hover:scale-110"
+                            }`}
+                            style={{ left: `${d.x}%`, top: `${d.y}%` }}
+                            data-testid={`dot-${d.n}`}
+                            disabled={tapped.includes(d.n)}
+                        >
+                            {d.n}
+                        </button>
+                    );
+                })}
             </div>
         </div>
     );

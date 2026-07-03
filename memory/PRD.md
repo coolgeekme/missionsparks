@@ -133,6 +133,16 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Resend domain `missionsparks.com` is now verified — emails deliver to any recipient. Sender: `hello@missionsparks.com`.
 - 15/15 digest pytest tests pass (`tests/test_digest.py`). 103/103 across the whole family-aware suite. Zero regressions.
 
+### Iter 23 — Mini-games always fresh (2026-07)
+- **Expanded default content pools** for the 3 customizable games: WordMatch went from 6 → 60 vocabulary pairs, MemoryCards from 6 emojis → 8 themed pools of 8 (64 total across space/animals/sports/food/nature/travel/spooky/cozy), SentenceBuilder from 3 → 28 sentences. Each play does a fresh `shuffle-and-slice` so kids rarely see the same content twice.
+- **Weekly AI-generated fresh packs** per kid (`GET /api/games/fresh-pack/{game_key}`): Claude generates 12 personalized word pairs / 8 themed emojis / 6 sentences tied to the kid's `reading_level` + `interests` from intake. Cached per (student, key, ISO-week) in `db.weekly_fresh_packs`. Regenerates automatically each new ISO week. Silent fallback to expanded pool if AI fails.
+- **Level variety** in the previously-static utility games:
+    - `DotConnect`: random 8/10/12/15/20 dots per play with adaptive minimum spacing.
+    - `ReactionTap`: 5 rotating modes (Standard/Fast/Marathon/Tricky/Tiny) with different durations, target sizes, and — in Tricky mode — 35% red decoy targets that penalize wrong taps.
+    - `BreathingBubble` intentionally unchanged (calming ritual — variety would defeat the purpose).
+- **Frontend**: new `content_pools.js` (single source of truth) + `lib/freshPack.js` (session-cached fetcher). Each customizable game fetches its weekly pack on mount and prefers it over the default pool.
+- **Tested**: 65/65 tests pass (7 new fresh-pack integration tests + streak/verification/push/home regression). Confirmed via curl: Enzo (interest=Minecraft) got words like "excavate", emojis like ⛏️🦖🦕💎🌋🥚, sentences like "Steve mines diamonds deep underground". Cache hit / week rollover both verified.
+
 ### Iter 22 — PWA + Web Push notifications (Batch 3, 2026-07)
 - **Full PWA scaffolding**: `manifest.json` (name, theme, icons), 4 icon sizes (192/512/512-maskable + 180-apple-touch), notification badge, service worker at `/sw.js` registered from `index.js` on load. Apple PWA meta tags in `index.html`.
 - **VAPID keypair** generated with `cryptography`; PEM private key + base64url public key stored in `/app/backend/.env`. Public key exposed via `GET /api/push/vapid-public-key`.
