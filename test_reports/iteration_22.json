@@ -1,0 +1,28 @@
+{
+  "summary": "Iter 24 — Parent Dashboard create-new-kid inline flow via /api/students/link. Backend: 8/8 new tests + 97/97 regression tests passed. Frontend: all form fields render with correct data-testids, create-new flow succeeds and kid appears in chip list, 404 message mentions 'name and password' guidance, weak-password validation surfaces inline, re-linking existing student is idempotent.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter24_create_and_link.py",
+    "/app/test_reports/pytest/iter24_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Cleanup: iterative playtests are accumulating orphan 'newkid_*' student users under parent@demo.com's family. Consider a small admin/cleanup script or fixture-scoped teardown to prevent chip-list pollution across iterations.",
+    "server.py exceeds 5000 lines — long-term this should be split into routers (students/families/missions/games/digest) for maintainability."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter24_create_and_link.py"
+  ],
+  "success_rate": { "backend": "100% (8/8 new + 97/97 regression)", "frontend": "100%" },
+  "test_credentials": "parent@demo.com / demo1234 (used); student@demo.com / demo1234 (used for idempotent relink).",
+  "seed_data_creation": "Multiple newkid_<uuid>@demo.com student users were created under parent@demo.com's family during backend + frontend runs. They persist (no admin cleanup endpoint). No production data touched.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "New students in parent@demo.com's chip list starting with 'newkid_' or 'Test Kid'/'Loginable Kid'/'Playtest Kid' are from this iter. LinkStudentRequest now accepts student_name/student_password/grade/reading_level; /api/students/link auto-creates when name+password provided, returns 409 if email belongs to a parent, 404 with 'name and password' guidance when email unknown and no create fields, 400 on weak pw, and rolls back the newly-created student if consent-check fails. Audit action is 'students.create_and_link' vs 'students.link'.",
+  "rca of the issue": "Root cause of original bug: /api/students/link endpoint only had a 'lookup existing student' branch and returned 404 'Student with that email not found' otherwise. Fix (verified) adds an auto-create branch when student_name+student_password are supplied and student_email doesn't resolve to any existing user; rolls back the create if consent validation later fails; rejects email collision with a parent (409); tightens missing-fields 404 message; frontend form gained 4 new inputs + helper text."
+}

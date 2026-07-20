@@ -347,6 +347,14 @@ class LinkStudentRequest(BaseModel):
     guardian_relationship: Optional[str] = None
     child_under_13: Optional[bool] = None
     consent_given: Optional[bool] = None
+    # Iter 24 — new-kid create-and-link flow. When the given email doesn't
+    # match any existing user AND these fields are set, we create the student
+    # account inline and then link. If the email DOES exist, we link the
+    # existing one (unchanged behavior).
+    student_name: Optional[str] = None
+    student_password: Optional[str] = None
+    grade: Optional[str] = None
+    reading_level: Optional[str] = None
 
 
 class AccountPrefsUpdate(BaseModel):
@@ -1118,9 +1126,48 @@ async def _resolve_evidence_for_mission(skill_ids: List[str], strategy_ids: List
 async def link_student(req: LinkStudentRequest, user: dict = Depends(require_role("parent"))):
     student_email = req.student_email.lower().strip()
     student = await db.users.find_one({"email": student_email, "role": "student"})
+    created_now = False
     if not student:
-        raise HTTPException(status_code=404, detail="Student with that email not found")
+        # Iter 24 — auto-create the student account when the caller supplied
+        # a name + password. Requires consent to be present (checked below).
+        clashing = await db.users.find_one({"email": student_email})
+        if clashing and clashing.get("role") != "student":
+            raise HTTPException(
+                status_code=409,
+                detail="That email belongs to a parent account. Kids need their own email.",
+            )
+        if not req.student_name or not req.student_password:
+            raise HTTPException(
+                status_code=404,
+                detail="No student with that email — to CREATE a new kid, also send a name and password.",
+            )
+        if len(req.student_password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters.")
+        # Build the student user doc
+        student_id = str(uuid.uuid4())
+        now_iso = datetime.now(timezone.utc).isoformat()
+        student_profile = {}
+        if req.grade:
+            student_profile["grade"] = req.grade.strip()
+        if req.reading_level:
+            student_profile["reading_level"] = req.reading_level.strip()
+        student = {
+            "id": student_id,
+            "email": student_email,
+            "name": req.student_name.strip()[:80],
+            "role": "student",
+            "password_hash": hash_password(req.student_password),
+            "created_at": now_iso,
+            "linked_student_ids": [],
+            "student_profile": student_profile,
+        }
+        await db.users.insert_one(student)
+        created_now = True
+
     if not req.consent_given or not req.guardian_name or not req.guardian_relationship:
+        # If we just created the student, roll it back so we don't leave orphans.
+        if created_now:
+            await db.users.delete_one({"id": student["id"]})
         raise HTTPException(
             status_code=400,
             detail="Parental consent is required. Please complete the consent form (your name, relationship, age check, and agreement).",
@@ -1153,8 +1200,13 @@ async def link_student(req: LinkStudentRequest, user: dict = Depends(require_rol
     for m in (fam or {}).get("members", []):
         await _sync_user_linked_students(m["user_id"])
     updated = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
-    await _audit(user, "students.link", target_type="student", target_id=student["id"],
-                 meta={"under_13": consent["child_under_13"]})
+    await _audit(
+        user,
+        "students.create_and_link" if created_now else "students.link",
+        target_type="student",
+        target_id=student["id"],
+        meta={"under_13": consent["child_under_13"], "created_now": created_now},
+    )
     return await _user_to_public(updated)
 
 

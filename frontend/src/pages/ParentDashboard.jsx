@@ -21,6 +21,12 @@ export default function ParentDashboard() {
     const [skills, setSkills] = useState([]);
     const [strategies, setStrategies] = useState([]);
     const [linkEmail, setLinkEmail] = useState("");
+    const [newStudent, setNewStudent] = useState({
+        name: "",
+        password: "",
+        grade: "",
+        reading_level: "",
+    });
     const [linkErr, setLinkErr] = useState("");
     const [busy, setBusy] = useState(false);
     const [consent, setConsent] = useState({
@@ -109,6 +115,13 @@ export default function ParentDashboard() {
             setLinkErr("Please complete the parental consent form (your name + check the agreement).");
             return;
         }
+        // If they typed a name/password we treat this as a create-new flow —
+        // backend will create the student if the email isn't already taken.
+        const wantCreate = !!(newStudent.name.trim() && newStudent.password);
+        if (wantCreate && newStudent.password.length < 6) {
+            setLinkErr("Password must be at least 6 characters.");
+            return;
+        }
         setBusy(true);
         try {
             await api.post("/students/link", {
@@ -117,8 +130,14 @@ export default function ParentDashboard() {
                 guardian_relationship: consent.guardian_relationship,
                 child_under_13: consent.child_under_13,
                 consent_given: true,
+                // Optional — backend uses these only if the student doesn't exist yet
+                student_name: newStudent.name.trim() || undefined,
+                student_password: newStudent.password || undefined,
+                grade: newStudent.grade.trim() || undefined,
+                reading_level: newStudent.reading_level.trim() || undefined,
             });
             setLinkEmail("");
+            setNewStudent({ name: "", password: "", grade: "", reading_level: "" });
             setConsent({ ...consent, consent_given: false });
             await loadStudents();
         } catch (e2) {
@@ -276,7 +295,7 @@ export default function ParentDashboard() {
                     </div>
                     {students.length === 0 ? (
                         <p className="text-[#4A5568] font-semibold mb-3" data-testid="parent-no-students">
-                            You haven't linked a student yet. Ask your child to sign up as a Student, then enter their email below.
+                            No students yet. Use the form below to add a new kid, or link an existing account by email.
                         </p>
                     ) : (
                         <div className="flex flex-wrap gap-2 mb-4">
@@ -298,16 +317,54 @@ export default function ParentDashboard() {
                     )}
 
                     <form onSubmit={handleLink} className="space-y-3" data-testid="parent-link-form">
-                        <div className="flex flex-col sm:flex-row gap-3">
+                        <p className="text-xs font-semibold text-[#4A5568]">
+                            Type an <strong>existing</strong> kid&apos;s email to link them, <em>or</em> fill in a name + password below to <strong>create a new kid account</strong>.
+                        </p>
+                        <div className="grid sm:grid-cols-2 gap-3">
                             <input
                                 type="email"
                                 placeholder="student@email.com"
                                 value={linkEmail}
                                 onChange={(e) => setLinkEmail(e.target.value)}
-                                className="mb-input sm:max-w-sm"
+                                className="mb-input"
                                 required
                                 data-testid="parent-link-email"
                             />
+                            <input
+                                type="text"
+                                placeholder="Kid&apos;s name (for new accounts)"
+                                value={newStudent.name}
+                                onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value.slice(0, 80) })}
+                                className="mb-input"
+                                data-testid="parent-link-new-name"
+                            />
+                            <input
+                                type="password"
+                                placeholder="Kid&apos;s password (min 6 chars, for new accounts)"
+                                value={newStudent.password}
+                                onChange={(e) => setNewStudent({ ...newStudent, password: e.target.value })}
+                                className="mb-input"
+                                autoComplete="new-password"
+                                data-testid="parent-link-new-password"
+                            />
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Grade (optional)"
+                                    value={newStudent.grade}
+                                    onChange={(e) => setNewStudent({ ...newStudent, grade: e.target.value.slice(0, 12) })}
+                                    className="mb-input w-1/2"
+                                    data-testid="parent-link-new-grade"
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Reading level (optional)"
+                                    value={newStudent.reading_level}
+                                    onChange={(e) => setNewStudent({ ...newStudent, reading_level: e.target.value.slice(0, 40) })}
+                                    className="mb-input w-1/2"
+                                    data-testid="parent-link-new-reading-level"
+                                />
+                            </div>
                         </div>
                         <details className="rounded-2xl border-2 border-[#FFD166] bg-[#FFD166]/10 p-4" data-testid="parent-link-consent">
                             <summary className="cursor-pointer font-display font-bold text-[#876200]">
@@ -364,7 +421,7 @@ export default function ParentDashboard() {
                             </label>
                         </details>
                         <button type="submit" disabled={busy} className="btn-pop-accent flex items-center gap-2" data-testid="parent-link-submit">
-                            <UserPlus size={16} /> {busy ? "Linking…" : "Link student"}
+                            <UserPlus size={16} /> {busy ? "Adding…" : "Add / link student"}
                         </button>
                     </form>
                     {linkErr && <p className="text-sm font-bold text-[#EF476F] mt-2" data-testid="parent-link-error">{linkErr}</p>}
