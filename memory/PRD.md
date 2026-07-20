@@ -133,6 +133,13 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Resend domain `missionsparks.com` is now verified — emails deliver to any recipient. Sender: `hello@missionsparks.com`.
 - 15/15 digest pytest tests pass (`tests/test_digest.py`). 103/103 across the whole family-aware suite. Zero regressions.
 
+### Iter 24 — Create-new-kid bug fix (2026-07)
+- **Bug**: user tried to add a new kid via Parent Dashboard "Link student" and got `Student with that email not found`. The endpoint only supported linking pre-existing student accounts — there was no create-new-inline path.
+- **Fix**:
+  - **Backend** (`POST /api/students/link`): now accepts optional `student_name`, `student_password`, `grade`, `reading_level`. When the email doesn't resolve to an existing user AND these are supplied, creates the student inline (with bcrypt-hashed password, student_profile populated) then links + records consent. Rejects with **409** if the email belongs to a parent account. Tightened **404** copy tells the caller they can supply name+password to create a new kid. Weak (<6 char) passwords return 400. Rollback on consent-validation failure so no orphan users remain. New audit action `students.create_and_link`.
+  - **Frontend** (`ParentDashboard.jsx`): "Link a student" section now has 4 additional fields (Name, Password, Grade, Reading level) + helper text explaining dual behavior + button relabeled to "Add / link student". "No students yet" copy updated for accuracy.
+- **Testing**: 8/8 new integration tests + 97/97 regression pass (via testing_agent_v3_fork). Zero bugs, zero action items.
+
 ### Iter 23 — Mini-games always fresh (2026-07)
 - **Expanded default content pools** for the 3 customizable games: WordMatch went from 6 → 60 vocabulary pairs, MemoryCards from 6 emojis → 8 themed pools of 8 (64 total across space/animals/sports/food/nature/travel/spooky/cozy), SentenceBuilder from 3 → 28 sentences. Each play does a fresh `shuffle-and-slice` so kids rarely see the same content twice.
 - **Weekly AI-generated fresh packs** per kid (`GET /api/games/fresh-pack/{game_key}`): Claude generates 12 personalized word pairs / 8 themed emojis / 6 sentences tied to the kid's `reading_level` + `interests` from intake. Cached per (student, key, ISO-week) in `db.weekly_fresh_packs`. Regenerates automatically each new ISO week. Silent fallback to expanded pool if AI fails.
