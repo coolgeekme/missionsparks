@@ -32,6 +32,7 @@ import Portfolio from "./pages/Portfolio";
 import FamilySettings from "./pages/FamilySettings";
 import InviteAccept from "./pages/InviteAccept";
 import HomePage from "./pages/HomePage";
+import QuickCapture from "./pages/QuickCapture";
 import { Toaster } from "./components/ui/sonner";
 import "./App.css";
 
@@ -71,6 +72,7 @@ export default function App() {
                         <Route path="/parent/moments" element={<ProtectedRoute role="parent"><MomentsTracker /></ProtectedRoute>} />
                         <Route path="/parent/moments/insights" element={<ProtectedRoute role="parent"><MomentsInsights /></ProtectedRoute>} />
                         <Route path="/student/checkin" element={<ProtectedRoute role="student"><StudentCheckIn /></ProtectedRoute>} />
+                        <Route path="/capture" element={<ProtectedRoute role="parent"><QuickCapture /></ProtectedRoute>} />
                         <Route path="/privacy" element={<Privacy />} />
                         <Route path="/terms" element={<Terms />} />
                         <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />

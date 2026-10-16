@@ -4299,11 +4299,19 @@ MOMENT_CATALOG = {
 }
 
 
+# Bare quick-capture valence → a sensible default catalog type (used by /capture)
+VALENCE_DEFAULT_MOMENT_TYPE = {
+    "positive": "regulated",   # Calm & regulated
+    "negative": "frustrated",  # Frustrated
+}
+
+
 class MomentCreate(BaseModel):
     student_id: Optional[str] = None
     timestamp: Optional[str] = None  # ISO; defaults to now
-    moment_type: str  # key from catalog OR free-text custom
-    intensity: int = Field(ge=1, le=5)
+    moment_type: Optional[str] = None  # key from catalog OR free-text custom
+    valence: Optional[str] = None  # quick capture: "positive" | "negative"
+    intensity: Optional[int] = Field(None, ge=1, le=5)
     duration_minutes: Optional[int] = None
     triggers: List[str] = []  # keys or custom strings
     context_note: str = ""
@@ -4372,6 +4380,14 @@ async def create_moment(req: MomentCreate, user: dict = Depends(get_current_user
     student_id = await _student_id_for(user, req.student_id)
     ts = req.timestamp or datetime.now(timezone.utc).isoformat()
     triggers = [t.strip() for t in (req.triggers or []) if t and t.strip()][:20]
+    # Resolve moment_type: explicit key wins; otherwise map a bare valence shortcut
+    moment_type = (req.moment_type or "").strip()
+    valence = (req.valence or "").strip().lower()
+    if not moment_type and valence in VALENCE_DEFAULT_MOMENT_TYPE:
+        moment_type = VALENCE_DEFAULT_MOMENT_TYPE[valence]
+    if not moment_type:
+        raise HTTPException(status_code=400, detail="moment_type or valence (positive/negative) is required")
+    intensity = int(req.intensity) if req.intensity else 3
     # Honor user-level "discard audio" preference at write time
     audio_data = req.audio_data
     audio_mime = req.audio_mime
@@ -4387,8 +4403,8 @@ async def create_moment(req: MomentCreate, user: dict = Depends(get_current_user
         "logged_by_user_id": user["id"],
         "logged_by_role": user["role"],
         "timestamp": ts,
-        "moment_type": req.moment_type.strip(),
-        "intensity": int(req.intensity),
+        "moment_type": moment_type,
+        "intensity": intensity,
         "duration_minutes": req.duration_minutes,
         "triggers": triggers,
         "context_note": (req.context_note or "").strip(),

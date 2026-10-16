@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Zap, LogOut, Settings, BookOpen, Users, ChevronDown, Check } from "lucide-react";
+import { Zap, LogOut, Settings, BookOpen, Users, ChevronDown, Check, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatApiErrorDetail } from "../lib/api";
@@ -85,6 +85,11 @@ export default function Navbar() {
                         <span className="hidden sm:inline text-sm font-bold text-[#4A5568]" data-testid="nav-user-name">
                             {user.name} · {user.role === "parent" ? "Parent" : "Student"}
                         </span>
+                        {isParent && (
+                            <Link to="/capture" className="btn-pop-primary flex items-center gap-2" data-testid="nav-quick-capture">
+                                <Plus size={16} /> Quick log
+                            </Link>
+                        )}
                         {isParent && (
                             <Link to="/parent/research" className="hidden md:flex btn-pop-ghost items-center gap-2" data-testid="nav-research">
                                 <BookOpen size={16} /> Research
