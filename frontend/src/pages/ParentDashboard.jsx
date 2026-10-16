@@ -255,9 +255,6 @@ export default function ParentDashboard() {
                         <p className="text-[#6E675B] font-semibold mt-2">Build small, doable wins for your learner.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                        <Link to="/parent/research" className="btn-pop-ghost flex items-center gap-2" data-testid="parent-go-research">
-                            <BookOpen size={16} /> Research
-                        </Link>
                         <Link to="/games" className="btn-pop-ghost flex items-center gap-2" data-testid="parent-go-games">
                             <Gamepad2 size={16} /> Games
                         </Link>

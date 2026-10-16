@@ -288,10 +288,6 @@ class TestRegression:
         r = parent.get(f"{API}/games/catalog")
         assert r.status_code == 200
 
-    def test_public_stats(self):
-        r = requests.get(f"{API}/public/stats")
-        assert r.status_code == 200
-
     def test_intake_get(self, parent):
         r = parent.get(f"{API}/students/{ENZO_ID}/intake")
         assert r.status_code == 200

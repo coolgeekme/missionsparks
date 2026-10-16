@@ -705,53 +705,6 @@ def require_role(role: Role):
     return dep
 
 
-# ---------- Public (no-auth) routes for landing page ----------
-class WaitlistRequest(BaseModel):
-    email: EmailStr
-    role: Optional[str] = None  # "parent" | "therapist" | "teacher" | "other"
-    source: Optional[str] = None  # e.g. "landing_hero", "landing_footer"
-
-
-@api.get("/public/stats")
-async def public_stats():
-    """Aggregate counts safe to expose to a logged-out visitor on the landing page."""
-    citations = await db.citations.count_documents({})
-    waitlist = await db.waitlist.count_documents({})
-    # Skill + strategy counts are stable seed data; safe to expose.
-    skills = await db.skills.count_documents({})
-    strategies = await db.strategies.count_documents({})
-    return {
-        "citations": citations,
-        "skills": skills,
-        "strategies": strategies,
-        "waitlist": waitlist,
-    }
-
-
-@api.post("/public/waitlist")
-async def join_waitlist(req: WaitlistRequest):
-    email = req.email.lower().strip()
-    existing = await db.waitlist.find_one({"email": email})
-    if existing:
-        return {"ok": True, "already_on_waitlist": True}
-    await db.waitlist.insert_one({
-        "id": str(uuid.uuid4()),
-        "email": email,
-        "role": (req.role or "").strip().lower()[:32] or None,
-        "source": (req.source or "").strip()[:64] or None,
-        "joined_at": datetime.now(timezone.utc).isoformat(),
-    })
-    logger.info("Waitlist signup: %s (role=%s, source=%s)", email, req.role, req.source)
-    return {"ok": True, "already_on_waitlist": False}
-
-
-@api.get("/waitlist")
-async def list_waitlist(user: dict = Depends(require_role("parent"))):
-    """Parent-gated for now; in a real launch this would be admin-only."""
-    rows = await db.waitlist.find({}, {"_id": 0}).sort("joined_at", -1).to_list(2000)
-    return {"count": len(rows), "items": rows}
-
-
 # ---------- Auth routes ----------
 @api.post("/auth/register", response_model=UserPublic)
 async def register(req: RegisterRequest, response: Response):

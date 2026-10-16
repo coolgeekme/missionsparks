@@ -323,16 +323,12 @@ class TestAudioTranscribe:
 class TestRegressionSmoke:
     @pytest.mark.parametrize("path", [
         "/citations", "/skills", "/strategies",
-        "/moments/catalog", "/games/catalog", "/public/stats",
+        "/moments/catalog", "/games/catalog",
     ])
     def test_catalog_endpoints(self, parent, path):
         # These require auth (per current backend); confirm they return 200 when authed.
         r = parent.get(f"{API}{path}")
         assert r.status_code == 200, f"{path} -> {r.status_code}"
-
-    def test_public_stats_unauth(self):
-        r = requests.get(f"{API}/public/stats")
-        assert r.status_code == 200
 
     def test_intake_get(self, parent):
         r = parent.get(f"{API}/students/{ENZO_ID}/intake")

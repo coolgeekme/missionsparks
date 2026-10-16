@@ -21,10 +21,6 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Account from "./pages/Account";
 import AuditLog from "./pages/AuditLog";
-import Research from "./pages/Research";
-import Landing from "./pages/Landing";
-import Changelog from "./pages/Changelog";
-import SubProcessors from "./pages/SubProcessors";
 import StudentIntake from "./pages/StudentIntake";
 import ReadingPractice from "./pages/ReadingPractice";
 import WritingPractice from "./pages/WritingPractice";
@@ -39,7 +35,7 @@ import "./App.css";
 function RootRedirect() {
     const { user } = useAuth();
     if (user === null) return <div className="min-h-screen flex items-center justify-center text-[#E4572E] font-bold">Loading…</div>;
-    if (!user) return <Landing />;
+    if (!user) return <Navigate to="/login" replace />;
     return <Navigate to={user.role === "parent" ? "/parent" : "/student"} replace />;
 }
 
@@ -51,8 +47,6 @@ export default function App() {
                     <BrowserRouter>
                     <Routes>
                         <Route path="/" element={<RootRedirect />} />
-                        <Route path="/changelog" element={<Changelog />} />
-                        <Route path="/sub-processors" element={<SubProcessors />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />
                         <Route path="/parent" element={<ProtectedRoute role="parent"><ParentDashboard /></ProtectedRoute>} />
@@ -77,7 +71,6 @@ export default function App() {
                         <Route path="/terms" element={<Terms />} />
                         <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
                         <Route path="/parent/audit" element={<ProtectedRoute role="parent"><AuditLog /></ProtectedRoute>} />
-                        <Route path="/parent/research" element={<ProtectedRoute role="parent"><Research /></ProtectedRoute>} />
                         <Route path="/parent/students/:studentId/portfolio" element={<ProtectedRoute role="parent"><Portfolio /></ProtectedRoute>} />
                         <Route path="/family" element={<ProtectedRoute role="parent"><FamilySettings /></ProtectedRoute>} />
                         <Route path="/invite/accept" element={<InviteAccept />} />

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { LogOut, Settings, BookOpen, Users, ChevronDown, Check, Plus } from "lucide-react";
+import { LogOut, Settings, Users, ChevronDown, Check, Plus } from "lucide-react";
 import SparkMark from "./SparkMark";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -88,11 +88,6 @@ export default function Navbar() {
                         {isParent && (
                             <Link to="/capture" className="btn-pop-primary flex items-center gap-2" data-testid="nav-quick-capture" aria-label="Quick log">
                                 <Plus size={16} /> <span className="hidden sm:inline">Quick log</span>
-                            </Link>
-                        )}
-                        {isParent && (
-                            <Link to="/parent/research" className="hidden md:flex btn-pop-ghost items-center gap-2" data-testid="nav-research">
-                                <BookOpen size={16} /> Research
                             </Link>
                         )}
                         <Link to="/account" className="btn-pop-ghost flex items-center gap-2" data-testid="nav-settings" aria-label="Settings">

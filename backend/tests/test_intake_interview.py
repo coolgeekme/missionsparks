@@ -268,7 +268,3 @@ class TestRegressionSmoke:
     def test_existing_endpoints_still_ok(self, parent_session, path):
         r = parent_session.get(f"{API}{path}")
         assert r.status_code == 200, f"{path} -> {r.status_code} {r.text[:200]}"
-
-    def test_public_stats_still_ok(self, anon_session):
-        r = anon_session.get(f"{API}/public/stats")
-        assert r.status_code == 200
