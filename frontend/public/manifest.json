@@ -2,7 +2,7 @@
   "name": "MissionSparks",
   "short_name": "MissionSparks",
   "description": "Small daily learning missions and behavior insights for ADHD families.",
-  "start_url": "/",
+  "start_url": "/capture",
   "scope": "/",
   "display": "standalone",
   "background_color": "#F8FAFC",
