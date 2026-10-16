@@ -4465,6 +4465,53 @@ async def delete_moment(moment_id: str, user: dict = Depends(get_current_user)):
     return {"ok": True}
 
 
+class MomentUpdate(BaseModel):
+    moment_type: Optional[str] = None
+    intensity: Optional[int] = Field(None, ge=1, le=5)
+    duration_minutes: Optional[int] = None
+    triggers: Optional[List[str]] = None
+    context_note: Optional[str] = None
+    antecedent: Optional[str] = None
+    response: Optional[str] = None
+    outcome: Optional[str] = None
+    notes: Optional[str] = None
+    timestamp: Optional[str] = None
+
+
+@api.put("/moments/{moment_id}", response_model=Moment)
+async def update_moment(moment_id: str, req: MomentUpdate, user: dict = Depends(get_current_user)):
+    m = await db.moments.find_one({"id": moment_id}, {"_id": 0})
+    if not m:
+        raise HTTPException(status_code=404, detail="Moment not found")
+    if user["role"] == "student":
+        if m["student_id"] != user["id"]:
+            raise HTTPException(status_code=403, detail="Not yours")
+    else:
+        if m["student_id"] not in await _accessible_student_ids(user):
+            raise HTTPException(status_code=403, detail="Not your student")
+    data = req.model_dump(exclude_unset=True)
+    updates: dict = {}
+    if "moment_type" in data and data["moment_type"] is not None:
+        updates["moment_type"] = data["moment_type"].strip()
+    if "intensity" in data and data["intensity"] is not None:
+        updates["intensity"] = int(data["intensity"])
+    if "duration_minutes" in data:
+        updates["duration_minutes"] = data["duration_minutes"]
+    if "timestamp" in data and data["timestamp"] is not None:
+        updates["timestamp"] = data["timestamp"]
+    if "triggers" in data and data["triggers"] is not None:
+        updates["triggers"] = [t.strip() for t in data["triggers"] if t and t.strip()][:20]
+    for f in ["context_note", "antecedent", "response", "outcome", "notes"]:
+        if f in data and data[f] is not None:
+            updates[f] = data[f].strip()
+    if updates:
+        await db.moments.update_one({"id": moment_id}, {"$set": updates})
+    fresh = await db.moments.find_one({"id": moment_id}, {"_id": 0})
+    await _audit(user, "moment.update", target_type="student", target_id=m["student_id"],
+                 meta={"moment_id": moment_id, "fields": list(updates.keys())})
+    return Moment(**fresh)
+
+
 class MomentInsights(BaseModel):
     total: int
     counts_by_type: dict

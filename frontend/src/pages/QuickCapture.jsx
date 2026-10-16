@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import AudioRecorder from "../components/AudioRecorder";
 import { api, formatApiErrorDetail } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
-import { ArrowLeft, ThumbsUp, ThumbsDown, Sparkles } from "lucide-react";
+import { ArrowLeft, ThumbsUp, ThumbsDown, Sparkles, Mic } from "lucide-react";
 
 const LS_KEY_PREFIX = "missionsparks:lastCaptureStudent:";
 
@@ -11,9 +12,10 @@ export default function QuickCapture() {
     const { user } = useAuth();
     const [students, setStudents] = useState([]);
     const [selected, setSelected] = useState(null);
-    const [busy, setBusy] = useState(null); // "positive" | "negative" | null
-    const [lastLogged, setLastLogged] = useState(null); // {valence, name, at}
+    const [busy, setBusy] = useState(null); // "positive" | "negative" | "voice" | null
+    const [lastLogged, setLastLogged] = useState(null); // {name, at}
     const [err, setErr] = useState("");
+    const [voiceOpen, setVoiceOpen] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -46,7 +48,35 @@ export default function QuickCapture() {
         setErr("");
         try {
             await api.post("/moments", { student_id: selected.id, valence });
-            setLastLogged({ valence, name: selected.name, at: new Date() });
+            setLastLogged({ name: selected.name, at: new Date() });
+        } catch (e) {
+            setErr(formatApiErrorDetail(e.response?.data?.detail) || e.message);
+        } finally {
+            setBusy(null);
+        }
+    };
+
+    const handleParsed = async ({ transcript, audio_data, audio_mime, parsed }) => {
+        if (!selected) return;
+        setBusy("voice");
+        setErr("");
+        try {
+            await api.post("/moments", {
+                student_id: selected.id,
+                moment_type: parsed.moment_type || "regulated",
+                intensity: parsed.intensity || 3,
+                triggers: parsed.triggers || [],
+                context_note: parsed.context_note || "",
+                antecedent: parsed.antecedent || "",
+                response: parsed.response || "",
+                outcome: parsed.outcome || "",
+                notes: parsed.notes || "",
+                audio_data: audio_data || null,
+                audio_mime: audio_mime || null,
+                transcript: transcript || null,
+            });
+            setLastLogged({ name: selected.name, at: new Date() });
+            setVoiceOpen(false);
         } catch (e) {
             setErr(formatApiErrorDetail(e.response?.data?.detail) || e.message);
         } finally {
@@ -65,7 +95,7 @@ export default function QuickCapture() {
                 <header className="text-center">
                     <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Quick log</p>
                     <h1 className="font-display font-extrabold text-3xl text-[#0B132B] mt-1">How did it go?</h1>
-                    <p className="text-[#4A5568] font-semibold mt-1">One tap. It's logged for the day.</p>
+                    <p className="text-[#4A5568] font-semibold mt-1">One tap — or speak it — and it's logged for the day.</p>
                 </header>
 
                 {students.length === 0 ? (
@@ -114,15 +144,38 @@ export default function QuickCapture() {
                             </button>
                         </div>
 
+                        {/* Speak it */}
+                        <button
+                            onClick={() => setVoiceOpen((v) => !v)}
+                            disabled={!!busy}
+                            className="btn-pop-secondary w-full flex items-center justify-center gap-2 disabled:opacity-60"
+                            data-testid="quick-capture-speak"
+                        >
+                            <Mic size={16} /> {voiceOpen ? "Cancel voice" : "Speak it instead"}
+                        </button>
+
+                        {voiceOpen && (
+                            <div className="mb-card p-5" data-testid="quick-capture-voice">
+                                <p className="font-display font-bold text-lg text-[#0B132B] mb-1">Describe it for {selected?.name}</p>
+                                <p className="text-xs font-bold text-[#A0AEC0] mb-3">
+                                    Try: "Enzo got frustrated with math homework, so we took a body break."
+                                </p>
+                                <AudioRecorder onParsed={handleParsed} />
+                            </div>
+                        )}
+
                         {err && (
                             <p className="text-sm font-bold text-[#EF476F] bg-[#EF476F]/10 rounded-xl px-3 py-2 text-center" data-testid="quick-capture-error">
                                 {err}
                             </p>
                         )}
                         {lastLogged && !err && (
-                            <p className="text-sm font-bold text-[#06D6A0] bg-[#06D6A0]/10 rounded-xl px-3 py-2 text-center" data-testid="quick-capture-confirmation">
-                                ✓ Logged for {lastLogged.name} · {lastLogged.at.toLocaleTimeString()}
-                            </p>
+                            <div className="rounded-xl bg-[#06D6A0]/10 border-2 border-[#06D6A0] px-3 py-2 text-center" data-testid="quick-capture-confirmation">
+                                <p className="text-sm font-bold text-[#057a5b]">✓ Logged for {lastLogged.name} · {lastLogged.at.toLocaleTimeString()}</p>
+                                <Link to={`/parent/moments?student=${selected?.id}`} className="text-xs font-bold text-[#4361EE] underline inline-flex items-center gap-1 mt-1" data-testid="quick-capture-add-details">
+                                    Add details / edit →
+                                </Link>
+                            </div>
                         )}
 
                         {/* PWA hint */}

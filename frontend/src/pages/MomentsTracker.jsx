@@ -4,7 +4,7 @@ import Navbar from "../components/Navbar";
 import EvidenceBadge from "../components/EvidenceBadge";
 import { api, formatApiErrorDetail, API } from "../lib/api";
 import {
-    ArrowLeft, Plus, Trash2, Download, BarChart3, X, Filter, Clock, ChevronRight, Mic,
+    ArrowLeft, Plus, Trash2, Download, BarChart3, X, Filter, Clock, ChevronRight, Mic, Pencil,
 } from "lucide-react";
 import AudioRecorder from "../components/AudioRecorder";
 
@@ -20,6 +20,11 @@ const localToIso = (local) => {
     if (!local) return new Date().toISOString();
     return new Date(local).toISOString();
 };
+const isoToLocalInput = (iso) => {
+    if (!iso) return nowLocalInput();
+    const d = new Date(iso);
+    return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
 
 export default function MomentsTracker() {
     const navigate = useNavigate();
@@ -30,6 +35,7 @@ export default function MomentsTracker() {
     const [filter, setFilter] = useState({ type: "", trigger: "" });
     const [busy, setBusy] = useState(false);
     const [formOpen, setFormOpen] = useState(false);
+    const [editing, setEditing] = useState(null); // moment being edited (null = new)
     const [err, setErr] = useState("");
 
     const [form, setForm] = useState({
@@ -66,7 +72,9 @@ export default function MomentsTracker() {
             const [stu, cat] = await Promise.all([api.get("/students"), api.get("/moments/catalog")]);
             setStudents(stu.data);
             setCatalog(cat.data);
-            if (stu.data[0]) setSelected(stu.data[0]);
+            const qs = new URLSearchParams(window.location.search).get("student");
+            const preferred = (qs && stu.data.find((s) => s.id === qs)) || stu.data[0];
+            if (preferred) setSelected(preferred);
         })();
     }, []);
 
@@ -87,7 +95,7 @@ export default function MomentsTracker() {
         setBusy(true);
         setErr("");
         try {
-            await api.post("/moments", {
+            const payload = {
                 student_id: selected?.id,
                 timestamp: localToIso(form.timestamp),
                 moment_type: form.moment_type,
@@ -102,7 +110,12 @@ export default function MomentsTracker() {
                 audio_data: pendingAudio?.audio_data || null,
                 audio_mime: pendingAudio?.audio_mime || null,
                 transcript: pendingAudio?.transcript || transcript || null,
-            });
+            };
+            if (editing) {
+                await api.put(`/moments/${editing.id}`, payload);
+            } else {
+                await api.post("/moments", payload);
+            }
             closeForm();
             load(selected.id);
         } catch (e2) {
@@ -114,6 +127,7 @@ export default function MomentsTracker() {
 
     const closeForm = () => {
         setFormOpen(false);
+        setEditing(null);
         setVoiceMode(false);
         setPendingAudio(null);
         setTranscript("");
@@ -142,6 +156,26 @@ export default function MomentsTracker() {
 
     const openVoice = () => {
         setVoiceMode(true);
+        setFormOpen(true);
+    };
+
+    const openEdit = (m) => {
+        setEditing(m);
+        setVoiceMode(false);
+        setPendingAudio(null);
+        setTranscript(m.transcript || "");
+        setForm({
+            timestamp: isoToLocalInput(m.timestamp),
+            moment_type: m.moment_type || "",
+            intensity: m.intensity || 3,
+            duration_minutes: m.duration_minutes != null ? String(m.duration_minutes) : "",
+            triggers: m.triggers || [],
+            context_note: m.context_note || "",
+            antecedent: m.antecedent || "",
+            response: m.response || "",
+            outcome: m.outcome || "",
+            notes: m.notes || "",
+        });
         setFormOpen(true);
     };
 
@@ -261,6 +295,9 @@ export default function MomentsTracker() {
                                                 <span className="mb-chip bg-[#FFD166]/30 text-[#876200]" title="Intensity 1-5">
                                                     {"●".repeat(m.intensity)}{"○".repeat(5 - m.intensity)}
                                                 </span>
+                                                <button onClick={() => openEdit(m)} className="p-2 rounded-xl hover:bg-[#4361EE]/10" data-testid={`moment-edit-${m.id}`} aria-label="edit">
+                                                    <Pencil size={14} className="text-[#4361EE]" />
+                                                </button>
                                                 <button onClick={() => removeMoment(m.id)} className="p-2 rounded-xl hover:bg-[#EF476F]/10" data-testid={`moment-delete-${m.id}`} aria-label="delete">
                                                     <Trash2 size={14} className="text-[#EF476F]" />
                                                 </button>
@@ -335,7 +372,7 @@ export default function MomentsTracker() {
                         <form onSubmit={submit} className="p-6 space-y-5" data-testid="moments-form">
                             <div className="flex items-start justify-between">
                                 <div>
-                                    <h2 className="font-display font-extrabold text-2xl text-[#0B132B]">Log a moment</h2>
+                                    <h2 className="font-display font-extrabold text-2xl text-[#0B132B]">{editing ? "Edit moment" : "Log a moment"}</h2>
                                     <p className="text-sm font-semibold text-[#4A5568] mt-1">For {selected?.name}. The more detail, the better the pattern.</p>
                                 </div>
                                 <button type="button" onClick={closeForm} className="p-2 rounded-xl hover:bg-[#F7FAFC]" data-testid="moments-form-close" aria-label="close">
@@ -430,7 +467,7 @@ export default function MomentsTracker() {
 
                             <div className="flex gap-3 pt-2">
                                 <button type="submit" disabled={busy} className="btn-pop-primary flex-1 flex items-center justify-center gap-2" data-testid="moments-form-submit">
-                                    {busy ? "Saving…" : (<><ChevronRight size={16} /> Save moment</>)}
+                                    {busy ? "Saving…" : (<><ChevronRight size={16} /> {editing ? "Save changes" : "Save moment"}</>)}
                                 </button>
                                 <button type="button" onClick={closeForm} className="btn-pop-ghost" data-testid="moments-form-cancel">Cancel</button>
                             </div>
