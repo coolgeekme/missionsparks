@@ -39,7 +39,7 @@ export default function Navbar() {
                     <div className="h-10 w-10 rounded-2xl bg-[#4361EE] flex items-center justify-center text-white shadow-[0_4px_0_0_#3A53CC]">
                         <Zap size={20} fill="currentColor" />
                     </div>
-                    <span className="font-display font-extrabold text-2xl text-[#0B132B]">MissionSparks</span>
+                    <span className="hidden sm:inline font-display font-extrabold text-2xl text-[#0B132B]">MissionSparks</span>
                 </Link>
                 {user && user.id && (
                     <div className="flex items-center gap-2 sm:gap-3">
@@ -49,10 +49,11 @@ export default function Navbar() {
                                     onClick={() => setFamOpen((v) => !v)}
                                     disabled={switching}
                                     data-testid="nav-family-switcher"
+                                    aria-label="Switch family"
                                     className="btn-pop-ghost flex items-center gap-2 max-w-[14rem]"
                                 >
                                     <Users size={16} />
-                                    <span className="font-bold text-sm truncate">{activeFamily?.name || "Family"}</span>
+                                    <span className="hidden sm:inline font-bold text-sm truncate">{activeFamily?.name || "Family"}</span>
                                     {families.length > 1 && <ChevronDown size={14} />}
                                 </button>
                                 {famOpen && (
@@ -86,8 +87,8 @@ export default function Navbar() {
                             {user.name} · {user.role === "parent" ? "Parent" : "Student"}
                         </span>
                         {isParent && (
-                            <Link to="/capture" className="btn-pop-primary flex items-center gap-2" data-testid="nav-quick-capture">
-                                <Plus size={16} /> Quick log
+                            <Link to="/capture" className="btn-pop-primary flex items-center gap-2" data-testid="nav-quick-capture" aria-label="Quick log">
+                                <Plus size={16} /> <span className="hidden sm:inline">Quick log</span>
                             </Link>
                         )}
                         {isParent && (
@@ -95,11 +96,11 @@ export default function Navbar() {
                                 <BookOpen size={16} /> Research
                             </Link>
                         )}
-                        <Link to="/account" className="btn-pop-ghost flex items-center gap-2" data-testid="nav-settings">
-                            <Settings size={16} /> Settings
+                        <Link to="/account" className="btn-pop-ghost flex items-center gap-2" data-testid="nav-settings" aria-label="Settings">
+                            <Settings size={16} /> <span className="hidden sm:inline">Settings</span>
                         </Link>
-                        <button onClick={handleLogout} className="btn-pop-ghost flex items-center gap-2" data-testid="nav-logout">
-                            <LogOut size={16} /> Logout
+                        <button onClick={handleLogout} className="btn-pop-ghost flex items-center gap-2" data-testid="nav-logout" aria-label="Logout">
+                            <LogOut size={16} /> <span className="hidden sm:inline">Logout</span>
                         </button>
                     </div>
                 )}
