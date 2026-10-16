@@ -5,8 +5,8 @@
   "start_url": "/capture",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#F8FAFC",
-  "theme_color": "#4361EE",
+  "background_color": "#FBF6EE",
+  "theme_color": "#E4572E",
   "orientation": "portrait",
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

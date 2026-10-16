@@ -5,14 +5,14 @@ import { X, Sparkles, Loader2 } from "lucide-react";
 
 // Mirror of backend AVATAR_COLOR_PALETTE
 const COLOR_GRADIENTS = {
-    indigo: "from-[#4361EE] to-[#06D6A0]",
-    emerald: "from-[#06D6A0] to-[#118AB2]",
-    pink: "from-[#EF476F] to-[#FFD166]",
-    amber: "from-[#FFD166] to-[#EF476F]",
-    violet: "from-[#7B2CBF] to-[#4361EE]",
-    teal: "from-[#118AB2] to-[#06D6A0]",
-    rose: "from-[#FB7185] to-[#F472B6]",
-    sky: "from-[#38BDF8] to-[#4361EE]",
+    indigo: "from-[#E4572E] to-[#3F8C5E]",
+    emerald: "from-[#3F8C5E] to-[#4C9A6B]",
+    pink: "from-[#BC4B32] to-[#E8A33D]",
+    amber: "from-[#E8A33D] to-[#BC4B32]",
+    violet: "from-[#7A5C8E] to-[#E4572E]",
+    teal: "from-[#4C9A6B] to-[#3F8C5E]",
+    rose: "from-[#D08A76] to-[#D08A76]",
+    sky: "from-[#6EA886] to-[#E4572E]",
 };
 
 export default function AvatarPickerModal({ open, onClose, initialName }) {
@@ -63,20 +63,20 @@ export default function AvatarPickerModal({ open, onClose, initialName }) {
         >
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-3xl border-2 border-[#E2E8F0] p-6 sm:p-8 max-w-md w-full"
+                className="bg-white rounded-3xl border-2 border-[#E8E0D2] p-6 sm:p-8 max-w-md w-full"
             >
                 <div className="flex items-center justify-between mb-1">
-                    <h2 className="font-display font-extrabold text-2xl text-[#0B132B] flex items-center gap-2">
-                        <Sparkles size={20} className="text-[#4361EE]" /> My tile
+                    <h2 className="font-display font-extrabold text-2xl text-[#201D18] flex items-center gap-2">
+                        <Sparkles size={20} className="text-[#E4572E]" /> My tile
                     </h2>
-                    <button onClick={() => onClose?.(false)} className="text-[#A0AEC0] hover:text-[#0B132B]" data-testid="avatar-picker-close">
+                    <button onClick={() => onClose?.(false)} className="text-[#9A9286] hover:text-[#201D18]" data-testid="avatar-picker-close">
                         <X size={20} />
                     </button>
                 </div>
-                <p className="text-sm font-semibold text-[#4A5568] mb-4">Make it yours.</p>
+                <p className="text-sm font-semibold text-[#6E675B] mb-4">Make it yours.</p>
 
                 {loading ? (
-                    <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[#4361EE]" size={28} /></div>
+                    <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[#E4572E]" size={28} /></div>
                 ) : (
                     <>
                         {/* Preview */}
@@ -87,12 +87,12 @@ export default function AvatarPickerModal({ open, onClose, initialName }) {
                         </div>
 
                         {/* Emoji palette */}
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mb-2">Pick an icon</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286] mb-2">Pick an icon</p>
                         <div className="grid grid-cols-8 gap-2 mb-5" data-testid="avatar-emoji-grid">
                             <button
                                 key="initial"
                                 onClick={() => setEmoji(null)}
-                                className={`h-10 w-10 rounded-2xl border-2 flex items-center justify-center font-extrabold text-sm transition-all ${!emoji ? "border-[#4361EE] bg-[#4361EE]/10" : "border-[#E2E8F0] hover:border-[#A0AEC0]"}`}
+                                className={`h-10 w-10 rounded-2xl border-2 flex items-center justify-center font-extrabold text-sm transition-all ${!emoji ? "border-[#E4572E] bg-[#E4572E]/10" : "border-[#E8E0D2] hover:border-[#9A9286]"}`}
                                 data-testid="avatar-emoji-initial"
                                 aria-label="Use my initial"
                             >{initial}</button>
@@ -100,20 +100,20 @@ export default function AvatarPickerModal({ open, onClose, initialName }) {
                                 <button
                                     key={e}
                                     onClick={() => setEmoji(e)}
-                                    className={`h-10 w-10 rounded-2xl border-2 flex items-center justify-center text-xl transition-all ${emoji === e ? "border-[#4361EE] bg-[#4361EE]/10" : "border-[#E2E8F0] hover:border-[#A0AEC0]"}`}
+                                    className={`h-10 w-10 rounded-2xl border-2 flex items-center justify-center text-xl transition-all ${emoji === e ? "border-[#E4572E] bg-[#E4572E]/10" : "border-[#E8E0D2] hover:border-[#9A9286]"}`}
                                     data-testid={`avatar-emoji-${e}`}
                                 >{e}</button>
                             ))}
                         </div>
 
                         {/* Color palette */}
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mb-2">Pick a color</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286] mb-2">Pick a color</p>
                         <div className="grid grid-cols-8 gap-2 mb-6" data-testid="avatar-color-grid">
                             {colorPalette.map((c) => (
                                 <button
                                     key={c}
                                     onClick={() => setColor(c)}
-                                    className={`h-10 w-10 rounded-2xl border-2 bg-gradient-to-br ${COLOR_GRADIENTS[c] || ""} transition-all ${color === c ? "ring-2 ring-[#0B132B] ring-offset-2" : "border-transparent"}`}
+                                    className={`h-10 w-10 rounded-2xl border-2 bg-gradient-to-br ${COLOR_GRADIENTS[c] || ""} transition-all ${color === c ? "ring-2 ring-[#201D18] ring-offset-2" : "border-transparent"}`}
                                     aria-label={c}
                                     data-testid={`avatar-color-${c}`}
                                 />

@@ -75,10 +75,10 @@ export default function MemoryCards({ onComplete, content }) {
     return (
         <div data-testid="game-memory-cards">
             <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-bold text-[#4A5568]">Flip two cards. Find all 6 pairs.</p>
+                <p className="text-sm font-bold text-[#6E675B]">Flip two cards. Find all 6 pairs.</p>
                 <div className="flex gap-2">
-                    <span className="mb-chip bg-[#06D6A0]/15 text-[#057a5b]" data-testid="memory-pairs">{matchedCount}/6 pairs</span>
-                    <span className="mb-chip bg-[#FFD166]/30 text-[#876200]">Moves: {moves}</span>
+                    <span className="mb-chip bg-[#3F8C5E]/15 text-[#2F6B47]" data-testid="memory-pairs">{matchedCount}/6 pairs</span>
+                    <span className="mb-chip bg-[#E8A33D]/30 text-[#8A6413]">Moves: {moves}</span>
                 </div>
             </div>
             <div className="grid grid-cols-4 gap-3 max-w-md mx-auto">
@@ -90,10 +90,10 @@ export default function MemoryCards({ onComplete, content }) {
                             onClick={() => flip(c.id)}
                             className={`aspect-square rounded-2xl border-2 text-4xl flex items-center justify-center font-bold transition-all ${
                                 matched[c.id]
-                                    ? "bg-[#06D6A0]/15 border-[#06D6A0]"
+                                    ? "bg-[#3F8C5E]/15 border-[#3F8C5E]"
                                     : shown
-                                    ? "bg-white border-[#4361EE]"
-                                    : "bg-[#4361EE] border-[#4361EE] text-white"
+                                    ? "bg-white border-[#E4572E]"
+                                    : "bg-[#E4572E] border-[#E4572E] text-white"
                             }`}
                             data-testid={`memory-card-${c.id}`}
                             disabled={!!matched[c.id]}

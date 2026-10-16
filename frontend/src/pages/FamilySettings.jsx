@@ -10,9 +10,9 @@ import {
 } from "lucide-react";
 
 const ROLE_META = {
-    owner: { label: "Owner", icon: Crown, color: "#FFD166", desc: "Full control: invite, remove, billing, delete." },
-    co_parent: { label: "Co-parent", icon: Shield, color: "#4361EE", desc: "Create & edit missions, moments, packs." },
-    viewer: { label: "Viewer", icon: Eye, color: "#06D6A0", desc: "Read-only. Great for grandparents or tutors." },
+    owner: { label: "Owner", icon: Crown, color: "#E8A33D", desc: "Full control: invite, remove, billing, delete." },
+    co_parent: { label: "Co-parent", icon: Shield, color: "#E4572E", desc: "Create & edit missions, moments, packs." },
+    viewer: { label: "Viewer", icon: Eye, color: "#3F8C5E", desc: "Read-only. Great for grandparents or tutors." },
 };
 
 export default function FamilySettings() {
@@ -159,16 +159,16 @@ export default function FamilySettings() {
         <div className="min-h-screen" data-testid="family-settings-page">
             <Navbar />
             <main className="max-w-4xl mx-auto p-6 md:p-10 space-y-6">
-                <Link to="/parent" className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE]" data-testid="family-back">
+                <Link to="/parent" className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E]" data-testid="family-back">
                     <ArrowLeft size={16} /> Back to dashboard
                 </Link>
 
                 <header className="mb-card p-6 sm:p-8">
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Family settings</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Family settings</p>
                     <div className="flex items-start justify-between gap-3 mt-1">
                         <div className="flex-1">
                             {!editingName ? (
-                                <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-[#0B132B]" data-testid="family-name-display">
+                                <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-[#201D18]" data-testid="family-name-display">
                                     {fam?.name || "Loading…"}
                                 </h1>
                             ) : (
@@ -176,7 +176,7 @@ export default function FamilySettings() {
                                     <input
                                         value={newName}
                                         onChange={(e) => setNewName(e.target.value)}
-                                        className="rounded-2xl border-2 border-[#E2E8F0] px-4 py-2 font-bold focus:border-[#4361EE] outline-none text-2xl"
+                                        className="rounded-2xl border-2 border-[#E8E0D2] px-4 py-2 font-bold focus:border-[#E4572E] outline-none text-2xl"
                                         data-testid="family-name-input"
                                         maxLength={80}
                                     />
@@ -185,12 +185,12 @@ export default function FamilySettings() {
                                 </div>
                             )}
                             {!editingName && canWrite && (
-                                <button onClick={() => setEditingName(true)} className="text-xs font-bold text-[#4361EE] mt-1 flex items-center gap-1" data-testid="family-name-edit">
+                                <button onClick={() => setEditingName(true)} className="text-xs font-bold text-[#E4572E] mt-1 flex items-center gap-1" data-testid="family-name-edit">
                                     <Pencil size={12} /> Rename
                                 </button>
                             )}
                             {myRole && (
-                                <p className="mt-3 text-sm font-semibold text-[#4A5568] inline-flex items-center gap-2">
+                                <p className="mt-3 text-sm font-semibold text-[#6E675B] inline-flex items-center gap-2">
                                     Your role:
                                     <span className="mb-chip" style={{ background: `${ROLE_META[myRole].color}22`, color: ROLE_META[myRole].color }}>
                                         {(() => { const I = ROLE_META[myRole].icon; return <I size={12} />; })()}
@@ -204,7 +204,7 @@ export default function FamilySettings() {
                                 <Plus size={14} /> New family
                             </button>
                             {fam && !isOwner && (
-                                <button onClick={leaveFamily} className="btn-pop-ghost text-[#EF476F] flex items-center gap-2 text-sm" data-testid="family-leave">
+                                <button onClick={leaveFamily} className="btn-pop-ghost text-[#BC4B32] flex items-center gap-2 text-sm" data-testid="family-leave">
                                     <LogOut size={14} /> Leave
                                 </button>
                             )}
@@ -212,16 +212,16 @@ export default function FamilySettings() {
                     </div>
                 </header>
 
-                {err && <p className="text-sm font-bold text-[#EF476F]" data-testid="family-error">{err}</p>}
+                {err && <p className="text-sm font-bold text-[#BC4B32]" data-testid="family-error">{err}</p>}
 
                 {showCreate && (
                     <section className="mb-card p-5 space-y-3" data-testid="family-create-form">
-                        <h2 className="font-display font-bold text-xl text-[#0B132B]">New family</h2>
+                        <h2 className="font-display font-bold text-xl text-[#201D18]">New family</h2>
                         <input
                             value={createName}
                             onChange={(e) => setCreateName(e.target.value)}
                             placeholder="e.g. The Smith Family"
-                            className="w-full rounded-2xl border-2 border-[#E2E8F0] px-4 py-3 font-bold focus:border-[#4361EE] outline-none"
+                            className="w-full rounded-2xl border-2 border-[#E8E0D2] px-4 py-3 font-bold focus:border-[#E4572E] outline-none"
                             data-testid="family-create-name"
                             maxLength={80}
                         />
@@ -235,7 +235,7 @@ export default function FamilySettings() {
                 {fam && (
                     <>
                     <section className="mb-card p-6">
-                        <h2 className="font-display font-extrabold text-xl text-[#0B132B] mb-4 flex items-center gap-2">
+                        <h2 className="font-display font-extrabold text-xl text-[#201D18] mb-4 flex items-center gap-2">
                             <Users size={20} /> Members ({fam.members.length})
                         </h2>
                         <div className="space-y-3" data-testid="family-members-list">
@@ -245,17 +245,17 @@ export default function FamilySettings() {
                                 const isMe = m.user_id === user.id;
                                 const displayName = isMe ? "You" : (m.name || m.email || m.user_id.slice(0, 8));
                                 return (
-                                    <div key={m.user_id} className="flex items-center justify-between gap-3 p-3 rounded-2xl border-2 border-[#E2E8F0]" data-testid={`family-member-${m.user_id}`}>
+                                    <div key={m.user_id} className="flex items-center justify-between gap-3 p-3 rounded-2xl border-2 border-[#E8E0D2]" data-testid={`family-member-${m.user_id}`}>
                                         <div className="flex items-center gap-3 min-w-0">
                                             <div className="h-10 w-10 rounded-2xl flex items-center justify-center text-sm font-bold" style={{ background: `${meta.color}22`, color: meta.color }}>
                                                 <Icon size={18} />
                                             </div>
                                             <div className="min-w-0">
-                                                <p className="font-bold text-[#0B132B] truncate">
+                                                <p className="font-bold text-[#201D18] truncate">
                                                     {displayName}
-                                                    {(isMe || m.email) && <span className="ml-2 text-xs text-[#4A5568] font-semibold">({isMe ? user.email : m.email})</span>}
+                                                    {(isMe || m.email) && <span className="ml-2 text-xs text-[#6E675B] font-semibold">({isMe ? user.email : m.email})</span>}
                                                 </p>
-                                                <p className="text-xs font-semibold text-[#4A5568]">{meta.label} · joined {new Date(m.joined_at).toLocaleDateString()}</p>
+                                                <p className="text-xs font-semibold text-[#6E675B]">{meta.label} · joined {new Date(m.joined_at).toLocaleDateString()}</p>
                                             </div>
                                         </div>
                                         {isOwner && !isMe && (
@@ -263,14 +263,14 @@ export default function FamilySettings() {
                                                 <select
                                                     value={m.role}
                                                     onChange={(e) => changeMemberRole(m.user_id, e.target.value)}
-                                                    className="rounded-xl border-2 border-[#E2E8F0] px-2 py-1 text-sm font-bold focus:border-[#4361EE] outline-none"
+                                                    className="rounded-xl border-2 border-[#E8E0D2] px-2 py-1 text-sm font-bold focus:border-[#E4572E] outline-none"
                                                     data-testid={`role-select-${m.user_id}`}
                                                 >
                                                     <option value="co_parent">Co-parent</option>
                                                     <option value="viewer">Viewer</option>
                                                     <option value="owner">Owner (transfer)</option>
                                                 </select>
-                                                <button onClick={() => removeMember(m.user_id)} className="text-[#EF476F]" data-testid={`remove-member-${m.user_id}`}>
+                                                <button onClick={() => removeMember(m.user_id)} className="text-[#BC4B32]" data-testid={`remove-member-${m.user_id}`}>
                                                     <Trash2 size={16} />
                                                 </button>
                                             </div>
@@ -283,7 +283,7 @@ export default function FamilySettings() {
 
                     {canWrite && (
                         <section className="mb-card p-6" data-testid="family-invites-section">
-                            <h2 className="font-display font-extrabold text-xl text-[#0B132B] mb-4 flex items-center gap-2">
+                            <h2 className="font-display font-extrabold text-xl text-[#201D18] mb-4 flex items-center gap-2">
                                 <UserPlus size={20} /> Invite a co-parent or viewer
                             </h2>
                             <form onSubmit={handleInvite} className="grid sm:grid-cols-[1fr_auto_auto] gap-2">
@@ -293,13 +293,13 @@ export default function FamilySettings() {
                                     value={inviteEmail}
                                     onChange={(e) => setInviteEmail(e.target.value)}
                                     placeholder="someone@example.com"
-                                    className="rounded-2xl border-2 border-[#E2E8F0] px-4 py-3 font-bold focus:border-[#4361EE] outline-none"
+                                    className="rounded-2xl border-2 border-[#E8E0D2] px-4 py-3 font-bold focus:border-[#E4572E] outline-none"
                                     data-testid="invite-email"
                                 />
                                 <select
                                     value={inviteRole}
                                     onChange={(e) => setInviteRole(e.target.value)}
-                                    className="rounded-2xl border-2 border-[#E2E8F0] px-3 py-3 font-bold focus:border-[#4361EE] outline-none"
+                                    className="rounded-2xl border-2 border-[#E8E0D2] px-3 py-3 font-bold focus:border-[#E4572E] outline-none"
                                     data-testid="invite-role"
                                 >
                                     <option value="co_parent">Co-parent</option>
@@ -309,14 +309,14 @@ export default function FamilySettings() {
                                     <Mail size={14} /> {inviting ? "Sending…" : "Create invite"}
                                 </button>
                             </form>
-                            <p className="text-xs font-semibold text-[#4A5568] mt-2">
+                            <p className="text-xs font-semibold text-[#6E675B] mt-2">
                                 {ROLE_META[inviteRole].desc}
                             </p>
 
                             {lastInvite && (
-                                <div className="mt-4 rounded-2xl bg-[#06D6A0]/10 border-2 border-[#06D6A0]/30 p-4" data-testid="invite-link-card">
-                                    <p className="font-bold text-[#0B132B] text-sm">Invite ready for <span className="text-[#057a5b]">{lastInvite.email}</span></p>
-                                    <p className="text-xs text-[#4A5568] mt-1">
+                                <div className="mt-4 rounded-2xl bg-[#3F8C5E]/10 border-2 border-[#3F8C5E]/30 p-4" data-testid="invite-link-card">
+                                    <p className="font-bold text-[#201D18] text-sm">Invite ready for <span className="text-[#2F6B47]">{lastInvite.email}</span></p>
+                                    <p className="text-xs text-[#6E675B] mt-1">
                                         {lastInvite.email_sent
                                             ? <>📬 Email sent to their inbox. They can also use this link directly. Expires {new Date(lastInvite.expires_at).toLocaleDateString()}.</>
                                             : <>Email couldn&apos;t be sent (sender domain not verified yet) — just share this link with them. Expires {new Date(lastInvite.expires_at).toLocaleDateString()}.</>}
@@ -325,7 +325,7 @@ export default function FamilySettings() {
                                         <input
                                             readOnly
                                             value={lastInvite.invite_url}
-                                            className="flex-1 rounded-xl border-2 border-[#E2E8F0] px-3 py-2 text-xs font-mono"
+                                            className="flex-1 rounded-xl border-2 border-[#E8E0D2] px-3 py-2 text-xs font-mono"
                                             data-testid="invite-link-input"
                                             onClick={(e) => e.target.select()}
                                         />
@@ -338,14 +338,14 @@ export default function FamilySettings() {
 
                             {invites.length > 0 && (
                                 <div className="mt-5 space-y-2" data-testid="pending-invites-list">
-                                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Pending invites ({invites.length})</p>
+                                    <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Pending invites ({invites.length})</p>
                                     {invites.map((inv) => (
-                                        <div key={inv.id} className="flex items-center justify-between p-3 rounded-2xl border-2 border-[#E2E8F0]" data-testid={`pending-invite-${inv.id}`}>
+                                        <div key={inv.id} className="flex items-center justify-between p-3 rounded-2xl border-2 border-[#E8E0D2]" data-testid={`pending-invite-${inv.id}`}>
                                             <div>
-                                                <p className="font-bold text-[#0B132B] text-sm">{inv.email}</p>
-                                                <p className="text-xs text-[#4A5568] font-semibold">{ROLE_META[inv.role].label} · expires {new Date(inv.expires_at).toLocaleDateString()}</p>
+                                                <p className="font-bold text-[#201D18] text-sm">{inv.email}</p>
+                                                <p className="text-xs text-[#6E675B] font-semibold">{ROLE_META[inv.role].label} · expires {new Date(inv.expires_at).toLocaleDateString()}</p>
                                             </div>
-                                            <button onClick={() => cancelInvite(inv.id)} className="text-[#EF476F]" data-testid={`cancel-invite-${inv.id}`}>
+                                            <button onClick={() => cancelInvite(inv.id)} className="text-[#BC4B32]" data-testid={`cancel-invite-${inv.id}`}>
                                                 <X size={16} />
                                             </button>
                                         </div>
@@ -360,9 +360,9 @@ export default function FamilySettings() {
 
                     {isOwner && fam.student_ids.length === 0 && fam.members.length === 1 && (
                         <section className="mb-card p-6" data-testid="family-danger-zone">
-                            <h2 className="font-display font-extrabold text-xl text-[#EF476F] mb-2">Danger zone</h2>
-                            <p className="text-sm text-[#4A5568] font-semibold mb-3">This family is empty — no kids, no other members. You can delete it.</p>
-                            <button onClick={deleteFamily} className="btn-pop-ghost text-[#EF476F] flex items-center gap-2" data-testid="family-delete">
+                            <h2 className="font-display font-extrabold text-xl text-[#BC4B32] mb-2">Danger zone</h2>
+                            <p className="text-sm text-[#6E675B] font-semibold mb-3">This family is empty — no kids, no other members. You can delete it.</p>
+                            <button onClick={deleteFamily} className="btn-pop-ghost text-[#BC4B32] flex items-center gap-2" data-testid="family-delete">
                                 <Trash2 size={14} /> Delete family
                             </button>
                         </section>
@@ -432,34 +432,34 @@ function HomeDashboardSection({ fam, reloadFam }) {
 
     return (
         <section className="mb-card p-6" data-testid="home-dashboard-section">
-            <h2 className="font-display font-extrabold text-xl text-[#0B132B] mb-1 flex items-center gap-2">
+            <h2 className="font-display font-extrabold text-xl text-[#201D18] mb-1 flex items-center gap-2">
                 <Home size={20} /> Family home page
             </h2>
-            <p className="text-sm text-[#4A5568] font-semibold mb-4">
+            <p className="text-sm text-[#6E675B] font-semibold mb-4">
                 A shared-device-friendly page. Bookmark it on your home computer or tablet — kids tap their face and enter their PIN to land straight on their missions. No email/password needed.
             </p>
             <div className="flex items-center gap-3 mb-4">
                 <button
                     onClick={toggle}
                     disabled={busy}
-                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${enabled ? "bg-[#06D6A0]" : "bg-[#E2E8F0]"}`}
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${enabled ? "bg-[#3F8C5E]" : "bg-[#E8E0D2]"}`}
                     aria-pressed={enabled}
                     data-testid="home-dashboard-toggle"
                 >
                     <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${enabled ? "translate-x-7" : "translate-x-1"}`} />
                 </button>
-                <span className="font-bold text-[#0B132B]" data-testid="home-dashboard-state">{enabled ? "ON" : "OFF"}</span>
+                <span className="font-bold text-[#201D18]" data-testid="home-dashboard-state">{enabled ? "ON" : "OFF"}</span>
             </div>
             {enabled && (
                 <>
-                    <div className="rounded-2xl bg-[#4361EE]/5 border-2 border-[#4361EE]/20 p-4 mb-5" data-testid="home-dashboard-url-card">
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Bookmark this URL</p>
+                    <div className="rounded-2xl bg-[#E4572E]/5 border-2 border-[#E4572E]/20 p-4 mb-5" data-testid="home-dashboard-url-card">
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Bookmark this URL</p>
                         <div className="flex gap-2 mt-2">
                             <input
                                 readOnly
                                 value={homeUrl}
                                 onClick={(e) => e.target.select()}
-                                className="flex-1 rounded-xl border-2 border-[#E2E8F0] px-3 py-2 text-xs font-mono"
+                                className="flex-1 rounded-xl border-2 border-[#E8E0D2] px-3 py-2 text-xs font-mono"
                                 data-testid="home-dashboard-url"
                             />
                             <button onClick={copyLink} className="btn-pop-primary text-sm flex items-center gap-1" data-testid="home-dashboard-copy">
@@ -471,18 +471,18 @@ function HomeDashboardSection({ fam, reloadFam }) {
                         </div>
                     </div>
 
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mb-2 flex items-center gap-1"><Key size={11} /> Kid PINs</p>
-                    <p className="text-xs text-[#4A5568] font-semibold mb-3">Each kid needs a 4-digit PIN before they can use the home page. 5 wrong tries → 10-min lockout.</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286] mb-2 flex items-center gap-1"><Key size={11} /> Kid PINs</p>
+                    <p className="text-xs text-[#6E675B] font-semibold mb-3">Each kid needs a 4-digit PIN before they can use the home page. 5 wrong tries → 10-min lockout.</p>
                     <div className="space-y-2" data-testid="home-pin-kids-list">
-                        {kids.length === 0 && <p className="text-sm font-bold text-[#A0AEC0]">No kids linked to this family yet.</p>}
+                        {kids.length === 0 && <p className="text-sm font-bold text-[#9A9286]">No kids linked to this family yet.</p>}
                         {kids.map((kid) => (
-                            <div key={kid.id} className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-2xl border-2 border-[#E2E8F0]" data-testid={`home-pin-kid-${kid.id}`}>
+                            <div key={kid.id} className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-2xl border-2 border-[#E8E0D2]" data-testid={`home-pin-kid-${kid.id}`}>
                                 <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#4361EE] to-[#06D6A0] text-white flex items-center justify-center font-bold">{kid.name?.[0]?.toUpperCase()}</div>
+                                    <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#E4572E] to-[#3F8C5E] text-white flex items-center justify-center font-bold">{kid.name?.[0]?.toUpperCase()}</div>
                                     <div>
-                                        <p className="font-bold text-[#0B132B]">{kid.name}</p>
-                                        <p className="text-xs font-semibold text-[#4A5568]">
-                                            {kid.home_pin_set ? <span className="text-[#057a5b]"><Lock size={10} className="inline" /> PIN set</span> : <span className="text-[#EF476F]">No PIN yet</span>}
+                                        <p className="font-bold text-[#201D18]">{kid.name}</p>
+                                        <p className="text-xs font-semibold text-[#6E675B]">
+                                            {kid.home_pin_set ? <span className="text-[#2F6B47]"><Lock size={10} className="inline" /> PIN set</span> : <span className="text-[#BC4B32]">No PIN yet</span>}
                                         </p>
                                     </div>
                                 </div>
@@ -494,7 +494,7 @@ function HomeDashboardSection({ fam, reloadFam }) {
                                         value={pinInputs[kid.id] || ""}
                                         onChange={(e) => setPinInputs((m) => ({ ...m, [kid.id]: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
                                         placeholder="4-digit"
-                                        className="w-24 rounded-xl border-2 border-[#E2E8F0] px-3 py-2 text-center font-mono tracking-widest focus:border-[#4361EE] outline-none"
+                                        className="w-24 rounded-xl border-2 border-[#E8E0D2] px-3 py-2 text-center font-mono tracking-widest focus:border-[#E4572E] outline-none"
                                         data-testid={`home-pin-input-${kid.id}`}
                                         maxLength={4}
                                     />
@@ -502,7 +502,7 @@ function HomeDashboardSection({ fam, reloadFam }) {
                                         {kid.home_pin_set ? "Change" : "Set"}
                                     </button>
                                     {kid.home_pin_set && (
-                                        <button onClick={() => clearPin(kid.id)} className="text-[#EF476F] p-1" data-testid={`home-pin-clear-${kid.id}`}>
+                                        <button onClick={() => clearPin(kid.id)} className="text-[#BC4B32] p-1" data-testid={`home-pin-clear-${kid.id}`}>
                                             <Trash2 size={14} />
                                         </button>
                                     )}
@@ -539,28 +539,28 @@ function StreakWeekendSection({ fam, reloadFam }) {
 
     return (
         <section className="mb-card p-6 mt-4" data-testid="streak-weekend-section">
-            <h2 className="font-display font-extrabold text-xl text-[#0B132B] mb-1">Spark streak — weekend rule</h2>
-            <p className="text-sm font-semibold text-[#4A5568] mb-4">
+            <h2 className="font-display font-extrabold text-xl text-[#201D18] mb-1">Spark streak — weekend rule</h2>
+            <p className="text-sm font-semibold text-[#6E675B] mb-4">
                 Choose how spark streaks treat Saturdays and Sundays for everyone in <strong>{fam.name}</strong>.
             </p>
             <div className="grid sm:grid-cols-2 gap-3">
                 <button
                     onClick={() => !busy && save("all_days")}
-                    className={`rounded-2xl border-2 p-4 text-left transition-all ${mode === "all_days" ? "border-[#4361EE] bg-[#4361EE]/5" : "border-[#E2E8F0] hover:border-[#A0AEC0]"} ${busy ? "opacity-60" : ""}`}
+                    className={`rounded-2xl border-2 p-4 text-left transition-all ${mode === "all_days" ? "border-[#E4572E] bg-[#E4572E]/5" : "border-[#E8E0D2] hover:border-[#9A9286]"} ${busy ? "opacity-60" : ""}`}
                     disabled={busy}
                     data-testid="weekend-mode-all"
                 >
-                    <p className="font-display font-extrabold text-base text-[#0B132B]">Every day counts</p>
-                    <p className="text-xs font-semibold text-[#4A5568] mt-1">A missed Saturday or Sunday will break the streak — unless you grant a freeze.</p>
+                    <p className="font-display font-extrabold text-base text-[#201D18]">Every day counts</p>
+                    <p className="text-xs font-semibold text-[#6E675B] mt-1">A missed Saturday or Sunday will break the streak — unless you grant a freeze.</p>
                 </button>
                 <button
                     onClick={() => !busy && save("weekdays_only")}
-                    className={`rounded-2xl border-2 p-4 text-left transition-all ${mode === "weekdays_only" ? "border-[#4361EE] bg-[#4361EE]/5" : "border-[#E2E8F0] hover:border-[#A0AEC0]"} ${busy ? "opacity-60" : ""}`}
+                    className={`rounded-2xl border-2 p-4 text-left transition-all ${mode === "weekdays_only" ? "border-[#E4572E] bg-[#E4572E]/5" : "border-[#E8E0D2] hover:border-[#9A9286]"} ${busy ? "opacity-60" : ""}`}
                     disabled={busy}
                     data-testid="weekend-mode-weekdays"
                 >
-                    <p className="font-display font-extrabold text-base text-[#0B132B]">Weekdays only</p>
-                    <p className="text-xs font-semibold text-[#4A5568] mt-1">Sat & Sun are skipped — kids only need missions Mon-Fri to keep the streak alive.</p>
+                    <p className="font-display font-extrabold text-base text-[#201D18]">Weekdays only</p>
+                    <p className="text-xs font-semibold text-[#6E675B] mt-1">Sat & Sun are skipped — kids only need missions Mon-Fri to keep the streak alive.</p>
                 </button>
             </div>
         </section>

@@ -53,19 +53,19 @@ export default function PendingReviewsPanel({ onChanged }) {
 
     if (loading) {
         return (
-            <div className="mb-card p-5 flex items-center justify-center gap-2 text-sm font-semibold text-[#4A5568]" data-testid="pending-reviews-loading">
-                <Loader2 className="animate-spin text-[#4361EE]" size={16} /> Loading pending reviews…
+            <div className="mb-card p-5 flex items-center justify-center gap-2 text-sm font-semibold text-[#6E675B]" data-testid="pending-reviews-loading">
+                <Loader2 className="animate-spin text-[#E4572E]" size={16} /> Loading pending reviews…
             </div>
         );
     }
     if (!rows.length) {
         return (
             <div className="mb-card p-5" data-testid="pending-reviews-empty">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#4361EE] flex items-center gap-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#E4572E] flex items-center gap-1.5">
                     <Clock size={11} /> Pending review
                 </p>
-                <p className="font-display font-extrabold text-lg text-[#0B132B] mt-0.5">Nothing waiting on you.</p>
-                <p className="text-sm font-semibold text-[#4A5568] mt-1">All caught up ✅</p>
+                <p className="font-display font-extrabold text-lg text-[#201D18] mt-0.5">Nothing waiting on you.</p>
+                <p className="text-sm font-semibold text-[#6E675B] mt-1">All caught up ✅</p>
             </div>
         );
     }
@@ -74,10 +74,10 @@ export default function PendingReviewsPanel({ onChanged }) {
         <div className="mb-card p-5" data-testid="pending-reviews-panel">
             <div className="flex items-center justify-between mb-3">
                 <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#4361EE] flex items-center gap-1.5">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#E4572E] flex items-center gap-1.5">
                         <Clock size={11} /> Pending review
                     </p>
-                    <p className="font-display font-extrabold text-lg text-[#0B132B] mt-0.5">
+                    <p className="font-display font-extrabold text-lg text-[#201D18] mt-0.5">
                         {rows.length} {rows.length === 1 ? "mission" : "missions"} awaiting your approval
                     </p>
                 </div>
@@ -86,25 +86,25 @@ export default function PendingReviewsPanel({ onChanged }) {
                 {rows.map((r) => (
                     <li
                         key={r.log_id}
-                        className="rounded-2xl border-2 border-[#E2E8F0] bg-white p-4"
+                        className="rounded-2xl border-2 border-[#E8E0D2] bg-white p-4"
                         data-testid={`pending-review-row-${r.log_id}`}
                     >
                         <div className="flex items-start justify-between gap-3 mb-2">
                             <div className="min-w-0">
-                                <p className="font-display font-extrabold text-base text-[#0B132B] truncate">{r.mission_title}</p>
-                                <p className="text-xs font-semibold text-[#4A5568]">
+                                <p className="font-display font-extrabold text-base text-[#201D18] truncate">{r.mission_title}</p>
+                                <p className="text-xs font-semibold text-[#6E675B]">
                                     {r.student_name} · submitted {new Date(r.submitted_at).toLocaleString()}
                                 </p>
                             </div>
                             {r.hours_until_auto_approve !== null && r.hours_until_auto_approve !== undefined && (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-[#FFD166]/20 text-[#876200] px-2 py-0.5 text-[10px] font-bold whitespace-nowrap" title={`Auto-approves at ${r.auto_approve_at}`}>
+                                <span className="inline-flex items-center gap-1 rounded-full bg-[#E8A33D]/20 text-[#8A6413] px-2 py-0.5 text-[10px] font-bold whitespace-nowrap" title={`Auto-approves at ${r.auto_approve_at}`}>
                                     <Clock size={10} /> auto in {r.hours_until_auto_approve}h
                                 </span>
                             )}
                         </div>
                         {r.note && (
-                            <div className="flex items-start gap-1.5 text-sm text-[#0B132B] mb-2">
-                                <MessageCircle size={13} className="text-[#A0AEC0] flex-shrink-0 mt-0.5" />
+                            <div className="flex items-start gap-1.5 text-sm text-[#201D18] mb-2">
+                                <MessageCircle size={13} className="text-[#9A9286] flex-shrink-0 mt-0.5" />
                                 <p className="font-medium italic">"{r.note}"</p>
                             </div>
                         )}
@@ -114,7 +114,7 @@ export default function PendingReviewsPanel({ onChanged }) {
                                     href={`${process.env.REACT_APP_BACKEND_URL}/api/logs/${r.log_id}/photo`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#4361EE] hover:underline"
+                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#E4572E] hover:underline"
                                     data-testid={`pending-review-photo-${r.log_id}`}
                                 >
                                     <Camera size={12} /> View photo
@@ -128,14 +128,14 @@ export default function PendingReviewsPanel({ onChanged }) {
                                     value={rejectReason}
                                     onChange={(e) => setRejectReason(e.target.value.slice(0, 240))}
                                     placeholder="Optional note back to your kid"
-                                    className="rounded-lg border-2 border-[#E2E8F0] px-3 py-2 text-sm font-medium focus:border-[#EF476F] outline-none flex-1"
+                                    className="rounded-lg border-2 border-[#E8E0D2] px-3 py-2 text-sm font-medium focus:border-[#BC4B32] outline-none flex-1"
                                     data-testid={`pending-review-reject-reason-${r.log_id}`}
                                 />
                                 <div className="flex gap-2">
                                     <button
                                         onClick={submitReject}
                                         disabled={actingId === r.log_id}
-                                        className="rounded-2xl bg-[#EF476F] hover:bg-[#d63e63] text-white font-extrabold text-xs px-3 py-2 disabled:opacity-50 shadow-[0_3px_0_0_#a52a48]"
+                                        className="rounded-2xl bg-[#BC4B32] hover:bg-[#BC4B32] text-white font-extrabold text-xs px-3 py-2 disabled:opacity-50 shadow-[0_3px_0_0_#8A3A26]"
                                         data-testid={`pending-review-reject-submit-${r.log_id}`}
                                     >{actingId === r.log_id ? "…" : "Send back"}</button>
                                     <button onClick={() => setRejectingId(null)} disabled={actingId === r.log_id} className="btn-pop-ghost text-xs px-3">Cancel</button>

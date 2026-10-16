@@ -58,9 +58,9 @@ export const CATEGORY_LABEL = {
 };
 
 export const CATEGORY_TONE = {
-    ai_text: "bg-[#4361EE]/10 text-[#4361EE]",
-    ai_voice: "bg-[#06D6A0]/15 text-[#057a5b]",
-    ai_image: "bg-[#EF476F]/10 text-[#EF476F]",
-    infrastructure: "bg-[#0B132B] text-white",
-    communications: "bg-[#FFD166]/40 text-[#876200]",
+    ai_text: "bg-[#E4572E]/10 text-[#E4572E]",
+    ai_voice: "bg-[#3F8C5E]/15 text-[#2F6B47]",
+    ai_image: "bg-[#BC4B32]/10 text-[#BC4B32]",
+    infrastructure: "bg-[#201D18] text-white",
+    communications: "bg-[#E8A33D]/40 text-[#8A6413]",
 };

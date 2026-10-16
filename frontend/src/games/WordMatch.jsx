@@ -68,22 +68,22 @@ export default function WordMatch({ onComplete, content }) {
     return (
         <div data-testid="game-word-match">
             <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-bold text-[#4A5568]">Tap a word, then tap its meaning.</p>
-                <span className="mb-chip bg-[#4361EE]/10 text-[#4361EE]" data-testid="word-match-progress">{done}/{PAIRS.length}</span>
+                <p className="text-sm font-bold text-[#6E675B]">Tap a word, then tap its meaning.</p>
+                <span className="mb-chip bg-[#E4572E]/10 text-[#E4572E]" data-testid="word-match-progress">{done}/{PAIRS.length}</span>
             </div>
             <div className={`grid md:grid-cols-2 gap-6 ${wrongFlash ? "animate-[shake_0.35s]" : ""}`}>
                 <div className="space-y-2">
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Words</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Words</p>
                     {initial.words.map((w) => (
                         <button
                             key={w}
                             onClick={() => pickWord(w)}
                             className={`w-full text-left rounded-2xl border-2 px-4 py-3 font-bold transition-all ${
                                 matched[w]
-                                    ? "bg-[#06D6A0]/15 border-[#06D6A0] text-[#057a5b] line-through"
+                                    ? "bg-[#3F8C5E]/15 border-[#3F8C5E] text-[#2F6B47] line-through"
                                     : pickedWord === w
-                                    ? "bg-[#4361EE] text-white border-[#4361EE]"
-                                    : "bg-white border-[#E2E8F0] hover:border-[#4361EE]"
+                                    ? "bg-[#E4572E] text-white border-[#E4572E]"
+                                    : "bg-white border-[#E8E0D2] hover:border-[#E4572E]"
                             }`}
                             data-testid={`word-match-word-${w}`}
                             disabled={!!matched[w]}
@@ -93,7 +93,7 @@ export default function WordMatch({ onComplete, content }) {
                     ))}
                 </div>
                 <div className="space-y-2">
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Meanings</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Meanings</p>
                     {initial.meanings.map((m) => {
                         const isMatched = Object.entries(initial.lookup).some(([w, val]) => val === m && matched[w]);
                         return (
@@ -102,10 +102,10 @@ export default function WordMatch({ onComplete, content }) {
                                 onClick={() => pickMeaning(m)}
                                 className={`w-full text-left rounded-2xl border-2 px-4 py-3 font-bold transition-all ${
                                     isMatched
-                                        ? "bg-[#06D6A0]/15 border-[#06D6A0] text-[#057a5b] line-through"
+                                        ? "bg-[#3F8C5E]/15 border-[#3F8C5E] text-[#2F6B47] line-through"
                                         : pickedMeaning === m
-                                        ? "bg-[#FFD166] text-[#0B132B] border-[#E5BC5C]"
-                                        : "bg-white border-[#E2E8F0] hover:border-[#FFD166]"
+                                        ? "bg-[#E8A33D] text-[#201D18] border-[#C98A2E]"
+                                        : "bg-white border-[#E8E0D2] hover:border-[#E8A33D]"
                                 }`}
                                 data-testid={`word-match-meaning-${m.slice(0, 12)}`}
                                 disabled={isMatched}

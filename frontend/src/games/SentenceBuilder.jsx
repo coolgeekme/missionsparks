@@ -63,25 +63,25 @@ export default function SentenceBuilder({ onComplete, content }) {
     return (
         <div data-testid="game-sentence-builder">
             <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-bold text-[#4A5568]">Build the sentence by tapping words in order.</p>
-                <span className="mb-chip bg-[#EF476F]/15 text-[#EF476F]" data-testid="sentence-progress">
+                <p className="text-sm font-bold text-[#6E675B]">Build the sentence by tapping words in order.</p>
+                <span className="mb-chip bg-[#BC4B32]/15 text-[#BC4B32]" data-testid="sentence-progress">
                     Puzzle {idx + 1}/{puzzles.length}
                 </span>
             </div>
 
             <div
                 className={`min-h-20 rounded-2xl border-2 p-4 mb-4 transition-colors ${
-                    isCorrect ? "bg-[#06D6A0]/10 border-[#06D6A0]" :
-                    isWrong ? "bg-[#EF476F]/10 border-[#EF476F]" : "bg-white border-[#E2E8F0]"
+                    isCorrect ? "bg-[#3F8C5E]/10 border-[#3F8C5E]" :
+                    isWrong ? "bg-[#BC4B32]/10 border-[#BC4B32]" : "bg-white border-[#E8E0D2]"
                 }`}
                 data-testid="sentence-target"
             >
                 {placed.length === 0 ? (
-                    <p className="text-[#A0AEC0] font-bold">Tap words below to build your sentence…</p>
+                    <p className="text-[#9A9286] font-bold">Tap words below to build your sentence…</p>
                 ) : (
-                    <p className="font-display font-bold text-lg text-[#0B132B]">
+                    <p className="font-display font-bold text-lg text-[#201D18]">
                         {placedWords.join(" ")}
-                        {!isComplete && <span className="text-[#A0AEC0]"> _</span>}
+                        {!isComplete && <span className="text-[#9A9286]"> _</span>}
                     </p>
                 )}
             </div>
@@ -91,7 +91,7 @@ export default function SentenceBuilder({ onComplete, content }) {
                     <button
                         key={b.id}
                         onClick={() => place(b.id)}
-                        className="rounded-xl border-2 border-[#E2E8F0] bg-white px-4 py-2 font-bold text-[#0B132B] hover:border-[#EF476F]"
+                        className="rounded-xl border-2 border-[#E8E0D2] bg-white px-4 py-2 font-bold text-[#201D18] hover:border-[#BC4B32]"
                         data-testid={`sentence-word-${b.id}`}
                     >
                         {b.w}

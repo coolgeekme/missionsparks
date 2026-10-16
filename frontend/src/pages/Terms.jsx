@@ -4,12 +4,12 @@ import { ArrowLeft } from "lucide-react";
 export default function Terms() {
     return (
         <div className="min-h-screen mb-dots p-6" data-testid="terms-page">
-            <main className="max-w-3xl mx-auto bg-white rounded-3xl border-2 border-[#E2E8F0] p-6 sm:p-10">
-                <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE] mb-4" data-testid="terms-back">
+            <main className="max-w-3xl mx-auto bg-white rounded-3xl border-2 border-[#E8E0D2] p-6 sm:p-10">
+                <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E] mb-4" data-testid="terms-back">
                     <ArrowLeft size={16} /> Back
                 </Link>
-                <h1 className="font-display font-extrabold text-4xl text-[#0B132B]">Terms of Service</h1>
-                <p className="text-sm text-[#A0AEC0] mt-1">Plain-English draft. Last updated: Feb 2026.</p>
+                <h1 className="font-display font-extrabold text-4xl text-[#201D18]">Terms of Service</h1>
+                <p className="text-sm text-[#9A9286] mt-1">Plain-English draft. Last updated: Feb 2026.</p>
 
                 <Section title="Who can use this">
                     <p>You must be at least 13 to create your own account. Children under 13 may use the app only via an account linked to a consenting parent or legal guardian.</p>
@@ -32,7 +32,7 @@ export default function Terms() {
                 </Section>
 
                 <Section title="Termination">
-                    <p>You can delete your account from <Link to="/account" className="text-[#4361EE] underline">account settings</Link> at any time. We may suspend accounts that abuse the service.</p>
+                    <p>You can delete your account from <Link to="/account" className="text-[#E4572E] underline">account settings</Link> at any time. We may suspend accounts that abuse the service.</p>
                 </Section>
 
                 <Section title="Disclaimer & limits">
@@ -50,8 +50,8 @@ export default function Terms() {
 function Section({ title, children }) {
     return (
         <section className="mt-6">
-            <h2 className="font-display font-bold text-xl text-[#0B132B]">{title}</h2>
-            <div className="text-sm text-[#0B132B] font-semibold mt-2 space-y-2 leading-relaxed">{children}</div>
+            <h2 className="font-display font-bold text-xl text-[#201D18]">{title}</h2>
+            <div className="text-sm text-[#201D18] font-semibold mt-2 space-y-2 leading-relaxed">{children}</div>
         </section>
     );
 }

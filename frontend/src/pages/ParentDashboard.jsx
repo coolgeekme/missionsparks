@@ -250,9 +250,9 @@ export default function ParentDashboard() {
             <main className="max-w-6xl mx-auto p-6 md:p-10 space-y-8">
                 <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Parent control room</p>
-                        <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#0B132B] mt-1">Today's missions</h1>
-                        <p className="text-[#4A5568] font-semibold mt-2">Build small, doable wins for your learner.</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Parent control room</p>
+                        <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#201D18] mt-1">Today's missions</h1>
+                        <p className="text-[#6E675B] font-semibold mt-2">Build small, doable wins for your learner.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                         <Link to="/parent/research" className="btn-pop-ghost flex items-center gap-2" data-testid="parent-go-research">
@@ -290,11 +290,11 @@ export default function ParentDashboard() {
 
                 <section className="mb-card p-6" data-testid="parent-students-card">
                     <div className="flex items-center gap-2 mb-4">
-                        <Users size={18} className="text-[#4361EE]" />
-                        <h2 className="font-display font-bold text-xl text-[#0B132B]">Your linked learners</h2>
+                        <Users size={18} className="text-[#E4572E]" />
+                        <h2 className="font-display font-bold text-xl text-[#201D18]">Your linked learners</h2>
                     </div>
                     {students.length === 0 ? (
-                        <p className="text-[#4A5568] font-semibold mb-3" data-testid="parent-no-students">
+                        <p className="text-[#6E675B] font-semibold mb-3" data-testid="parent-no-students">
                             No students yet. Use the form below to add a new kid, or link an existing account by email.
                         </p>
                     ) : (
@@ -305,8 +305,8 @@ export default function ParentDashboard() {
                                     onClick={() => setSelectedStudent(s)}
                                     className={`mb-chip border-2 ${
                                         selectedStudent?.id === s.id
-                                            ? "bg-[#4361EE] text-white border-[#4361EE]"
-                                            : "bg-white text-[#0B132B] border-[#E2E8F0] hover:border-[#4361EE]"
+                                            ? "bg-[#E4572E] text-white border-[#E4572E]"
+                                            : "bg-white text-[#201D18] border-[#E8E0D2] hover:border-[#E4572E]"
                                     }`}
                                     data-testid={`parent-student-chip-${s.id}`}
                                 >
@@ -317,7 +317,7 @@ export default function ParentDashboard() {
                     )}
 
                     <form onSubmit={handleLink} className="space-y-3" data-testid="parent-link-form">
-                        <p className="text-xs font-semibold text-[#4A5568]">
+                        <p className="text-xs font-semibold text-[#6E675B]">
                             Type an <strong>existing</strong> kid&apos;s email to link them, <em>or</em> fill in a name + password below to <strong>create a new kid account</strong>.
                         </p>
                         <div className="grid sm:grid-cols-2 gap-3">
@@ -366,13 +366,13 @@ export default function ParentDashboard() {
                                 />
                             </div>
                         </div>
-                        <details className="rounded-2xl border-2 border-[#FFD166] bg-[#FFD166]/10 p-4" data-testid="parent-link-consent">
-                            <summary className="cursor-pointer font-display font-bold text-[#876200]">
+                        <details className="rounded-2xl border-2 border-[#E8A33D] bg-[#E8A33D]/10 p-4" data-testid="parent-link-consent">
+                            <summary className="cursor-pointer font-display font-bold text-[#8A6413]">
                                 🛡️ Parental consent (required)
                             </summary>
                             <div className="mt-3 grid sm:grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-sm font-bold text-[#0B132B] mb-1">Your name (guardian)</label>
+                                    <label className="block text-sm font-bold text-[#201D18] mb-1">Your name (guardian)</label>
                                     <input
                                         value={consent.guardian_name}
                                         onChange={(e) => setConsent({ ...consent, guardian_name: e.target.value })}
@@ -382,7 +382,7 @@ export default function ParentDashboard() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-[#0B132B] mb-1">Relationship</label>
+                                    <label className="block text-sm font-bold text-[#201D18] mb-1">Relationship</label>
                                     <select
                                         value={consent.guardian_relationship}
                                         onChange={(e) => setConsent({ ...consent, guardian_relationship: e.target.value })}
@@ -397,7 +397,7 @@ export default function ParentDashboard() {
                                     </select>
                                 </div>
                             </div>
-                            <label className="flex items-center gap-2 mt-3 text-sm font-semibold text-[#0B132B]" data-testid="parent-link-under13-label">
+                            <label className="flex items-center gap-2 mt-3 text-sm font-semibold text-[#201D18]" data-testid="parent-link-under13-label">
                                 <input
                                     type="checkbox"
                                     checked={consent.child_under_13}
@@ -406,7 +406,7 @@ export default function ParentDashboard() {
                                 />
                                 This child is under 13 (COPPA applies)
                             </label>
-                            <label className="flex items-start gap-2 mt-3 text-sm font-semibold text-[#0B132B]" data-testid="parent-link-consent-label">
+                            <label className="flex items-start gap-2 mt-3 text-sm font-semibold text-[#201D18]" data-testid="parent-link-consent-label">
                                 <input
                                     type="checkbox"
                                     checked={consent.consent_given}
@@ -416,7 +416,7 @@ export default function ParentDashboard() {
                                 />
                                 <span>
                                     I am the parent or legal guardian and consent to MissionSparks processing my child's information as described in the{" "}
-                                    <Link to="/privacy" className="text-[#4361EE] underline" target="_blank">Privacy Policy</Link>.
+                                    <Link to="/privacy" className="text-[#E4572E] underline" target="_blank">Privacy Policy</Link>.
                                 </span>
                             </label>
                         </details>
@@ -424,7 +424,7 @@ export default function ParentDashboard() {
                             <UserPlus size={16} /> {busy ? "Adding…" : "Add / link student"}
                         </button>
                     </form>
-                    {linkErr && <p className="text-sm font-bold text-[#EF476F] mt-2" data-testid="parent-link-error">{linkErr}</p>}
+                    {linkErr && <p className="text-sm font-bold text-[#BC4B32] mt-2" data-testid="parent-link-error">{linkErr}</p>}
                 </section>
 
                 <PendingReviewsPanel
@@ -442,16 +442,16 @@ export default function ParentDashboard() {
                     <section className="mb-card p-6" data-testid="parent-profile-card">
                         <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
                             <div className="flex items-center gap-2">
-                                <Wand2 size={18} className="text-[#4361EE]" />
-                                <h2 className="font-display font-bold text-xl text-[#0B132B]">About {selectedStudent.name}</h2>
-                                <span className="mb-chip bg-[#FFD166]/30 text-[#876200]">Helps AI personalize</span>
+                                <Wand2 size={18} className="text-[#E4572E]" />
+                                <h2 className="font-display font-bold text-xl text-[#201D18]">About {selectedStudent.name}</h2>
+                                <span className="mb-chip bg-[#E8A33D]/30 text-[#8A6413]">Helps AI personalize</span>
                             </div>
                             {studentStreak && (
                                 <div className="flex items-center gap-2" data-testid="parent-student-streak">
-                                    <span className={`mb-chip ${studentStreak.current_streak > 0 ? "bg-[#FFD166]/30 text-[#876200]" : "bg-[#E2E8F0] text-[#4A5568]"}`}>
+                                    <span className={`mb-chip ${studentStreak.current_streak > 0 ? "bg-[#E8A33D]/30 text-[#8A6413]" : "bg-[#E8E0D2] text-[#6E675B]"}`}>
                                         <Zap size={14} fill="currentColor" /> {studentStreak.current_streak}-day spark streak
                                     </span>
-                                    <span className="mb-chip bg-[#06D6A0]/15 text-[#057a5b]">
+                                    <span className="mb-chip bg-[#3F8C5E]/15 text-[#2F6B47]">
                                         {studentStreak.completed_today_count}/{studentStreak.missions_today_count} today
                                     </span>
                                 </div>
@@ -469,10 +469,10 @@ export default function ParentDashboard() {
                                 }}
                             />
                         </div>
-                        <p className="text-sm font-semibold text-[#4A5568] mb-3">
+                        <p className="text-sm font-semibold text-[#6E675B] mb-3">
                             Optional notes the AI will use when drafting missions (grade, reading level, interests, struggles, motivation).
                             {" "}
-                            <Link to={`/parent/students/${selectedStudent.id}/intake`} className="text-[#4361EE] font-bold hover:underline" data-testid="parent-open-intake">
+                            <Link to={`/parent/students/${selectedStudent.id}/intake`} className="text-[#E4572E] font-bold hover:underline" data-testid="parent-open-intake">
                                 Set up the full structured profile →
                             </Link>
                         </p>
@@ -499,23 +499,23 @@ export default function ParentDashboard() {
                             <button onClick={saveProfile} disabled={profileSaving} className="btn-pop-primary flex items-center gap-2" data-testid="parent-profile-save">
                                 <Save size={14} /> {profileSaving ? "Saving…" : "Save notes"}
                             </button>
-                            {profileMsg && <span className="text-sm font-bold text-[#057a5b]" data-testid="parent-profile-msg">{profileMsg}</span>}
+                            {profileMsg && <span className="text-sm font-bold text-[#2F6B47]" data-testid="parent-profile-msg">{profileMsg}</span>}
                         </div>
                     </section>
                 )}
 
                 {aiOpen && selectedStudent && (
-                    <section className="mb-card p-6 border-[#FFD166]" data-testid="parent-ai-panel">
+                    <section className="mb-card p-6 border-[#E8A33D]" data-testid="parent-ai-panel">
                         <div className="flex items-start justify-between gap-3 mb-3">
                             <div className="flex items-center gap-2">
-                                <Sparkles className="text-[#FFD166]" size={20} />
-                                <h2 className="font-display font-bold text-xl text-[#0B132B]">Draft today's missions with AI</h2>
+                                <Sparkles className="text-[#E8A33D]" size={20} />
+                                <h2 className="font-display font-bold text-xl text-[#201D18]">Draft today's missions with AI</h2>
                             </div>
-                            <button onClick={() => setAiOpen(false)} className="p-2 rounded-xl hover:bg-[#F7FAFC]" data-testid="parent-ai-close" aria-label="Close">
+                            <button onClick={() => setAiOpen(false)} className="p-2 rounded-xl hover:bg-[#F6F1E7]" data-testid="parent-ai-close" aria-label="Close">
                                 <X size={18} />
                             </button>
                         </div>
-                        <p className="text-sm font-semibold text-[#4A5568] mb-3">
+                        <p className="text-sm font-semibold text-[#6E675B] mb-3">
                             Give the AI a one-line hint (or leave blank). It will use {selectedStudent.name}'s profile notes to draft 3 small missions for today.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-3">
@@ -531,42 +531,42 @@ export default function ParentDashboard() {
                                 {aiBusy ? "Drafting…" : "Generate 3 missions"}
                             </button>
                         </div>
-                        {aiErr && <p className="text-sm font-bold text-[#EF476F] bg-[#EF476F]/10 rounded-xl px-3 py-2 mt-3" data-testid="parent-ai-error">{aiErr}</p>}
+                        {aiErr && <p className="text-sm font-bold text-[#BC4B32] bg-[#BC4B32]/10 rounded-xl px-3 py-2 mt-3" data-testid="parent-ai-error">{aiErr}</p>}
 
                         {aiDrafts.length > 0 && (
                             <div className="mt-5 grid gap-4 md:grid-cols-3" data-testid="parent-ai-drafts">
                                 {aiDrafts.map((d, i) => (
-                                    <article key={i} className="rounded-2xl border-2 border-[#E2E8F0] p-4 bg-[#F0F8FF]" data-testid={`parent-ai-draft-${i}`}>
-                                        <h3 className="font-display font-bold text-lg text-[#0B132B] leading-tight">{d.title}</h3>
-                                        {d.description && <p className="text-sm text-[#4A5568] font-semibold mt-1">{d.description}</p>}
-                                        <div className="flex items-center gap-2 text-xs font-bold text-[#4A5568] mt-2">
+                                    <article key={i} className="rounded-2xl border-2 border-[#E8E0D2] p-4 bg-[#FBF6EE]" data-testid={`parent-ai-draft-${i}`}>
+                                        <h3 className="font-display font-bold text-lg text-[#201D18] leading-tight">{d.title}</h3>
+                                        {d.description && <p className="text-sm text-[#6E675B] font-semibold mt-1">{d.description}</p>}
+                                        <div className="flex items-center gap-2 text-xs font-bold text-[#6E675B] mt-2">
                                             <Clock size={12} /> {d.estimated_minutes} min · {d.steps.length} steps
                                         </div>
-                                        <ol className="text-sm text-[#0B132B] font-semibold mt-2 space-y-1 list-decimal pl-5">
+                                        <ol className="text-sm text-[#201D18] font-semibold mt-2 space-y-1 list-decimal pl-5">
                                             {d.steps.map((s, j) => <li key={j}>{s}</li>)}
                                         </ol>
                                         <div className="flex flex-wrap gap-1.5 mt-3 items-center">
                                             {d.skill_ids.map((sid) => skillMap[sid] && (
-                                                <span key={sid} className="mb-chip bg-[#4361EE]/10 text-[#4361EE] text-xs py-0.5 px-2 inline-flex items-center gap-1">
+                                                <span key={sid} className="mb-chip bg-[#E4572E]/10 text-[#E4572E] text-xs py-0.5 px-2 inline-flex items-center gap-1">
                                                     {skillMap[sid].name}
                                                     <EvidenceBadge citationIds={skillMap[sid].evidence_refs} tone="indigo" size={10} testId={`ai-skill-evidence-${i}-${sid}`} />
                                                 </span>
                                             ))}
                                             {d.strategy_ids.map((sid) => stratMap[sid] && (
-                                                <span key={sid} className="mb-chip bg-[#FFD166]/40 text-[#876200] text-xs py-0.5 px-2 inline-flex items-center gap-1">
+                                                <span key={sid} className="mb-chip bg-[#E8A33D]/40 text-[#8A6413] text-xs py-0.5 px-2 inline-flex items-center gap-1">
                                                     {stratMap[sid].emoji} {stratMap[sid].name}
                                                     <EvidenceBadge citationIds={stratMap[sid].evidence_refs} size={10} testId={`ai-strat-evidence-${i}-${sid}`} />
                                                 </span>
                                             ))}
                                         </div>
                                         {((d.evidence_refs && d.evidence_refs.length > 0) || d.rationale) && (
-                                            <div className="mt-3 pt-3 border-t border-[#E2E8F0] flex items-center gap-2 flex-wrap" data-testid={`ai-draft-evidence-${i}`}>
+                                            <div className="mt-3 pt-3 border-t border-[#E8E0D2] flex items-center gap-2 flex-wrap" data-testid={`ai-draft-evidence-${i}`}>
                                                 {d.evidence_refs && d.evidence_refs.length > 0 && (
                                                     <>
-                                                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#4A5568]">Backed by</span>
+                                                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#6E675B]">Backed by</span>
                                                         <EvidenceBadge citationIds={d.evidence_refs} label="Research supporting this mission" testId={`ai-draft-evidence-badge-${i}`} />
                                                         {d.evidence_tags && d.evidence_tags.length > 0 && (
-                                                            <span className="text-[10px] font-bold text-[#4A5568]">
+                                                            <span className="text-[10px] font-bold text-[#6E675B]">
                                                                 {d.evidence_tags.map((t) => t.replaceAll("_", " ")).join(" · ")}
                                                             </span>
                                                         )}
@@ -577,7 +577,7 @@ export default function ParentDashboard() {
                                                         <PopoverTrigger asChild>
                                                             <button
                                                                 type="button"
-                                                                className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 ring-1 ring-[#4361EE]/30 bg-[#4361EE]/10 text-[#4361EE] text-[10px] font-extrabold uppercase tracking-wider hover:bg-[#4361EE]/15 transition"
+                                                                className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 ring-1 ring-[#E4572E]/30 bg-[#E4572E]/10 text-[#E4572E] text-[10px] font-extrabold uppercase tracking-wider hover:bg-[#E4572E]/15 transition"
                                                                 data-testid={`ai-draft-why-${i}`}
                                                                 aria-label="Why this mission?"
                                                             >
@@ -586,13 +586,13 @@ export default function ParentDashboard() {
                                                         </PopoverTrigger>
                                                         <PopoverContent
                                                             align="end"
-                                                            className="w-[min(20rem,90vw)] p-4 bg-white border-2 border-[#E2E8F0] rounded-2xl shadow-xl"
+                                                            className="w-[min(20rem,90vw)] p-4 bg-white border-2 border-[#E8E0D2] rounded-2xl shadow-xl"
                                                             data-testid={`ai-draft-why-popover-${i}`}
                                                         >
-                                                            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#4361EE] mb-2 flex items-center gap-1">
+                                                            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#E4572E] mb-2 flex items-center gap-1">
                                                                 <Wand2 size={11} /> Why this mission?
                                                             </p>
-                                                            <p className="text-sm font-semibold text-[#0B132B] leading-snug">{d.rationale}</p>
+                                                            <p className="text-sm font-semibold text-[#201D18] leading-snug">{d.rationale}</p>
                                                         </PopoverContent>
                                                     </Popover>
                                                 )}
@@ -614,17 +614,17 @@ export default function ParentDashboard() {
                 )}
 
                 <section data-testid="parent-missions-section">
-                    <h2 className="font-display font-bold text-2xl text-[#0B132B] mb-4">
+                    <h2 className="font-display font-bold text-2xl text-[#201D18] mb-4">
                         {selectedStudent ? `Missions for ${selectedStudent.name}` : "Missions"}
                     </h2>
                     {!selectedStudent ? (
                         <div className="mb-card p-8 text-center">
-                            <p className="text-[#4A5568] font-bold">Link a student above to start assigning missions.</p>
+                            <p className="text-[#6E675B] font-bold">Link a student above to start assigning missions.</p>
                         </div>
                     ) : missions.length === 0 ? (
                         <div className="mb-card p-8 text-center" data-testid="parent-no-missions">
-                            <p className="font-display font-bold text-xl text-[#0B132B]">No missions for today yet</p>
-                            <p className="text-[#4A5568] font-semibold mt-1">Hit "AI draft day" or "New mission" to create one.</p>
+                            <p className="font-display font-bold text-xl text-[#201D18]">No missions for today yet</p>
+                            <p className="text-[#6E675B] font-semibold mt-1">Hit "AI draft day" or "New mission" to create one.</p>
                         </div>
                     ) : (
                         <div className="grid gap-5 md:grid-cols-2">
@@ -632,59 +632,59 @@ export default function ParentDashboard() {
                                 <article key={m.id} className="mb-card mb-card-hover p-6" data-testid={`parent-mission-${m.id}`}>
                                     <div className="flex items-start justify-between gap-3 mb-2">
                                         <div className="flex-1">
-                                            <h3 className="font-display font-bold text-xl text-[#0B132B] leading-tight">{m.title}</h3>
+                                            <h3 className="font-display font-bold text-xl text-[#201D18] leading-tight">{m.title}</h3>
                                             {m.recurrence_pattern && (
-                                                <span className="mt-1 inline-flex items-center gap-1 mb-chip bg-[#06D6A0]/15 text-[#057a5b] text-[10px] py-0.5" data-testid={`parent-mission-recurs-${m.id}`}>
+                                                <span className="mt-1 inline-flex items-center gap-1 mb-chip bg-[#3F8C5E]/15 text-[#2F6B47] text-[10px] py-0.5" data-testid={`parent-mission-recurs-${m.id}`}>
                                                     <Repeat size={10} /> Repeats {m.recurrence_pattern}
                                                 </span>
                                             )}
                                             {m.recurrence_parent_id && !m.recurrence_pattern && (
-                                                <span className="mt-1 inline-flex items-center gap-1 mb-chip bg-[#06D6A0]/10 text-[#057a5b] text-[10px] py-0.5" data-testid={`parent-mission-instance-${m.id}`}>
+                                                <span className="mt-1 inline-flex items-center gap-1 mb-chip bg-[#3F8C5E]/10 text-[#2F6B47] text-[10px] py-0.5" data-testid={`parent-mission-instance-${m.id}`}>
                                                     <Repeat size={10} /> Recurring instance
                                                 </span>
                                             )}
                                             {m.mission_type === "reading_passage" && (
-                                                <span className="ml-1 inline-flex items-center gap-1 mb-chip bg-[#4361EE]/10 text-[#4361EE] text-[10px] py-0.5" data-testid={`parent-mission-type-reading-${m.id}`}>
+                                                <span className="ml-1 inline-flex items-center gap-1 mb-chip bg-[#E4572E]/10 text-[#E4572E] text-[10px] py-0.5" data-testid={`parent-mission-type-reading-${m.id}`}>
                                                     📖 Reading practice
                                                 </span>
                                             )}
                                             {m.mission_type === "writing_prompt" && (
-                                                <span className="ml-1 inline-flex items-center gap-1 mb-chip bg-[#06D6A0]/15 text-[#057a5b] text-[10px] py-0.5" data-testid={`parent-mission-type-writing-${m.id}`}>
+                                                <span className="ml-1 inline-flex items-center gap-1 mb-chip bg-[#3F8C5E]/15 text-[#2F6B47] text-[10px] py-0.5" data-testid={`parent-mission-type-writing-${m.id}`}>
                                                     ✍️ Writing practice
                                                 </span>
                                             )}
                                         </div>
                                         <div className="flex gap-1 flex-wrap justify-end">
-                                            <Link to={`/parent/missions/${m.id}/edit`} className="p-2 rounded-xl hover:bg-[#F0F8FF] inline-flex items-center gap-1 text-xs font-bold text-[#4361EE]" data-testid={`parent-mission-edit-${m.id}`} title="Edit">
+                                            <Link to={`/parent/missions/${m.id}/edit`} className="p-2 rounded-xl hover:bg-[#FBF6EE] inline-flex items-center gap-1 text-xs font-bold text-[#E4572E]" data-testid={`parent-mission-edit-${m.id}`} title="Edit">
                                                 <Pencil size={16} /> Edit
                                             </Link>
                                             <button
                                                 onClick={() => handleDuplicate(m.id)}
-                                                className="p-2 rounded-xl hover:bg-[#FFD166]/30 inline-flex items-center gap-1 text-xs font-bold text-[#876200]"
+                                                className="p-2 rounded-xl hover:bg-[#E8A33D]/30 inline-flex items-center gap-1 text-xs font-bold text-[#8A6413]"
                                                 data-testid={`parent-mission-duplicate-${m.id}`}
                                                 disabled={duplicatingId === m.id}
                                                 title="Duplicate to today"
                                             >
                                                 {duplicatingId === m.id ? <Loader2 size={16} className="animate-spin" /> : <Copy size={16} />} Duplicate
                                             </button>
-                                            <button onClick={() => handleDelete(m.id)} className="p-2 rounded-xl hover:bg-[#EF476F]/10" data-testid={`parent-mission-delete-${m.id}`} title="Delete">
-                                                <Trash2 size={16} className="text-[#EF476F]" />
+                                            <button onClick={() => handleDelete(m.id)} className="p-2 rounded-xl hover:bg-[#BC4B32]/10" data-testid={`parent-mission-delete-${m.id}`} title="Delete">
+                                                <Trash2 size={16} className="text-[#BC4B32]" />
                                             </button>
                                         </div>
                                     </div>
-                                    {m.description && <p className="text-[#4A5568] font-semibold text-sm mb-3">{m.description}</p>}
-                                    <div className="flex items-center gap-2 text-sm font-bold text-[#4A5568] mb-3">
+                                    {m.description && <p className="text-[#6E675B] font-semibold text-sm mb-3">{m.description}</p>}
+                                    <div className="flex items-center gap-2 text-sm font-bold text-[#6E675B] mb-3">
                                         <Clock size={14} /> {m.estimated_minutes} min{m.mission_type === "standard" && ` · ${m.steps.length} steps`}
                                     </div>
                                     <div className="flex flex-wrap gap-2">
                                         {m.skill_ids.map((sid) => skillMap[sid] && (
-                                            <span key={sid} className="mb-chip bg-[#4361EE]/10 text-[#4361EE] inline-flex items-center gap-1">
+                                            <span key={sid} className="mb-chip bg-[#E4572E]/10 text-[#E4572E] inline-flex items-center gap-1">
                                                 {skillMap[sid].name}
                                                 <EvidenceBadge citationIds={skillMap[sid].evidence_refs} tone="indigo" size={11} testId={`mission-skill-evidence-${m.id}-${sid}`} />
                                             </span>
                                         ))}
                                         {m.strategy_ids.map((sid) => stratMap[sid] && (
-                                            <span key={sid} className="mb-chip bg-[#FFD166]/30 text-[#876200] inline-flex items-center gap-1">
+                                            <span key={sid} className="mb-chip bg-[#E8A33D]/30 text-[#8A6413] inline-flex items-center gap-1">
                                                 {stratMap[sid].emoji} {stratMap[sid].name}
                                                 <EvidenceBadge citationIds={stratMap[sid].evidence_refs} size={11} testId={`mission-strat-evidence-${m.id}-${sid}`} />
                                             </span>

@@ -78,19 +78,19 @@ export default function ParentPackEditor({ mode = "create" }) {
         } finally { setSaving(false); }
     };
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center text-[#4361EE] font-bold">Loading…</div>;
+    if (loading) return <div className="min-h-screen flex items-center justify-center text-[#E4572E] font-bold">Loading…</div>;
 
     return (
         <div className="min-h-screen" data-testid="parent-pack-editor">
             <Navbar />
             <main className="max-w-3xl mx-auto p-6 md:p-10 space-y-6">
-                <Link to="/games" className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE]" data-testid="editor-back">
+                <Link to="/games" className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E]" data-testid="editor-back">
                     <ArrowLeft size={16} /> Back to games
                 </Link>
                 <header>
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">{editing ? "Edit pack" : "Build a pack"}</p>
-                    <h1 className="font-display font-extrabold text-4xl text-[#0B132B] mt-1">{editing ? name || "Edit pack" : "Make a new mini-game pack"}</h1>
-                    <p className="text-[#4A5568] font-semibold mt-2">Custom packs replace the default content for the chosen mini-game.</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">{editing ? "Edit pack" : "Build a pack"}</p>
+                    <h1 className="font-display font-extrabold text-4xl text-[#201D18] mt-1">{editing ? name || "Edit pack" : "Make a new mini-game pack"}</h1>
+                    <p className="text-[#6E675B] font-semibold mt-2">Custom packs replace the default content for the chosen mini-game.</p>
                 </header>
 
                 <section className="mb-card p-6 space-y-4">
@@ -100,7 +100,7 @@ export default function ParentPackEditor({ mode = "create" }) {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="e.g. Volcano words, Family memory set, Robot sentences"
-                            className="w-full rounded-2xl border-2 border-[#E2E8F0] px-4 py-3 font-bold focus:border-[#4361EE] outline-none"
+                            className="w-full rounded-2xl border-2 border-[#E8E0D2] px-4 py-3 font-bold focus:border-[#E4572E] outline-none"
                             data-testid="editor-name"
                             maxLength={80}
                         />
@@ -113,12 +113,12 @@ export default function ParentPackEditor({ mode = "create" }) {
                                     <button
                                         key={t.value}
                                         onClick={() => changeType(t.value)}
-                                        className={`text-left rounded-2xl border-2 p-3 transition-all ${gameType === t.value ? "border-[#4361EE] bg-[#4361EE]/5" : "border-[#E2E8F0] bg-white hover:border-[#4361EE]"}`}
+                                        className={`text-left rounded-2xl border-2 p-3 transition-all ${gameType === t.value ? "border-[#E4572E] bg-[#E4572E]/5" : "border-[#E8E0D2] bg-white hover:border-[#E4572E]"}`}
                                         data-testid={`editor-type-${t.value}`}
                                     >
                                         <div className="text-2xl">{t.emoji}</div>
-                                        <p className="font-bold text-sm text-[#0B132B] mt-1">{t.label}</p>
-                                        <p className="text-xs text-[#4A5568] mt-1">{t.help}</p>
+                                        <p className="font-bold text-sm text-[#201D18] mt-1">{t.label}</p>
+                                        <p className="text-xs text-[#6E675B] mt-1">{t.help}</p>
                                     </button>
                                 ))}
                             </div>
@@ -137,13 +137,13 @@ export default function ParentPackEditor({ mode = "create" }) {
 
                     {students.length > 0 && (
                         <Field label={<><Users size={14} className="inline" /> Share with</>}>
-                            <p className="text-xs font-semibold text-[#4A5568] mb-2">Pick which kids see this pack. Leave empty to share with every linked kid.</p>
+                            <p className="text-xs font-semibold text-[#6E675B] mb-2">Pick which kids see this pack. Leave empty to share with every linked kid.</p>
                             <div className="flex flex-wrap gap-2" data-testid="editor-share-grid">
                                 {students.map((s) => (
                                     <button
                                         key={s.id}
                                         onClick={() => toggleShare(s.id)}
-                                        className={`px-3 py-1.5 rounded-2xl text-sm font-bold border-2 transition-all ${shareWith.includes(s.id) ? "bg-[#4361EE] border-[#4361EE] text-white" : "bg-white border-[#E2E8F0] text-[#4A5568] hover:border-[#4361EE]"}`}
+                                        className={`px-3 py-1.5 rounded-2xl text-sm font-bold border-2 transition-all ${shareWith.includes(s.id) ? "bg-[#E4572E] border-[#E4572E] text-white" : "bg-white border-[#E8E0D2] text-[#6E675B] hover:border-[#E4572E]"}`}
                                         data-testid={`editor-share-${s.id}`}
                                     >
                                         {s.name}
@@ -175,7 +175,7 @@ export default function ParentPackEditor({ mode = "create" }) {
 function Field({ label, children }) {
     return (
         <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mb-2 block">{label}</label>
+            <label className="text-xs font-bold uppercase tracking-widest text-[#9A9286] mb-2 block">{label}</label>
             {children}
         </div>
     );
@@ -199,7 +199,7 @@ function WordMatchEditor({ content, setContent }) {
                             value={p.word}
                             onChange={(e) => update(i, "word", e.target.value)}
                             placeholder="Word"
-                            className="rounded-xl border-2 border-[#E2E8F0] px-3 py-2 font-bold w-40 focus:border-[#4361EE] outline-none"
+                            className="rounded-xl border-2 border-[#E8E0D2] px-3 py-2 font-bold w-40 focus:border-[#E4572E] outline-none"
                             data-testid={`pair-word-${i}`}
                             maxLength={60}
                         />
@@ -208,11 +208,11 @@ function WordMatchEditor({ content, setContent }) {
                             value={p.meaning}
                             onChange={(e) => update(i, "meaning", e.target.value)}
                             placeholder="Meaning"
-                            className="rounded-xl border-2 border-[#E2E8F0] px-3 py-2 font-bold flex-1 focus:border-[#4361EE] outline-none"
+                            className="rounded-xl border-2 border-[#E8E0D2] px-3 py-2 font-bold flex-1 focus:border-[#E4572E] outline-none"
                             data-testid={`pair-meaning-${i}`}
                             maxLength={160}
                         />
-                        <button onClick={() => remove(i)} disabled={pairs.length <= 4} className="text-[#EF476F] disabled:opacity-30 px-2" data-testid={`pair-remove-${i}`}><X size={16} /></button>
+                        <button onClick={() => remove(i)} disabled={pairs.length <= 4} className="text-[#BC4B32] disabled:opacity-30 px-2" data-testid={`pair-remove-${i}`}><X size={16} /></button>
                     </div>
                 ))}
             </div>
@@ -230,7 +230,7 @@ function MemoryEditor({ content, setContent }) {
     const remove = (i) => items.length > 4 && setContent({ items: items.filter((_, idx) => idx !== i) });
     return (
         <Field label={`Unique items (${items.length}/8) · need at least 4`}>
-            <p className="text-xs text-[#4A5568] mb-2">Use a single emoji or short symbol (max 8 chars). Each item will appear twice as a pair.</p>
+            <p className="text-xs text-[#6E675B] mb-2">Use a single emoji or short symbol (max 8 chars). Each item will appear twice as a pair.</p>
             <div className="flex flex-wrap gap-2" data-testid="memory-items-editor">
                 {items.map((it, i) => (
                     <div key={i} className="flex items-center gap-1">
@@ -239,11 +239,11 @@ function MemoryEditor({ content, setContent }) {
                             value={it}
                             onChange={(e) => update(i, e.target.value)}
                             placeholder="🚀"
-                            className="rounded-xl border-2 border-[#E2E8F0] px-3 py-2 font-bold w-24 text-center text-2xl focus:border-[#4361EE] outline-none"
+                            className="rounded-xl border-2 border-[#E8E0D2] px-3 py-2 font-bold w-24 text-center text-2xl focus:border-[#E4572E] outline-none"
                             data-testid={`memory-item-${i}`}
                             maxLength={8}
                         />
-                        <button onClick={() => remove(i)} disabled={items.length <= 4} className="text-[#EF476F] disabled:opacity-30 px-1" data-testid={`memory-remove-${i}`}><X size={14} /></button>
+                        <button onClick={() => remove(i)} disabled={items.length <= 4} className="text-[#BC4B32] disabled:opacity-30 px-1" data-testid={`memory-remove-${i}`}><X size={14} /></button>
                     </div>
                 ))}
             </div>
@@ -261,7 +261,7 @@ function SentenceEditor({ content, setContent }) {
     const remove = (i) => sentences.length > 1 && setContent({ sentences: sentences.filter((_, idx) => idx !== i) });
     return (
         <Field label={`Sentences (${sentences.length}/5)`}>
-            <p className="text-xs text-[#4A5568] mb-2">Each sentence needs 3–12 words. Words will be shuffled and the kid puts them in order.</p>
+            <p className="text-xs text-[#6E675B] mb-2">Each sentence needs 3–12 words. Words will be shuffled and the kid puts them in order.</p>
             <div className="space-y-2" data-testid="sentence-editor">
                 {sentences.map((s, i) => (
                     <div key={i} className="flex gap-2 items-start">
@@ -270,10 +270,10 @@ function SentenceEditor({ content, setContent }) {
                             value={s}
                             onChange={(e) => update(i, e.target.value)}
                             placeholder="e.g. The brave dog barked at the moon"
-                            className="rounded-xl border-2 border-[#E2E8F0] px-3 py-2 font-bold flex-1 focus:border-[#4361EE] outline-none"
+                            className="rounded-xl border-2 border-[#E8E0D2] px-3 py-2 font-bold flex-1 focus:border-[#E4572E] outline-none"
                             data-testid={`sentence-input-${i}`}
                         />
-                        <button onClick={() => remove(i)} disabled={sentences.length <= 1} className="text-[#EF476F] disabled:opacity-30 px-2 py-2" data-testid={`sentence-remove-${i}`}><X size={16} /></button>
+                        <button onClick={() => remove(i)} disabled={sentences.length <= 1} className="text-[#BC4B32] disabled:opacity-30 px-2 py-2" data-testid={`sentence-remove-${i}`}><X size={16} /></button>
                     </div>
                 ))}
             </div>

@@ -50,17 +50,17 @@ export default function BreathingBubble({ onComplete }) {
     return (
         <div data-testid="game-breathing">
             <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-bold text-[#4A5568]">Match your breath to the bubble.</p>
-                <span className="mb-chip bg-[#06D6A0]/15 text-[#057a5b]" data-testid="breathing-time">⏱ {left}s</span>
+                <p className="text-sm font-bold text-[#6E675B]">Match your breath to the bubble.</p>
+                <span className="mb-chip bg-[#3F8C5E]/15 text-[#2F6B47]" data-testid="breathing-time">⏱ {left}s</span>
             </div>
-            <div className="relative h-80 rounded-3xl bg-gradient-to-br from-[#F0F8FF] to-[#06D6A0]/10 border-2 border-[#E2E8F0] flex items-center justify-center overflow-hidden">
+            <div className="relative h-80 rounded-3xl bg-gradient-to-br from-[#FBF6EE] to-[#3F8C5E]/10 border-2 border-[#E8E0D2] flex items-center justify-center overflow-hidden">
                 <div
-                    className="rounded-full bg-[#06D6A0]/40 border-4 border-[#06D6A0] transition-transform duration-[100ms]"
+                    className="rounded-full bg-[#3F8C5E]/40 border-4 border-[#3F8C5E] transition-transform duration-[100ms]"
                     style={{ width: 140, height: 140, transform: `scale(${scale})` }}
                     data-testid="breathing-bubble"
                 />
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <p className="font-display font-extrabold text-2xl text-[#0B132B] drop-shadow-sm" data-testid="breathing-phase">
+                    <p className="font-display font-extrabold text-2xl text-[#201D18] drop-shadow-sm" data-testid="breathing-phase">
                         {running ? phase : "Ready?"}
                     </p>
                 </div>
@@ -70,7 +70,7 @@ export default function BreathingBubble({ onComplete }) {
                     </div>
                 )}
             </div>
-            <p className="text-center text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mt-3">
+            <p className="text-center text-xs font-bold uppercase tracking-widest text-[#9A9286] mt-3">
                 Inhale 4s · hold 1s · exhale 6s
             </p>
         </div>

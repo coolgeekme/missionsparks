@@ -100,8 +100,8 @@ export default function NotificationSettingsPanel({ role }) {
 
     if (!prefs) {
         return (
-            <div className="mb-card p-6 flex items-center gap-2 text-sm font-semibold text-[#4A5568]" data-testid="notification-panel-loading">
-                <Loader2 className="animate-spin text-[#4361EE]" size={16} /> Loading…
+            <div className="mb-card p-6 flex items-center gap-2 text-sm font-semibold text-[#6E675B]" data-testid="notification-panel-loading">
+                <Loader2 className="animate-spin text-[#E4572E]" size={16} /> Loading…
             </div>
         );
     }
@@ -112,15 +112,15 @@ export default function NotificationSettingsPanel({ role }) {
     return (
         <section className="mb-card p-6" data-testid="notification-settings-panel">
             <div className="flex items-start gap-3 mb-4">
-                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${masterOn ? "bg-[#4361EE]/15 text-[#4361EE]" : "bg-[#F8FAFC] text-[#A0AEC0]"}`}>
+                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${masterOn ? "bg-[#E4572E]/15 text-[#E4572E]" : "bg-[#FBF6EE] text-[#9A9286]"}`}>
                     {masterOn ? <Bell size={22} /> : <BellOff size={22} />}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <h2 className="font-display font-bold text-xl text-[#0B132B]">Push notifications</h2>
-                    <p className="text-sm font-semibold text-[#4A5568] mt-1">
+                    <h2 className="font-display font-bold text-xl text-[#201D18]">Push notifications</h2>
+                    <p className="text-sm font-semibold text-[#6E675B] mt-1">
                         Get a heads-up when things happen — even if the app isn't open.
                         {deviceCount > 0 && (
-                            <span className="ml-1 inline-flex items-center gap-1 text-[#4361EE]">
+                            <span className="ml-1 inline-flex items-center gap-1 text-[#E4572E]">
                                 <Smartphone size={12} /> {deviceCount} device{deviceCount === 1 ? "" : "s"} subscribed
                             </span>
                         )}
@@ -129,9 +129,9 @@ export default function NotificationSettingsPanel({ role }) {
             </div>
 
             {!cap.supported ? (
-                <div className="rounded-2xl bg-[#FFD166]/15 border-2 border-[#FFD166] p-4 flex items-start gap-2" data-testid="notification-unsupported">
-                    <AlertTriangle size={16} className="text-[#876200] flex-shrink-0 mt-0.5" />
-                    <div className="text-sm font-semibold text-[#0B132B]">
+                <div className="rounded-2xl bg-[#E8A33D]/15 border-2 border-[#E8A33D] p-4 flex items-start gap-2" data-testid="notification-unsupported">
+                    <AlertTriangle size={16} className="text-[#8A6413] flex-shrink-0 mt-0.5" />
+                    <div className="text-sm font-semibold text-[#201D18]">
                         {cap.reason === "ios-needs-install" && (
                             <>
                                 <strong>Almost there!</strong> On iPhone, add MissionSparks to your Home Screen first.
@@ -149,7 +149,7 @@ export default function NotificationSettingsPanel({ role }) {
                     <div className="flex flex-wrap items-center gap-2 mb-4">
                         {subscribed ? (
                             <>
-                                <span className="mb-chip bg-[#06D6A0]/15 text-[#057a5b]" data-testid="notification-subscribed-chip">
+                                <span className="mb-chip bg-[#3F8C5E]/15 text-[#2F6B47]" data-testid="notification-subscribed-chip">
                                     <CheckCircle2 size={12} className="inline mr-1" /> This device is subscribed
                                 </span>
                                 <button
@@ -163,7 +163,7 @@ export default function NotificationSettingsPanel({ role }) {
                                 <button
                                     onClick={disable}
                                     disabled={busy}
-                                    className="text-sm font-bold text-[#EF476F] hover:underline"
+                                    className="text-sm font-bold text-[#BC4B32] hover:underline"
                                     data-testid="notification-disable-btn"
                                 >
                                     Turn off on this device
@@ -183,13 +183,13 @@ export default function NotificationSettingsPanel({ role }) {
 
                     {subscribed && (
                         <>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#A0AEC0] mb-2">What to notify me about</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[#9A9286] mb-2">What to notify me about</p>
                             <ul className="space-y-2" data-testid="notification-prefs-list">
                                 {rows.map(([key, label, desc]) => (
-                                    <li key={key} className="flex items-start justify-between gap-3 rounded-2xl border-2 border-[#E2E8F0] bg-white p-3">
+                                    <li key={key} className="flex items-start justify-between gap-3 rounded-2xl border-2 border-[#E8E0D2] bg-white p-3">
                                         <div className="min-w-0">
-                                            <p className="font-display font-bold text-sm text-[#0B132B]">{label}</p>
-                                            <p className="text-xs font-semibold text-[#4A5568] mt-0.5">{desc}</p>
+                                            <p className="font-display font-bold text-sm text-[#201D18]">{label}</p>
+                                            <p className="text-xs font-semibold text-[#6E675B] mt-0.5">{desc}</p>
                                         </div>
                                         <label className="inline-flex items-center cursor-pointer flex-shrink-0">
                                             <input
@@ -199,12 +199,12 @@ export default function NotificationSettingsPanel({ role }) {
                                                 className="sr-only peer"
                                                 data-testid={`notification-pref-${key}`}
                                             />
-                                            <div className="relative w-10 h-6 bg-[#E2E8F0] rounded-full peer peer-focus:outline-none peer-checked:bg-[#4361EE] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-4" />
+                                            <div className="relative w-10 h-6 bg-[#E8E0D2] rounded-full peer peer-focus:outline-none peer-checked:bg-[#E4572E] transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-4" />
                                         </label>
                                     </li>
                                 ))}
                             </ul>
-                            <p className="mt-3 text-xs font-semibold text-[#A0AEC0] flex items-start gap-1.5">
+                            <p className="mt-3 text-xs font-semibold text-[#9A9286] flex items-start gap-1.5">
                                 <Info size={12} className="mt-0.5 flex-shrink-0" />
                                 Notifications work best when MissionSparks is installed on your home screen.
                                 On iPhone: Share → Add to Home Screen. On Android/Chrome: three-dot menu → Install app.

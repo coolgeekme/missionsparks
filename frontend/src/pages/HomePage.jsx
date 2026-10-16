@@ -3,24 +3,25 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api, formatApiErrorDetail } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
 import { toast } from "sonner";
-import { Zap, Lock, ArrowRight, Loader2, Sparkles, Flame, Target } from "lucide-react";
+import { Lock, ArrowRight, Loader2, Sparkles, Flame, Target } from "lucide-react";
+import SparkMark from "../components/SparkMark";
 
 // Mirror of backend AVATAR_COLOR_PALETTE → tailwind gradients.
 const COLOR_GRADIENTS = {
-    indigo: "from-[#4361EE] to-[#06D6A0]",
-    emerald: "from-[#06D6A0] to-[#118AB2]",
-    pink: "from-[#EF476F] to-[#FFD166]",
-    amber: "from-[#FFD166] to-[#EF476F]",
-    violet: "from-[#7B2CBF] to-[#4361EE]",
-    teal: "from-[#118AB2] to-[#06D6A0]",
-    rose: "from-[#FB7185] to-[#F472B6]",
-    sky: "from-[#38BDF8] to-[#4361EE]",
+    indigo: "from-[#E4572E] to-[#3F8C5E]",
+    emerald: "from-[#3F8C5E] to-[#4C9A6B]",
+    pink: "from-[#BC4B32] to-[#E8A33D]",
+    amber: "from-[#E8A33D] to-[#BC4B32]",
+    violet: "from-[#7A5C8E] to-[#E4572E]",
+    teal: "from-[#4C9A6B] to-[#3F8C5E]",
+    rose: "from-[#D08A76] to-[#D08A76]",
+    sky: "from-[#6EA886] to-[#E4572E]",
 };
 const SPARK_KIND_META = {
-    fun_fact: { label: "Fun fact", icon: Sparkles, color: "#FFD166" },
-    riddle: { label: "Riddle", icon: Sparkles, color: "#7B2CBF" },
-    affirmation: { label: "For you", icon: Sparkles, color: "#06D6A0" },
-    science_nugget: { label: "Did you know?", icon: Sparkles, color: "#118AB2" },
+    fun_fact: { label: "Fun fact", icon: Sparkles, color: "#E8A33D" },
+    riddle: { label: "Riddle", icon: Sparkles, color: "#7A5C8E" },
+    affirmation: { label: "For you", icon: Sparkles, color: "#3F8C5E" },
+    science_nugget: { label: "Did you know?", icon: Sparkles, color: "#4C9A6B" },
 };
 
 export default function HomePage() {
@@ -73,7 +74,7 @@ export default function HomePage() {
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center" data-testid="home-loading">
-                <Loader2 className="animate-spin text-[#4361EE]" size={32} />
+                <Loader2 className="animate-spin text-[#E4572E]" size={32} />
             </div>
         );
     }
@@ -82,8 +83,8 @@ export default function HomePage() {
         return (
             <div className="min-h-screen flex items-center justify-center p-6">
                 <div className="mb-card p-8 max-w-md text-center" data-testid="home-error">
-                    <h1 className="font-display font-extrabold text-3xl text-[#0B132B]">Home page unavailable</h1>
-                    <p className="text-[#4A5568] font-semibold mt-2">{err}</p>
+                    <h1 className="font-display font-extrabold text-3xl text-[#201D18]">Home page unavailable</h1>
+                    <p className="text-[#6E675B] font-semibold mt-2">{err}</p>
                 </div>
             </div>
         );
@@ -96,17 +97,15 @@ export default function HomePage() {
         <div className="min-h-screen flex items-start sm:items-center justify-center p-6 py-10" data-testid="home-page">
             <div className="max-w-2xl w-full">
                 <header className="text-center mb-6">
-                    <div className="inline-flex items-center gap-2 mb-3">
-                        <div className="h-12 w-12 rounded-2xl bg-[#4361EE] flex items-center justify-center text-white shadow-[0_4px_0_0_#3A53CC]">
-                            <Zap size={22} fill="currentColor" />
-                        </div>
-                        <span className="font-display font-extrabold text-3xl text-[#0B132B]">MissionSparks</span>
+                    <div className="inline-flex items-center gap-2.5 mb-3">
+                        <SparkMark size={34} />
+                        <span className="font-display font-extrabold text-3xl text-[#201D18]">Mission<span className="text-[#E4572E]">Sparks</span></span>
                     </div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">{data.family_name}</p>
-                    <h1 className="font-display font-extrabold text-4xl text-[#0B132B] mt-2">Who&apos;s here? 👋</h1>
-                    <p className="text-[#4A5568] font-semibold mt-1">
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">{data.family_name}</p>
+                    <h1 className="font-display font-extrabold text-4xl text-[#201D18] mt-2">Who&apos;s here? 👋</h1>
+                    <p className="text-[#6E675B] font-semibold mt-1">
                         {totalOpen > 0
-                            ? <>You&apos;ve got <span className="text-[#4361EE]">{totalOpen}</span> mission{totalOpen === 1 ? "" : "s"} to crush today.</>
+                            ? <>You&apos;ve got <span className="text-[#E4572E]">{totalOpen}</span> mission{totalOpen === 1 ? "" : "s"} to crush today.</>
                             : "All caught up today — high five! ✋"}
                     </p>
                 </header>
@@ -127,7 +126,7 @@ export default function HomePage() {
                             <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: sparkMeta.color }} data-testid="home-spark-kind">
                                 {sparkMeta.label}
                             </p>
-                            <p className="font-display font-bold text-[#0B132B] text-base sm:text-lg leading-snug mt-0.5" data-testid="home-spark-content">
+                            <p className="font-display font-bold text-[#201D18] text-base sm:text-lg leading-snug mt-0.5" data-testid="home-spark-content">
                                 {spark.content}
                             </p>
                         </div>
@@ -136,8 +135,8 @@ export default function HomePage() {
 
                 {data.kids.length === 0 ? (
                     <div className="mb-card p-8 text-center" data-testid="home-no-kids">
-                        <p className="font-display font-bold text-xl text-[#0B132B]">No kids set up yet</p>
-                        <p className="text-[#4A5568] font-semibold mt-1">Ask a grown-up to add you in Family Settings.</p>
+                        <p className="font-display font-bold text-xl text-[#201D18]">No kids set up yet</p>
+                        <p className="text-[#6E675B] font-semibold mt-1">Ask a grown-up to add you in Family Settings.</p>
                     </div>
                 ) : (
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="home-kid-grid">
@@ -155,36 +154,36 @@ export default function HomePage() {
                                     <div className={`h-20 w-20 rounded-3xl mx-auto bg-gradient-to-br ${gradient} text-white flex items-center justify-center text-4xl font-extrabold shadow-lg`}>
                                         {kid.avatar_emoji || initial}
                                     </div>
-                                    <p className="font-display font-extrabold text-2xl text-[#0B132B] mt-3" data-testid={`home-kid-name-${kid.id}`}>{kid.name}</p>
+                                    <p className="font-display font-extrabold text-2xl text-[#201D18] mt-3" data-testid={`home-kid-name-${kid.id}`}>{kid.name}</p>
 
                                     <div className="flex items-center justify-center gap-1.5 mt-2 flex-wrap">
                                         {kid.streak_current > 0 && (
-                                            <span className="inline-flex items-center gap-1 rounded-full bg-[#FFD166]/15 text-[#A07A00] px-2 py-0.5 text-[11px] font-bold" data-testid={`home-kid-streak-${kid.id}`}>
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-[#E8A33D]/15 text-[#8A6413] px-2 py-0.5 text-[11px] font-bold" data-testid={`home-kid-streak-${kid.id}`}>
                                                 <Flame size={11} /> {kid.streak_current}
                                             </span>
                                         )}
                                         {kid.open_missions_today > 0 && (
-                                            <span className="inline-flex items-center gap-1 rounded-full bg-[#4361EE]/10 text-[#4361EE] px-2 py-0.5 text-[11px] font-bold" data-testid={`home-kid-open-${kid.id}`}>
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-[#E4572E]/10 text-[#E4572E] px-2 py-0.5 text-[11px] font-bold" data-testid={`home-kid-open-${kid.id}`}>
                                                 <Target size={11} /> {kid.open_missions_today}
                                             </span>
                                         )}
                                         {kid.missions_today_count > 0 && kid.open_missions_today === 0 && (
-                                            <span className="inline-flex items-center gap-1 rounded-full bg-[#06D6A0]/15 text-[#057a5b] px-2 py-0.5 text-[11px] font-bold" data-testid={`home-kid-done-${kid.id}`}>
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-[#3F8C5E]/15 text-[#2F6B47] px-2 py-0.5 text-[11px] font-bold" data-testid={`home-kid-done-${kid.id}`}>
                                                 ✓ Done today
                                             </span>
                                         )}
                                     </div>
 
                                     {kid.interest_tag && (
-                                        <p className="text-[11px] font-bold text-[#A0AEC0] mt-2 truncate" data-testid={`home-kid-interest-${kid.id}`}>
+                                        <p className="text-[11px] font-bold text-[#9A9286] mt-2 truncate" data-testid={`home-kid-interest-${kid.id}`}>
                                             loves {kid.interest_tag}
                                         </p>
                                     )}
 
                                     {!kid.has_pin ? (
-                                        <p className="text-xs font-bold text-[#EF476F] mt-2">No PIN set — ask a grown-up</p>
+                                        <p className="text-xs font-bold text-[#BC4B32] mt-2">No PIN set — ask a grown-up</p>
                                     ) : (
-                                        <p className="text-xs font-bold text-[#4361EE] mt-2 inline-flex items-center gap-1">
+                                        <p className="text-xs font-bold text-[#E4572E] mt-2 inline-flex items-center gap-1">
                                             <Lock size={11} /> Enter PIN <ArrowRight size={11} />
                                         </p>
                                     )}
@@ -203,13 +202,13 @@ export default function HomePage() {
                         <form
                             onSubmit={submitPin}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-white rounded-3xl border-2 border-[#E2E8F0] p-8 max-w-sm w-full text-center"
+                            className="bg-white rounded-3xl border-2 border-[#E8E0D2] p-8 max-w-sm w-full text-center"
                         >
                             <div className={`h-16 w-16 rounded-3xl mx-auto bg-gradient-to-br ${COLOR_GRADIENTS[active.avatar_color] || COLOR_GRADIENTS.indigo} text-white flex items-center justify-center text-3xl font-extrabold`}>
                                 {active.avatar_emoji || active.name?.[0]?.toUpperCase()}
                             </div>
-                            <h2 className="font-display font-extrabold text-2xl text-[#0B132B] mt-3">Hi, {active.name}!</h2>
-                            <p className="text-sm font-semibold text-[#4A5568] mt-1">Type your 4-digit PIN.</p>
+                            <h2 className="font-display font-extrabold text-2xl text-[#201D18] mt-3">Hi, {active.name}!</h2>
+                            <p className="text-sm font-semibold text-[#6E675B] mt-1">Type your 4-digit PIN.</p>
                             <input
                                 type="password"
                                 inputMode="numeric"
@@ -217,12 +216,12 @@ export default function HomePage() {
                                 autoFocus
                                 value={pin}
                                 onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                                className="mt-5 w-full rounded-2xl border-2 border-[#E2E8F0] px-4 py-4 font-mono text-center text-3xl tracking-[1em] focus:border-[#4361EE] outline-none"
+                                className="mt-5 w-full rounded-2xl border-2 border-[#E8E0D2] px-4 py-4 font-mono text-center text-3xl tracking-[1em] focus:border-[#E4572E] outline-none"
                                 placeholder="••••"
                                 data-testid="home-pin-input"
                                 maxLength={4}
                             />
-                            {pinErr && <p className="text-sm font-bold text-[#EF476F] mt-3" data-testid="home-pin-error">{pinErr}</p>}
+                            {pinErr && <p className="text-sm font-bold text-[#BC4B32] mt-3" data-testid="home-pin-error">{pinErr}</p>}
                             <div className="flex gap-2 mt-4">
                                 <button
                                     type="submit"

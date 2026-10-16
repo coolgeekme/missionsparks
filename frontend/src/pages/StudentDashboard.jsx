@@ -86,24 +86,24 @@ export default function StudentDashboard() {
                 <header className="mb-card p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6">
                     <img src={ROCKET_URL} alt="Rocket" className="h-28 w-28 object-contain drop-shadow-lg" data-testid="student-hero-rocket" />
                     <div className="flex-1 text-center sm:text-left">
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Mission control</p>
-                        <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#0B132B] mt-1">
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Mission control</p>
+                        <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#201D18] mt-1">
                             Hi, {user?.name?.split(" ")[0] || "friend"}! 🚀
                         </h1>
-                        <p className="text-[#4A5568] font-semibold mt-2" data-testid="student-summary">
+                        <p className="text-[#6E675B] font-semibold mt-2" data-testid="student-summary">
                             {!isToday
-                                ? <>You&apos;re looking at <span className="text-[#4361EE]">{friendlyDate(selectedDate)}</span>.</>
+                                ? <>You&apos;re looking at <span className="text-[#E4572E]">{friendlyDate(selectedDate)}</span>.</>
                                 : (allDone
                                     ? "You crushed every mission today. Legend."
-                                    : (<>You&apos;ve got <span className="text-[#4361EE]">{total - completed}</span> mission{total - completed === 1 ? "" : "s"} left today.</>))
+                                    : (<>You&apos;ve got <span className="text-[#E4572E]">{total - completed}</span> mission{total - completed === 1 ? "" : "s"} left today.</>))
                             }
                         </p>
                         {isToday && total > 0 && (
                             <div className="mt-3 flex items-center gap-2 justify-center sm:justify-start">
-                                <div className="h-3 flex-1 max-w-xs bg-[#E2E8F0] rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#06D6A0] transition-all" style={{ width: total ? `${(completed / total) * 100}%` : "0%" }} data-testid="student-progress-bar" />
+                                <div className="h-3 flex-1 max-w-xs bg-[#E8E0D2] rounded-full overflow-hidden">
+                                    <div className="h-full bg-[#3F8C5E] transition-all" style={{ width: total ? `${(completed / total) * 100}%` : "0%" }} data-testid="student-progress-bar" />
                                 </div>
-                                <span className="text-sm font-bold text-[#4A5568]" data-testid="student-progress-label">{completed}/{total}</span>
+                                <span className="text-sm font-bold text-[#6E675B]" data-testid="student-progress-label">{completed}/{total}</span>
                             </div>
                         )}
                         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -126,22 +126,22 @@ export default function StudentDashboard() {
 
                 {streak && isToday && (
                     <section
-                        className={`mb-card p-6 sm:p-7 ${allDone ? "border-[#FFD166] bg-gradient-to-br from-white to-[#FFF8E1]" : ""}`}
+                        className={`mb-card p-6 sm:p-7 ${allDone ? "border-[#E8A33D] bg-gradient-to-br from-white to-[#F7ECD8]" : ""}`}
                         data-testid="student-streak-card"
                     >
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
                             <div className="flex items-center gap-4">
-                                <div className={`relative h-16 w-16 rounded-2xl flex items-center justify-center ${streak.current_streak > 0 ? "bg-[#FFD166]/30 text-[#876200]" : "bg-[#E2E8F0] text-[#A0AEC0]"}`} data-testid="student-streak-icon">
+                                <div className={`relative h-16 w-16 rounded-2xl flex items-center justify-center ${streak.current_streak > 0 ? "bg-[#E8A33D]/30 text-[#8A6413]" : "bg-[#E8E0D2] text-[#9A9286]"}`} data-testid="student-streak-icon">
                                     <Zap size={32} fill="currentColor" className={streak.current_streak > 0 ? "animate-pulse" : ""} />
                                 </div>
                                 <div>
-                                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Spark streak</p>
-                                    <p className="font-display font-extrabold text-3xl text-[#0B132B] leading-none" data-testid="student-streak-current">
+                                    <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Spark streak</p>
+                                    <p className="font-display font-extrabold text-3xl text-[#201D18] leading-none" data-testid="student-streak-current">
                                         {streak.current_streak} day{streak.current_streak === 1 ? "" : "s"}
                                     </p>
-                                    <p className="text-sm font-bold text-[#4A5568] mt-1">
+                                    <p className="text-sm font-bold text-[#6E675B] mt-1">
                                         {streak.longest_streak > streak.current_streak
-                                            ? <>Personal best: <span className="text-[#0B132B]">{streak.longest_streak} days</span></>
+                                            ? <>Personal best: <span className="text-[#201D18]">{streak.longest_streak} days</span></>
                                             : (streak.current_streak >= 2 ? "⚡ You're sparking!" : "Finish a mission today to light your first spark.")}
                                     </p>
                                 </div>
@@ -150,12 +150,12 @@ export default function StudentDashboard() {
                                 {streak.week.map((d) => {
                                     const kind = d.kind || (d.completed ? "completed" : "missed");
                                     const cls = {
-                                        completed: "bg-[#06D6A0] border-[#06D6A0] text-white",
-                                        freeze: "bg-[#118AB2]/15 border-[#118AB2] text-[#118AB2]",
-                                        weekend: "bg-[#F8FAFC] border-dashed border-[#A0AEC0] text-[#A0AEC0]",
-                                        missed: "bg-white border-[#EF476F]/30 text-[#EF476F]/70",
-                                        pending: "bg-white border-[#4361EE] text-[#4361EE]",
-                                    }[kind] || "bg-white border-[#E2E8F0] text-[#A0AEC0]";
+                                        completed: "bg-[#3F8C5E] border-[#3F8C5E] text-white",
+                                        freeze: "bg-[#4C9A6B]/15 border-[#4C9A6B] text-[#4C9A6B]",
+                                        weekend: "bg-[#FBF6EE] border-dashed border-[#9A9286] text-[#9A9286]",
+                                        missed: "bg-white border-[#BC4B32]/30 text-[#BC4B32]/70",
+                                        pending: "bg-white border-[#E4572E] text-[#E4572E]",
+                                    }[kind] || "bg-white border-[#E8E0D2] text-[#9A9286]";
                                     const label = {
                                         completed: <CheckCircle2 size={18} />,
                                         freeze: <span className="text-base" aria-label="freeze">❄</span>,
@@ -166,7 +166,7 @@ export default function StudentDashboard() {
                                             <div className={`h-9 w-9 rounded-xl flex items-center justify-center border-2 ${cls}`} title={`${d.date} · ${kind}`}>
                                                 {label}
                                             </div>
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#A0AEC0]">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-[#9A9286]">
                                                 {DOW_LABELS[new Date(d.date + "T00:00:00").getDay()]}
                                             </span>
                                         </div>
@@ -178,19 +178,19 @@ export default function StudentDashboard() {
                 )}
 
                 {allDone && (
-                    <section className="mb-card p-6 sm:p-8 text-center bg-gradient-to-br from-[#FFD166]/30 to-[#06D6A0]/15 border-[#FFD166]" data-testid="student-all-done">
+                    <section className="mb-card p-6 sm:p-8 text-center bg-gradient-to-br from-[#E8A33D]/30 to-[#3F8C5E]/15 border-[#E8A33D]" data-testid="student-all-done">
                         <img src={STAR_URL} alt="Star" className="h-24 w-24 mx-auto drop-shadow-lg" />
-                        <h2 className="font-display font-extrabold text-3xl text-[#0B132B] mt-2">All missions complete! 🎉</h2>
-                        <p className="text-[#4A5568] font-semibold mt-1">
-                            Your spark streak is now <span className="text-[#876200] font-extrabold">{streak?.current_streak ?? 0} day{(streak?.current_streak ?? 0) === 1 ? "" : "s"}</span> long. Come back tomorrow to add another spark.
+                        <h2 className="font-display font-extrabold text-3xl text-[#201D18] mt-2">All missions complete! 🎉</h2>
+                        <p className="text-[#6E675B] font-semibold mt-1">
+                            Your spark streak is now <span className="text-[#8A6413] font-extrabold">{streak?.current_streak ?? 0} day{(streak?.current_streak ?? 0) === 1 ? "" : "s"}</span> long. Come back tomorrow to add another spark.
                         </p>
                     </section>
                 )}
 
                 <section>
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                        <h2 className="font-display font-bold text-2xl text-[#0B132B] flex items-center gap-2">
-                            <Sparkles className="text-[#FFD166]" size={22} /> {friendlyDate(selectedDate)}&apos;s missions
+                        <h2 className="font-display font-bold text-2xl text-[#201D18] flex items-center gap-2">
+                            <Sparkles className="text-[#E8A33D]" size={22} /> {friendlyDate(selectedDate)}&apos;s missions
                         </h2>
                         <div className="flex items-center gap-2" data-testid="date-strip">
                             <button
@@ -202,7 +202,7 @@ export default function StudentDashboard() {
                             <button
                                 onClick={() => setSelectedDate(todayISO())}
                                 disabled={isToday}
-                                className={`px-3 py-2 rounded-2xl font-bold text-sm border-2 transition-all ${isToday ? "bg-[#4361EE] border-[#4361EE] text-white" : "bg-white border-[#E2E8F0] text-[#4A5568] hover:border-[#4361EE]"}`}
+                                className={`px-3 py-2 rounded-2xl font-bold text-sm border-2 transition-all ${isToday ? "bg-[#E4572E] border-[#E4572E] text-white" : "bg-white border-[#E8E0D2] text-[#6E675B] hover:border-[#E4572E]"}`}
                                 data-testid="date-today"
                             >Today</button>
                             <button
@@ -212,12 +212,12 @@ export default function StudentDashboard() {
                                 aria-label="Next day"
                             ><ChevronRight size={16} /></button>
                             <label className="inline-flex items-center gap-1 ml-1">
-                                <Calendar size={14} className="text-[#4A5568]" />
+                                <Calendar size={14} className="text-[#6E675B]" />
                                 <input
                                     type="date"
                                     value={selectedDate}
                                     onChange={(e) => setSelectedDate(e.target.value)}
-                                    className="rounded-xl border-2 border-[#E2E8F0] px-2 py-1 text-xs font-bold focus:border-[#4361EE] outline-none"
+                                    className="rounded-xl border-2 border-[#E8E0D2] px-2 py-1 text-xs font-bold focus:border-[#E4572E] outline-none"
                                     data-testid="date-picker"
                                 />
                             </label>
@@ -225,10 +225,10 @@ export default function StudentDashboard() {
                     </div>
                     {missions.length === 0 ? (
                         <div className="mb-card p-8 text-center" data-testid="student-no-missions">
-                            <p className="font-display font-bold text-xl text-[#0B132B]">
+                            <p className="font-display font-bold text-xl text-[#201D18]">
                                 {isFuture ? "Nothing scheduled yet 🌱" : (isToday ? "No missions for today 🎉" : "Nothing on this day 🌙")}
                             </p>
-                            <p className="text-[#4A5568] font-semibold mt-1">
+                            <p className="text-[#6E675B] font-semibold mt-1">
                                 {isFuture ? "Your grown-up hasn't planned this day yet." : "Enjoy your day off the mission board!"}
                             </p>
                         </div>
@@ -247,31 +247,31 @@ export default function StudentDashboard() {
                                     <Link
                                         to={target}
                                         key={m.id}
-                                        className={`mb-card p-6 block transition-all ${done ? "bg-[#06D6A0]/8 opacity-90" : "mb-card-hover"}`}
+                                        className={`mb-card p-6 block transition-all ${done ? "bg-[#3F8C5E]/8 opacity-90" : "mb-card-hover"}`}
                                         data-testid={`student-mission-${m.id}`}
                                     >
                                         <div className="flex items-start justify-between gap-3 mb-2">
-                                            <h3 className={`font-display font-bold text-xl text-[#0B132B] leading-tight ${done ? "line-through decoration-[#06D6A0] decoration-2" : ""}`}>{m.title}</h3>
+                                            <h3 className={`font-display font-bold text-xl text-[#201D18] leading-tight ${done ? "line-through decoration-[#3F8C5E] decoration-2" : ""}`}>{m.title}</h3>
                                             {done && (
-                                                <span className="mb-chip bg-[#06D6A0]/20 text-[#057a5b] flex-shrink-0" data-testid={`mission-done-chip-${m.id}`}>
+                                                <span className="mb-chip bg-[#3F8C5E]/20 text-[#2F6B47] flex-shrink-0" data-testid={`mission-done-chip-${m.id}`}>
                                                     <CheckCircle2 size={12} /> Done
                                                 </span>
                                             )}
                                         </div>
-                                        {m.description && <p className="text-[#4A5568] font-semibold text-sm mb-3">{m.description}</p>}
-                                        <div className="flex items-center gap-2 text-sm font-bold text-[#4A5568] mb-3">
+                                        {m.description && <p className="text-[#6E675B] font-semibold text-sm mb-3">{m.description}</p>}
+                                        <div className="flex items-center gap-2 text-sm font-bold text-[#6E675B] mb-3">
                                             <Clock size={14} /> {m.estimated_minutes} min{m.mission_type === "standard" && ` · ${m.steps.length} step${m.steps.length === 1 ? "" : "s"}`}
                                         </div>
                                         <div className="flex flex-wrap gap-2">
                                             {m.strategy_ids.map((sid) => stratMap[sid] && (
-                                                <span key={sid} className="mb-chip bg-[#FFD166]/30 text-[#876200]">{stratMap[sid].emoji} {stratMap[sid].name}</span>
+                                                <span key={sid} className="mb-chip bg-[#E8A33D]/30 text-[#8A6413]">{stratMap[sid].emoji} {stratMap[sid].name}</span>
                                             ))}
                                             {m.skill_ids.slice(0, 1).map((sid) => skillMap[sid] && (
-                                                <span key={sid} className="mb-chip bg-[#4361EE]/10 text-[#4361EE]">{skillMap[sid].name}</span>
+                                                <span key={sid} className="mb-chip bg-[#E4572E]/10 text-[#E4572E]">{skillMap[sid].name}</span>
                                             ))}
                                             {m.verification && m.verification !== "trust" && !done && (
                                                 <span
-                                                    className="mb-chip bg-[#4361EE]/10 text-[#4361EE]"
+                                                    className="mb-chip bg-[#E4572E]/10 text-[#E4572E]"
                                                     data-testid={`mission-verify-badge-${m.id}`}
                                                     title={{
                                                         parent_pin: "Needs a grown-up's PIN",
@@ -286,7 +286,7 @@ export default function StudentDashboard() {
                                             )}
                                         </div>
                                         {done && (
-                                            <p className="text-xs font-bold text-[#057a5b] mt-3 inline-flex items-center gap-1" data-testid={`mission-view-only-${m.id}`}>
+                                            <p className="text-xs font-bold text-[#2F6B47] mt-3 inline-flex items-center gap-1" data-testid={`mission-view-only-${m.id}`}>
                                                 <Eye size={11} /> Tap to view the steps you did
                                             </p>
                                         )}

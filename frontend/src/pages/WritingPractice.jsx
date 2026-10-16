@@ -85,7 +85,7 @@ export default function WritingPractice() {
     };
 
     if (!piece) {
-        return <div className="min-h-screen"><Navbar /><div className="p-10 text-center font-bold text-[#4A5568]">Loading…</div></div>;
+        return <div className="min-h-screen"><Navbar /><div className="p-10 text-center font-bold text-[#6E675B]">Loading…</div></div>;
     }
 
     const submitted = !!piece.submitted_at;
@@ -94,28 +94,28 @@ export default function WritingPractice() {
         <div className="min-h-screen" data-testid="writing-practice-page">
             <Navbar />
             <main className="max-w-3xl mx-auto p-6 sm:p-10 space-y-6">
-                <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE]" data-testid="writing-back">
+                <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E]" data-testid="writing-back">
                     <ArrowLeft size={16} /> Back
                 </Link>
 
                 <header className="space-y-2">
                     <div className="flex items-center gap-2">
-                        <div className="h-10 w-10 rounded-2xl bg-[#06D6A0] flex items-center justify-center text-white"><PenLine size={18} /></div>
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Guided writing</p>
+                        <div className="h-10 w-10 rounded-2xl bg-[#3F8C5E] flex items-center justify-center text-white"><PenLine size={18} /></div>
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Guided writing</p>
                     </div>
-                    <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#0B132B]" data-testid="writing-prompt">{piece.prompt}</h1>
+                    <h1 className="font-display font-extrabold text-2xl sm:text-3xl text-[#201D18]" data-testid="writing-prompt">{piece.prompt}</h1>
                 </header>
 
                 <section className="mb-card p-5 space-y-2" data-testid="writing-scaffold">
-                    <h2 className="font-display font-bold text-base text-[#0B132B] flex items-center gap-2"><ListChecks size={16} className="text-[#4361EE]" /> Plan it out</h2>
+                    <h2 className="font-display font-bold text-base text-[#201D18] flex items-center gap-2"><ListChecks size={16} className="text-[#E4572E]" /> Plan it out</h2>
                     <ol className="space-y-1.5 list-decimal pl-5">
-                        {piece.scaffold.map((s, i) => <li key={i} className="text-sm font-semibold text-[#0B132B]">{s}</li>)}
+                        {piece.scaffold.map((s, i) => <li key={i} className="text-sm font-semibold text-[#201D18]">{s}</li>)}
                     </ol>
                 </section>
 
                 {piece.sentence_starters?.length > 0 && (
                     <section className="mb-card p-5 space-y-2" data-testid="writing-starters">
-                        <h2 className="font-display font-bold text-base text-[#0B132B]">Sentence starters · tap to drop one in</h2>
+                        <h2 className="font-display font-bold text-base text-[#201D18]">Sentence starters · tap to drop one in</h2>
                         <div className="flex flex-wrap gap-2">
                             {piece.sentence_starters.map((s, i) => (
                                 <button
@@ -123,7 +123,7 @@ export default function WritingPractice() {
                                     type="button"
                                     onClick={() => setDraft((d) => (d ? d.trimEnd() + " " : "") + s + " ")}
                                     disabled={submitted}
-                                    className="mb-chip border-2 border-dashed border-[#06D6A0]/40 text-[#057a5b] hover:bg-[#06D6A0]/10 text-sm"
+                                    className="mb-chip border-2 border-dashed border-[#3F8C5E]/40 text-[#2F6B47] hover:bg-[#3F8C5E]/10 text-sm"
                                     data-testid={`writing-starter-${i}`}
                                 >
                                     + {s}
@@ -134,7 +134,7 @@ export default function WritingPractice() {
                 )}
 
                 <section className="mb-card p-5 space-y-3" data-testid="writing-editor">
-                    <h2 className="font-display font-bold text-base text-[#0B132B]">Your turn</h2>
+                    <h2 className="font-display font-bold text-base text-[#201D18]">Your turn</h2>
                     <textarea
                         className="mb-input min-h-[180px] text-base leading-relaxed"
                         placeholder="Start writing here…"
@@ -144,7 +144,7 @@ export default function WritingPractice() {
                         data-testid="writing-textarea"
                     />
                     <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <p className="text-xs font-bold text-[#A0AEC0]">{draft.trim().split(/\s+/).filter(Boolean).length} words</p>
+                        <p className="text-xs font-bold text-[#9A9286]">{draft.trim().split(/\s+/).filter(Boolean).length} words</p>
                         {!submitted && (
                             recording ? (
                                 <button onClick={stopVoice} className="btn-pop-ghost text-sm flex items-center gap-1.5" data-testid="writing-mic-stop">
@@ -164,8 +164,8 @@ export default function WritingPractice() {
                         {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Get feedback
                     </button>
                 ) : (
-                    <div className="mb-card p-6 bg-gradient-to-br from-[#06D6A0] to-[#057a5b] text-white" data-testid="writing-feedback">
-                        <Sparkles size={20} className="mb-2 text-[#FFD166]" />
+                    <div className="mb-card p-6 bg-gradient-to-br from-[#3F8C5E] to-[#2F6B47] text-white" data-testid="writing-feedback">
+                        <Sparkles size={20} className="mb-2 text-[#E8A33D]" />
                         <p className="font-display font-extrabold text-lg mb-1">Coach feedback</p>
                         <p className="font-semibold whitespace-pre-line">{piece.feedback}</p>
                     </div>

@@ -12,10 +12,10 @@ const SOURCE_TYPE_LABEL = {
 };
 
 const SOURCE_TYPE_TONE = {
-    peer_reviewed: "bg-[#4361EE]/10 text-[#4361EE]",
-    org: "bg-[#06D6A0]/15 text-[#057a5b]",
-    guideline: "bg-[#FFD166]/30 text-[#876200]",
-    book: "bg-[#EF476F]/10 text-[#EF476F]",
+    peer_reviewed: "bg-[#E4572E]/10 text-[#E4572E]",
+    org: "bg-[#3F8C5E]/15 text-[#2F6B47]",
+    guideline: "bg-[#E8A33D]/30 text-[#8A6413]",
+    book: "bg-[#BC4B32]/10 text-[#BC4B32]",
 };
 
 /**
@@ -57,19 +57,19 @@ export default function Research() {
         <div className="min-h-screen" data-testid="research-page">
             <Navbar />
             <main className="max-w-5xl mx-auto p-6 md:p-10 space-y-6">
-                <Link to="/parent" className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE]" data-testid="research-back">
+                <Link to="/parent" className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E]" data-testid="research-back">
                     <ArrowLeft size={16} /> Back to dashboard
                 </Link>
 
                 <header className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">
-                        <div className="h-10 w-10 rounded-2xl bg-[#FFD166] flex items-center justify-center text-[#876200] shadow-[0_4px_0_0_#E5BC5C]">
+                        <div className="h-10 w-10 rounded-2xl bg-[#E8A33D] flex items-center justify-center text-[#8A6413] shadow-[0_4px_0_0_#C98A2E]">
                             <BookOpen size={20} />
                         </div>
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Evidence library</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Evidence library</p>
                     </div>
-                    <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#0B132B]">Why this app works</h1>
-                    <p className="text-[#4A5568] font-semibold max-w-2xl">
+                    <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#201D18]">Why this app works</h1>
+                    <p className="text-[#6E675B] font-semibold max-w-2xl">
                         Every skill, strategy, mini-game, and behavior tag in MissionSparks is grounded in
                         peer-reviewed research or authoritative health-organization guidance. Browse the full
                         library below — share with your child's therapist or teacher.
@@ -77,15 +77,15 @@ export default function Research() {
                 </header>
 
                 <section className="mb-card p-4 grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="research-stats">
-                    <Stat label="Peer-reviewed" value={counts.peer_reviewed} tone="bg-[#4361EE]/10 text-[#4361EE]" />
-                    <Stat label="Authoritative orgs" value={counts.org} tone="bg-[#06D6A0]/15 text-[#057a5b]" />
-                    <Stat label="Guidelines" value={counts.guideline} tone="bg-[#FFD166]/30 text-[#876200]" />
-                    <Stat label="Total citations" value={citations.length} tone="bg-[#0B132B] text-white" />
+                    <Stat label="Peer-reviewed" value={counts.peer_reviewed} tone="bg-[#E4572E]/10 text-[#E4572E]" />
+                    <Stat label="Authoritative orgs" value={counts.org} tone="bg-[#3F8C5E]/15 text-[#2F6B47]" />
+                    <Stat label="Guidelines" value={counts.guideline} tone="bg-[#E8A33D]/30 text-[#8A6413]" />
+                    <Stat label="Total citations" value={citations.length} tone="bg-[#201D18] text-white" />
                 </section>
 
                 <section className="mb-card p-4 space-y-3">
                     <div className="relative">
-                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A0AEC0]" />
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9A9286]" />
                         <input
                             value={q}
                             onChange={(e) => setQ(e.target.value)}
@@ -95,14 +95,14 @@ export default function Research() {
                         />
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
-                        <Filter size={14} className="text-[#4A5568]" />
-                        <span className="text-[#4A5568] mr-1">Source:</span>
+                        <Filter size={14} className="text-[#6E675B]" />
+                        <span className="text-[#6E675B] mr-1">Source:</span>
                         {["all", "peer_reviewed", "org", "guideline"].map((t) => (
                             <button
                                 key={t}
                                 type="button"
                                 onClick={() => setSourceFilter(t)}
-                                className={`mb-chip border-2 ${sourceFilter === t ? "bg-[#0B132B] text-white border-[#0B132B]" : "bg-white text-[#4A5568] border-[#E2E8F0]"}`}
+                                className={`mb-chip border-2 ${sourceFilter === t ? "bg-[#201D18] text-white border-[#201D18]" : "bg-white text-[#6E675B] border-[#E8E0D2]"}`}
                                 data-testid={`research-source-${t}`}
                             >
                                 {t === "all" ? "All" : SOURCE_TYPE_LABEL[t]}
@@ -111,10 +111,10 @@ export default function Research() {
                     </div>
                     {allTags.length > 0 && (
                         <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
-                            <span className="text-[#4A5568] mr-1">Topic:</span>
+                            <span className="text-[#6E675B] mr-1">Topic:</span>
                             <button
                                 onClick={() => setTagFilter("all")}
-                                className={`mb-chip border-2 ${tagFilter === "all" ? "bg-[#0B132B] text-white border-[#0B132B]" : "bg-white text-[#4A5568] border-[#E2E8F0]"}`}
+                                className={`mb-chip border-2 ${tagFilter === "all" ? "bg-[#201D18] text-white border-[#201D18]" : "bg-white text-[#6E675B] border-[#E8E0D2]"}`}
                                 data-testid="research-tag-all"
                             >
                                 All
@@ -123,7 +123,7 @@ export default function Research() {
                                 <button
                                     key={t}
                                     onClick={() => setTagFilter(t)}
-                                    className={`mb-chip border-2 ${tagFilter === t ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white text-[#4361EE] border-[#E2E8F0]"}`}
+                                    className={`mb-chip border-2 ${tagFilter === t ? "bg-[#E4572E] text-white border-[#E4572E]" : "bg-white text-[#E4572E] border-[#E8E0D2]"}`}
                                     data-testid={`research-tag-${t}`}
                                 >
                                     {t.replaceAll("_", " ")}
@@ -134,9 +134,9 @@ export default function Research() {
                 </section>
 
                 <section className="space-y-3" data-testid="research-list">
-                    {!ready && <p className="text-center text-[#4A5568] font-semibold py-8">Loading library…</p>}
+                    {!ready && <p className="text-center text-[#6E675B] font-semibold py-8">Loading library…</p>}
                     {ready && filtered.length === 0 && (
-                        <p className="text-center text-[#4A5568] font-semibold py-8" data-testid="research-empty">
+                        <p className="text-center text-[#6E675B] font-semibold py-8" data-testid="research-empty">
                             No citations match your filters.
                         </p>
                     )}
@@ -147,18 +147,18 @@ export default function Research() {
                             data-testid={`research-item-${c.key}`}
                         >
                             <div className="flex items-start justify-between gap-3 flex-wrap">
-                                <h3 className="font-display font-bold text-lg text-[#0B132B] leading-snug">{c.title}</h3>
+                                <h3 className="font-display font-bold text-lg text-[#201D18] leading-snug">{c.title}</h3>
                                 <span className={`mb-chip text-[10px] py-0.5 px-2 ${SOURCE_TYPE_TONE[c.source_type] || ""}`}>
                                     {SOURCE_TYPE_LABEL[c.source_type] || c.source_type}
                                 </span>
                             </div>
-                            <p className="text-sm font-semibold text-[#4A5568]">
+                            <p className="text-sm font-semibold text-[#6E675B]">
                                 {c.authors} · {c.year} · <span className="italic">{c.source}</span>
                             </p>
-                            <p className="text-sm text-[#0B132B]">{c.summary}</p>
+                            <p className="text-sm text-[#201D18]">{c.summary}</p>
                             <div className="flex flex-wrap items-center gap-2 pt-1">
                                 {(c.tags || []).map((t) => (
-                                    <span key={t} className="mb-chip text-[10px] py-0.5 px-2 bg-[#F0F8FF] text-[#4361EE]">
+                                    <span key={t} className="mb-chip text-[10px] py-0.5 px-2 bg-[#FBF6EE] text-[#E4572E]">
                                         {t.replaceAll("_", " ")}
                                     </span>
                                 ))}
@@ -167,7 +167,7 @@ export default function Research() {
                                         href={c.url}
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-[#4361EE] hover:underline"
+                                        className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-[#E4572E] hover:underline"
                                         data-testid={`research-link-${c.key}`}
                                     >
                                         Read source <ExternalLink size={12} />
@@ -178,7 +178,7 @@ export default function Research() {
                     ))}
                 </section>
 
-                <footer className="text-xs text-[#4A5568] font-semibold pt-6 border-t-2 border-[#E2E8F0]">
+                <footer className="text-xs text-[#6E675B] font-semibold pt-6 border-t-2 border-[#E8E0D2]">
                     <p>
                         <strong>How to read this library:</strong> Peer-reviewed papers (PubMed-indexed) form the
                         clinical backbone. Authoritative-org sources (CDC, NIMH, AAP, CHADD) reflect the current

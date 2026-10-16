@@ -51,10 +51,10 @@ export default function DotConnect({ onComplete }) {
     return (
         <div data-testid="game-dot-connect">
             <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-bold text-[#4A5568]">Tap the dots in order from 1 to {N}.</p>
-                <span className="mb-chip bg-[#4361EE]/10 text-[#4361EE]" data-testid="dot-connect-next">Next: {next > N ? "✓" : next}</span>
+                <p className="text-sm font-bold text-[#6E675B]">Tap the dots in order from 1 to {N}.</p>
+                <span className="mb-chip bg-[#E4572E]/10 text-[#E4572E]" data-testid="dot-connect-next">Next: {next > N ? "✓" : next}</span>
             </div>
-            <div className={`relative h-80 rounded-3xl bg-[#F0F8FF] border-2 ${errorFlash ? "border-[#EF476F]" : "border-[#E2E8F0]"} overflow-hidden`}>
+            <div className={`relative h-80 rounded-3xl bg-[#FBF6EE] border-2 ${errorFlash ? "border-[#BC4B32]" : "border-[#E8E0D2]"} overflow-hidden`}>
                 <svg className="absolute inset-0 w-full h-full pointer-events-none">
                     {tapped.slice(0, -1).map((n, idx) => {
                         const a = dots.find((d) => d.n === n);
@@ -65,7 +65,7 @@ export default function DotConnect({ onComplete }) {
                                 key={idx}
                                 x1={`${a.x}%`} y1={`${a.y}%`}
                                 x2={`${b.x}%`} y2={`${b.y}%`}
-                                stroke="#4361EE" strokeWidth="3" strokeLinecap="round"
+                                stroke="#E4572E" strokeWidth="3" strokeLinecap="round"
                             />
                         );
                     })}
@@ -78,8 +78,8 @@ export default function DotConnect({ onComplete }) {
                             onClick={() => tap(d.n)}
                             className={`absolute -translate-x-1/2 -translate-y-1/2 ${size} rounded-full border-4 font-extrabold font-display transition-all ${
                                 tapped.includes(d.n)
-                                    ? "bg-[#06D6A0] border-[#05B488] text-white"
-                                    : "bg-white border-[#4361EE] text-[#4361EE] hover:scale-110"
+                                    ? "bg-[#3F8C5E] border-[#2F6B47] text-white"
+                                    : "bg-white border-[#E4572E] text-[#E4572E] hover:scale-110"
                             }`}
                             style={{ left: `${d.x}%`, top: `${d.y}%` }}
                             data-testid={`dot-${d.n}`}

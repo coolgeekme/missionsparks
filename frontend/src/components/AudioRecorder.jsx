@@ -131,7 +131,7 @@ export default function AudioRecorder({ onParsed, maxSeconds = 120, autoUpload =
 
     if (!supported) {
         return (
-            <div className="rounded-2xl border-2 border-[#EF476F] bg-[#EF476F]/10 p-4 text-sm font-bold text-[#9b1c3c]" data-testid="audio-not-supported">
+            <div className="rounded-2xl border-2 border-[#BC4B32] bg-[#BC4B32]/10 p-4 text-sm font-bold text-[#8A3A26]" data-testid="audio-not-supported">
                 Voice recording isn't supported in this browser. Try Chrome, Edge, or Safari.
             </div>
         );
@@ -144,14 +144,14 @@ export default function AudioRecorder({ onParsed, maxSeconds = 120, autoUpload =
                     <button
                         type="button"
                         onClick={start}
-                        className="h-24 w-24 mx-auto rounded-full bg-[#EF476F] text-white shadow-[0_8px_0_0_#a82a4d] hover:translate-y-[-2px] hover:shadow-[0_10px_0_0_#a82a4d] active:translate-y-1 active:shadow-[0_2px_0_0_#a82a4d] transition-all flex items-center justify-center"
+                        className="h-24 w-24 mx-auto rounded-full bg-[#BC4B32] text-white shadow-[0_8px_0_0_#9A3C28] hover:translate-y-[-2px] hover:shadow-[0_10px_0_0_#9A3C28] active:translate-y-1 active:shadow-[0_2px_0_0_#9A3C28] transition-all flex items-center justify-center"
                         data-testid="audio-record-start"
                         aria-label="Start recording"
                     >
                         <Mic size={36} />
                     </button>
-                    <p className="text-sm font-bold text-[#4A5568] mt-3">Tap to start recording</p>
-                    <p className="text-xs text-[#A0AEC0] mt-1">Up to {fmt(maxSeconds)}. Speak naturally — AI will fill in the details.</p>
+                    <p className="text-sm font-bold text-[#6E675B] mt-3">Tap to start recording</p>
+                    <p className="text-xs text-[#9A9286] mt-1">Up to {fmt(maxSeconds)}. Speak naturally — AI will fill in the details.</p>
                 </div>
             )}
 
@@ -160,19 +160,19 @@ export default function AudioRecorder({ onParsed, maxSeconds = 120, autoUpload =
                     <button
                         type="button"
                         onClick={stop}
-                        className="h-24 w-24 mx-auto rounded-full bg-[#EF476F] text-white animate-pulse flex items-center justify-center shadow-[0_8px_0_0_#a82a4d]"
+                        className="h-24 w-24 mx-auto rounded-full bg-[#BC4B32] text-white animate-pulse flex items-center justify-center shadow-[0_8px_0_0_#9A3C28]"
                         data-testid="audio-record-stop"
                         aria-label="Stop recording"
                     >
                         <Square size={28} fill="currentColor" />
                     </button>
-                    <p className="font-display font-extrabold text-3xl text-[#EF476F] mt-3" data-testid="audio-elapsed">{fmt(elapsed)}</p>
-                    <p className="text-sm font-bold text-[#4A5568]">Recording… tap to stop</p>
+                    <p className="font-display font-extrabold text-3xl text-[#BC4B32] mt-3" data-testid="audio-elapsed">{fmt(elapsed)}</p>
+                    <p className="text-sm font-bold text-[#6E675B]">Recording… tap to stop</p>
                 </div>
             )}
 
             {blob && !uploading && (
-                <div className="rounded-2xl border-2 border-[#E2E8F0] bg-white p-4" data-testid="audio-preview">
+                <div className="rounded-2xl border-2 border-[#E8E0D2] bg-white p-4" data-testid="audio-preview">
                     <div className="flex items-center gap-3">
                         <button onClick={togglePlay} className="btn-pop-ghost p-3" aria-label={playing ? "pause" : "play"} data-testid="audio-play">
                             {playing ? <Pause size={16} /> : <Play size={16} />}
@@ -186,8 +186,8 @@ export default function AudioRecorder({ onParsed, maxSeconds = 120, autoUpload =
                             controls
                             data-testid="audio-element"
                         />
-                        <button onClick={reset} className="p-2 rounded-xl hover:bg-[#EF476F]/10" aria-label="discard" data-testid="audio-discard">
-                            <Trash2 size={16} className="text-[#EF476F]" />
+                        <button onClick={reset} className="p-2 rounded-xl hover:bg-[#BC4B32]/10" aria-label="discard" data-testid="audio-discard">
+                            <Trash2 size={16} className="text-[#BC4B32]" />
                         </button>
                     </div>
                     {!autoUpload && (
@@ -199,13 +199,13 @@ export default function AudioRecorder({ onParsed, maxSeconds = 120, autoUpload =
             )}
 
             {uploading && (
-                <div className="flex items-center justify-center gap-3 rounded-2xl border-2 border-[#4361EE] bg-[#F0F8FF] p-5" data-testid="audio-uploading">
-                    <Loader2 className="animate-spin text-[#4361EE]" />
-                    <p className="font-bold text-[#0B132B]">Listening + understanding… (5–15 sec)</p>
+                <div className="flex items-center justify-center gap-3 rounded-2xl border-2 border-[#E4572E] bg-[#FBF6EE] p-5" data-testid="audio-uploading">
+                    <Loader2 className="animate-spin text-[#E4572E]" />
+                    <p className="font-bold text-[#201D18]">Listening + understanding… (5–15 sec)</p>
                 </div>
             )}
 
-            {err && <p className="text-sm font-bold text-[#EF476F] bg-[#EF476F]/10 rounded-xl px-3 py-2" data-testid="audio-error">{err}</p>}
+            {err && <p className="text-sm font-bold text-[#BC4B32] bg-[#BC4B32]/10 rounded-xl px-3 py-2" data-testid="audio-error">{err}</p>}
         </div>
     );
 }

@@ -14,9 +14,9 @@ const FEELINGS = [
     { key: "good", emoji: "😄", label: "Great" },
 ];
 const DIFFICULTIES = [
-    { key: "easy", label: "Easy", color: "bg-[#06D6A0]/15 text-[#057a5b] border-[#06D6A0]" },
-    { key: "medium", label: "Medium", color: "bg-[#FFD166]/30 text-[#876200] border-[#E5BC5C]" },
-    { key: "hard", label: "Hard", color: "bg-[#EF476F]/15 text-[#9b1c3c] border-[#EF476F]" },
+    { key: "easy", label: "Easy", color: "bg-[#3F8C5E]/15 text-[#2F6B47] border-[#3F8C5E]" },
+    { key: "medium", label: "Medium", color: "bg-[#E8A33D]/30 text-[#8A6413] border-[#C98A2E]" },
+    { key: "hard", label: "Hard", color: "bg-[#BC4B32]/15 text-[#8A3A26] border-[#BC4B32]" },
 ];
 
 export default function MissionDetail() {
@@ -149,7 +149,7 @@ export default function MissionDetail() {
         return (
             <div className="min-h-screen">
                 <Navbar />
-                <p className="text-center mt-20 text-[#4A5568] font-bold" data-testid="mission-detail-loading">Loading mission…</p>
+                <p className="text-center mt-20 text-[#6E675B] font-bold" data-testid="mission-detail-loading">Loading mission…</p>
             </div>
         );
     }
@@ -160,11 +160,11 @@ export default function MissionDetail() {
                 <div className="min-h-screen" data-testid="mission-pending-review">
                     <Navbar />
                     <main className="max-w-2xl mx-auto p-6 md:p-10 text-center">
-                        <div className="h-32 w-32 rounded-full bg-[#4361EE]/10 flex items-center justify-center mx-auto">
-                            <Clock size={64} className="text-[#4361EE]" />
+                        <div className="h-32 w-32 rounded-full bg-[#E4572E]/10 flex items-center justify-center mx-auto">
+                            <Clock size={64} className="text-[#E4572E]" />
                         </div>
-                        <h1 className="font-display font-extrabold text-4xl text-[#0B132B] mt-6">Sent for review ⏳</h1>
-                        <p className="text-[#4A5568] font-semibold mt-2 max-w-md mx-auto">
+                        <h1 className="font-display font-extrabold text-4xl text-[#201D18] mt-6">Sent for review ⏳</h1>
+                        <p className="text-[#6E675B] font-semibold mt-2 max-w-md mx-auto">
                             Great work! A grown-up will look at what you did and give you the spark.
                             You'll see it once they approve.
                         </p>
@@ -182,20 +182,20 @@ export default function MissionDetail() {
                 <Navbar />
                 <main className="max-w-2xl mx-auto p-6 md:p-10 text-center">
                     <img src={STAR_URL} alt="Reward" className="h-40 w-40 mx-auto drop-shadow-xl" />
-                    <h1 className="font-display font-extrabold text-4xl text-[#0B132B] mt-4">Mission complete! 🎉</h1>
-                    <p className="text-[#4A5568] font-semibold mt-2">Awesome reflection. Your parent will see it in their logs.</p>
+                    <h1 className="font-display font-extrabold text-4xl text-[#201D18] mt-4">Mission complete! 🎉</h1>
+                    <p className="text-[#6E675B] font-semibold mt-2">Awesome reflection. Your parent will see it in their logs.</p>
                     {postStreak && (
-                        <div className="mt-5 inline-flex items-center gap-2 rounded-2xl border-2 border-[#FFD166] bg-[#FFD166]/20 px-4 py-2" data-testid="mission-success-streak">
-                            <Zap size={22} fill="currentColor" className="text-[#876200]" />
-                            <span className="font-display font-bold text-lg text-[#0B132B]">
+                        <div className="mt-5 inline-flex items-center gap-2 rounded-2xl border-2 border-[#E8A33D] bg-[#E8A33D]/20 px-4 py-2" data-testid="mission-success-streak">
+                            <Zap size={22} fill="currentColor" className="text-[#8A6413]" />
+                            <span className="font-display font-bold text-lg text-[#201D18]">
                                 +1 spark · {postStreak.current_streak} day streak
                             </span>
                         </div>
                     )}
-                    <div className="mt-7 mb-card p-5 bg-gradient-to-br from-white to-[#FFF8E1] border-[#FFD166]">
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Reward unlocked</p>
-                        <h2 className="font-display font-extrabold text-2xl text-[#0B132B] mt-1">Pick a mini-game 🎮</h2>
-                        <p className="text-sm font-semibold text-[#4A5568] mt-1">One game on the house for finishing your mission.</p>
+                    <div className="mt-7 mb-card p-5 bg-gradient-to-br from-white to-[#F7ECD8] border-[#E8A33D]">
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Reward unlocked</p>
+                        <h2 className="font-display font-extrabold text-2xl text-[#201D18] mt-1">Pick a mini-game 🎮</h2>
+                        <p className="text-sm font-semibold text-[#6E675B] mt-1">One game on the house for finishing your mission.</p>
                         <button
                             onClick={() => navigate(`/student/play/${createdLogId}`)}
                             disabled={!createdLogId}
@@ -219,18 +219,18 @@ export default function MissionDetail() {
         <div className="min-h-screen" data-testid="mission-detail-page">
             <Navbar />
             <main className="max-w-2xl mx-auto p-6 md:p-10 space-y-6">
-                <Link to="/student" className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE]" data-testid="mission-detail-back">
+                <Link to="/student" className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E]" data-testid="mission-detail-back">
                     <ArrowLeft size={16} /> Back to missions
                 </Link>
 
                 <section className="mb-card p-6">
-                    <h1 className="font-display font-extrabold text-3xl text-[#0B132B]" data-testid="mission-detail-title">{mission.title}</h1>
-                    {mission.description && <p className="text-[#4A5568] font-semibold mt-2">{mission.description}</p>}
-                    <div className="flex items-center gap-2 text-sm font-bold text-[#4A5568] mt-3 flex-wrap">
+                    <h1 className="font-display font-extrabold text-3xl text-[#201D18]" data-testid="mission-detail-title">{mission.title}</h1>
+                    {mission.description && <p className="text-[#6E675B] font-semibold mt-2">{mission.description}</p>}
+                    <div className="flex items-center gap-2 text-sm font-bold text-[#6E675B] mt-3 flex-wrap">
                         <span className="inline-flex items-center gap-1"><Clock size={14} /> {mission.estimated_minutes} min</span>
                         {mission.verification && mission.verification !== "trust" && (
                             <span
-                                className="inline-flex items-center gap-1 rounded-full bg-[#4361EE]/10 text-[#4361EE] px-2 py-0.5 text-[11px]"
+                                className="inline-flex items-center gap-1 rounded-full bg-[#E4572E]/10 text-[#E4572E] px-2 py-0.5 text-[11px]"
                                 data-testid={`mission-detail-verification-${mission.verification}`}
                                 title={{
                                     parent_pin: "Requires a grown-up's PIN at the end.",
@@ -246,15 +246,15 @@ export default function MissionDetail() {
                     </div>
                     <div className="flex flex-wrap gap-2 mt-3">
                         {mission.skill_ids.map((sid) => skillMap[sid] && (
-                            <span key={sid} className="mb-chip bg-[#4361EE]/10 text-[#4361EE]">{skillMap[sid].name}</span>
+                            <span key={sid} className="mb-chip bg-[#E4572E]/10 text-[#E4572E]">{skillMap[sid].name}</span>
                         ))}
                     </div>
                     {viewOnly && (
-                        <div className="mt-4 rounded-2xl bg-[#06D6A0]/10 border-2 border-[#06D6A0]/40 p-4 flex items-start gap-3" data-testid="mission-view-only-banner">
-                            <Eye className="text-[#057a5b] flex-shrink-0 mt-0.5" />
+                        <div className="mt-4 rounded-2xl bg-[#3F8C5E]/10 border-2 border-[#3F8C5E]/40 p-4 flex items-start gap-3" data-testid="mission-view-only-banner">
+                            <Eye className="text-[#2F6B47] flex-shrink-0 mt-0.5" />
                             <div>
-                                <p className="font-bold text-[#0B132B]">You already crushed this mission ✅</p>
-                                <p className="text-sm font-semibold text-[#4A5568] mt-1">
+                                <p className="font-bold text-[#201D18]">You already crushed this mission ✅</p>
+                                <p className="text-sm font-semibold text-[#6E675B] mt-1">
                                     Here are the steps and what you said about it. You can&apos;t redo it — your spark for this one is already locked in!
                                 </p>
                             </div>
@@ -266,16 +266,16 @@ export default function MissionDetail() {
 
                 {mission.strategy_ids.length > 0 && (
                     <section className="mb-card p-6" data-testid="mission-detail-strategies">
-                        <h2 className="font-display font-bold text-xl text-[#0B132B] mb-3">Try these strategies</h2>
+                        <h2 className="font-display font-bold text-xl text-[#201D18] mb-3">Try these strategies</h2>
                         <div className="grid sm:grid-cols-2 gap-3">
                             {mission.strategy_ids.map((sid) => {
                                 const s = stratMap[sid];
                                 if (!s) return null;
                                 return (
-                                    <div key={sid} className="rounded-2xl border-2 border-[#FFD166] bg-[#FFD166]/15 p-4">
+                                    <div key={sid} className="rounded-2xl border-2 border-[#E8A33D] bg-[#E8A33D]/15 p-4">
                                         <div className="text-3xl mb-1">{s.emoji}</div>
-                                        <div className="font-display font-bold text-[#0B132B]">{s.name}</div>
-                                        <div className="text-sm font-semibold text-[#4A5568]">{s.description}</div>
+                                        <div className="font-display font-bold text-[#201D18]">{s.name}</div>
+                                        <div className="text-sm font-semibold text-[#6E675B]">{s.description}</div>
                                     </div>
                                 );
                             })}
@@ -285,8 +285,8 @@ export default function MissionDetail() {
 
                 {isReadingMission && (
                     <section className="mb-card p-6" data-testid="mission-detail-clues">
-                    <h2 className="font-display font-bold text-xl text-[#0B132B] mb-1">📝 Clue captures</h2>
-                    <p className="text-sm font-semibold text-[#4A5568] mb-3">
+                    <h2 className="font-display font-bold text-xl text-[#201D18] mb-1">📝 Clue captures</h2>
+                    <p className="text-sm font-semibold text-[#6E675B] mb-3">
                         {viewOnly
                             ? "The clues you saved during this mission:"
                             : "Reading on a screen or listening to an audiobook? Type the line or paraphrase what you heard. Paper readers can still underline — both work."}
@@ -321,18 +321,18 @@ export default function MissionDetail() {
                     {clues.length > 0 && (
                         <ul className="mt-3 space-y-2" data-testid="mission-detail-clue-list">
                             {clues.map((c, i) => (
-                                <li key={i} className="flex items-start gap-2 rounded-2xl bg-[#F0F8FF] border-2 border-[#E2E8F0] p-3" data-testid={`mission-detail-clue-${i}`}>
-                                    <span className="mb-chip bg-[#4361EE]/10 text-[#4361EE] flex-shrink-0">#{i + 1}</span>
-                                    <span className="font-semibold text-[#0B132B] flex-1">{c}</span>
+                                <li key={i} className="flex items-start gap-2 rounded-2xl bg-[#FBF6EE] border-2 border-[#E8E0D2] p-3" data-testid={`mission-detail-clue-${i}`}>
+                                    <span className="mb-chip bg-[#E4572E]/10 text-[#E4572E] flex-shrink-0">#{i + 1}</span>
+                                    <span className="font-semibold text-[#201D18] flex-1">{c}</span>
                                     {!viewOnly && (
                                     <button
                                         type="button"
                                         onClick={() => setClues(clues.filter((_, idx) => idx !== i))}
-                                        className="p-1 rounded-lg hover:bg-[#EF476F]/10"
+                                        className="p-1 rounded-lg hover:bg-[#BC4B32]/10"
                                         aria-label="remove clue"
                                         data-testid={`mission-detail-clue-remove-${i}`}
                                     >
-                                        <X size={14} className="text-[#EF476F]" />
+                                        <X size={14} className="text-[#BC4B32]" />
                                     </button>
                                     )}
                                 </li>
@@ -343,7 +343,7 @@ export default function MissionDetail() {
                 )}
 
                 <section className="mb-card p-6">
-                    <h2 className="font-display font-bold text-xl text-[#0B132B] mb-3">Steps</h2>
+                    <h2 className="font-display font-bold text-xl text-[#201D18] mb-3">Steps</h2>
                     <ul className="space-y-2" data-testid="mission-detail-steps">
                         {mission.steps.map((s, i) => {
                             const checked = !!checkedSteps[i];
@@ -354,14 +354,14 @@ export default function MissionDetail() {
                                         onClick={() => !viewOnly && setCheckedSteps({ ...checkedSteps, [i]: !checked })}
                                         disabled={viewOnly}
                                         className={`w-full text-left flex items-center gap-3 rounded-2xl border-2 p-3 transition-all ${
-                                            checked ? "bg-[#06D6A0]/10 border-[#06D6A0]" : "bg-white border-[#E2E8F0] hover:border-[#4361EE]"
+                                            checked ? "bg-[#3F8C5E]/10 border-[#3F8C5E]" : "bg-white border-[#E8E0D2] hover:border-[#E4572E]"
                                         } ${viewOnly ? "cursor-not-allowed opacity-90" : ""}`}
                                         data-testid={`mission-detail-step-${i}`}
                                     >
-                                        <span className={`h-7 w-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${checked ? "border-[#06D6A0] bg-[#06D6A0] text-white" : "border-[#A0AEC0]"}`}>
+                                        <span className={`h-7 w-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${checked ? "border-[#3F8C5E] bg-[#3F8C5E] text-white" : "border-[#9A9286]"}`}>
                                             {checked && <CheckCircle2 size={16} />}
                                         </span>
-                                        <span className={`font-bold ${checked ? "text-[#057a5b] line-through" : "text-[#0B132B]"}`}>{s}</span>
+                                        <span className={`font-bold ${checked ? "text-[#2F6B47] line-through" : "text-[#201D18]"}`}>{s}</span>
                                     </button>
                                 </li>
                             );
@@ -371,11 +371,11 @@ export default function MissionDetail() {
 
                 {!viewOnly && (
                 <section className="mb-card p-6" data-testid="mission-reflection">
-                    <h2 className="font-display font-bold text-xl text-[#0B132B] mb-1">Quick reflection</h2>
-                    <p className="text-sm font-semibold text-[#4A5568] mb-4">Tap the answers that fit best.</p>
+                    <h2 className="font-display font-bold text-xl text-[#201D18] mb-1">Quick reflection</h2>
+                    <p className="text-sm font-semibold text-[#6E675B] mb-4">Tap the answers that fit best.</p>
 
                     <div className="mb-5">
-                        <p className="text-sm font-bold text-[#0B132B] mb-2">How did it feel?</p>
+                        <p className="text-sm font-bold text-[#201D18] mb-2">How did it feel?</p>
                         <div className="grid grid-cols-3 gap-3">
                             {FEELINGS.map((f) => (
                                 <button
@@ -384,20 +384,20 @@ export default function MissionDetail() {
                                     onClick={() => setFeeling(f.key)}
                                     className={`h-24 rounded-2xl border-4 font-bold flex flex-col items-center justify-center transition-all ${
                                         feeling === f.key
-                                            ? "border-[#4361EE] bg-[#4361EE]/10"
-                                            : "border-[#E2E8F0] bg-white hover:border-[#A0AEC0]"
+                                            ? "border-[#E4572E] bg-[#E4572E]/10"
+                                            : "border-[#E8E0D2] bg-white hover:border-[#9A9286]"
                                     }`}
                                     data-testid={`reflection-feeling-${f.key}`}
                                 >
                                     <span className="text-3xl">{f.emoji}</span>
-                                    <span className="text-xs uppercase tracking-widest text-[#4A5568] mt-1">{f.label}</span>
+                                    <span className="text-xs uppercase tracking-widest text-[#6E675B] mt-1">{f.label}</span>
                                 </button>
                             ))}
                         </div>
                     </div>
 
                     <div className="mb-5">
-                        <p className="text-sm font-bold text-[#0B132B] mb-2">How hard was it?</p>
+                        <p className="text-sm font-bold text-[#201D18] mb-2">How hard was it?</p>
                         <div className="grid grid-cols-3 gap-3">
                             {DIFFICULTIES.map((d) => (
                                 <button
@@ -405,7 +405,7 @@ export default function MissionDetail() {
                                     type="button"
                                     onClick={() => setDifficulty(d.key)}
                                     className={`h-14 rounded-2xl border-2 font-bold transition-all ${
-                                        difficulty === d.key ? `${d.color}` : "border-[#E2E8F0] bg-white text-[#0B132B] hover:border-[#A0AEC0]"
+                                        difficulty === d.key ? `${d.color}` : "border-[#E8E0D2] bg-white text-[#201D18] hover:border-[#9A9286]"
                                     }`}
                                     data-testid={`reflection-difficulty-${d.key}`}
                                 >
@@ -420,19 +420,19 @@ export default function MissionDetail() {
                             type="button"
                             onClick={() => setUsedStrategies(!usedStrategies)}
                             className={`w-full flex items-center gap-3 rounded-2xl border-2 p-3 text-left transition-all ${
-                                usedStrategies ? "bg-[#06D6A0]/10 border-[#06D6A0]" : "bg-white border-[#E2E8F0] hover:border-[#A0AEC0]"
+                                usedStrategies ? "bg-[#3F8C5E]/10 border-[#3F8C5E]" : "bg-white border-[#E8E0D2] hover:border-[#9A9286]"
                             }`}
                             data-testid="reflection-used-strategies"
                         >
-                            <span className={`h-6 w-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${usedStrategies ? "border-[#06D6A0] bg-[#06D6A0] text-white" : "border-[#A0AEC0]"}`}>
+                            <span className={`h-6 w-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${usedStrategies ? "border-[#3F8C5E] bg-[#3F8C5E] text-white" : "border-[#9A9286]"}`}>
                                 {usedStrategies && <CheckCircle2 size={14} />}
                             </span>
-                            <span className="font-bold text-[#0B132B]">I used one of the strategies</span>
+                            <span className="font-bold text-[#201D18]">I used one of the strategies</span>
                         </button>
                     </div>
 
                     <div className="mb-5">
-                        <p className="text-sm font-bold text-[#0B132B] mb-2">Anything to add? (optional)</p>
+                        <p className="text-sm font-bold text-[#201D18] mb-2">Anything to add? (optional)</p>
                         <textarea
                             rows={3}
                             value={note}
@@ -443,7 +443,7 @@ export default function MissionDetail() {
                         />
                     </div>
 
-                    {err && <p className="text-sm font-bold text-[#EF476F] bg-[#EF476F]/10 rounded-xl px-3 py-2 mb-3" data-testid="reflection-error">{err}</p>}
+                    {err && <p className="text-sm font-bold text-[#BC4B32] bg-[#BC4B32]/10 rounded-xl px-3 py-2 mb-3" data-testid="reflection-error">{err}</p>}
 
                     <button
                         onClick={submit}

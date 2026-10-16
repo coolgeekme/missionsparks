@@ -93,7 +93,7 @@ export default function StudentIntake() {
         return (
             <div className="min-h-screen">
                 <Navbar />
-                <div className="max-w-3xl mx-auto p-10 text-center font-bold text-[#4A5568]">Loading…</div>
+                <div className="max-w-3xl mx-auto p-10 text-center font-bold text-[#6E675B]">Loading…</div>
             </div>
         );
     }
@@ -104,25 +104,25 @@ export default function StudentIntake() {
         <div className="min-h-screen" data-testid="intake-page">
             <Navbar />
             <main className="max-w-3xl mx-auto p-6 sm:p-10 space-y-6">
-                <Link to="/parent" className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE]" data-testid="intake-back">
+                <Link to="/parent" className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E]" data-testid="intake-back">
                     <ArrowLeft size={16} /> Back to dashboard
                 </Link>
 
                 <header className="space-y-2">
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Child profile · intake</p>
-                    <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#0B132B]">Tell us about {student.name}</h1>
-                    <p className="text-[#4A5568] font-semibold">
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Child profile · intake</p>
+                    <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#201D18]">Tell us about {student.name}</h1>
+                    <p className="text-[#6E675B] font-semibold">
                         The more we know, the better every AI-drafted mission fits {student.name}. You can come back and update this any time.
                     </p>
                 </header>
 
                 <section className="mb-card p-5 space-y-3" data-testid="intake-completion">
                     <div className="flex items-center justify-between">
-                        <p className="text-sm font-bold text-[#0B132B]">Profile completion</p>
-                        <span className="text-sm font-extrabold text-[#4361EE]">{completion.percent}%</span>
+                        <p className="text-sm font-bold text-[#201D18]">Profile completion</p>
+                        <span className="text-sm font-extrabold text-[#E4572E]">{completion.percent}%</span>
                     </div>
-                    <div className="h-3 rounded-full bg-[#E2E8F0] overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-[#4361EE] to-[#06D6A0] transition-all" style={{ width: `${completion.percent}%` }} />
+                    <div className="h-3 rounded-full bg-[#E8E0D2] overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-[#E4572E] to-[#3F8C5E] transition-all" style={{ width: `${completion.percent}%` }} />
                     </div>
                     <div className="flex flex-wrap gap-2 pt-1">
                         {STEPS.slice(0, -1).map((s, i) => (
@@ -130,7 +130,7 @@ export default function StudentIntake() {
                                 key={s.key}
                                 type="button"
                                 onClick={() => setStepIdx(i)}
-                                className={`mb-chip border-2 text-xs ${completion.done[s.key] ? "bg-[#06D6A0]/15 text-[#057a5b] border-[#06D6A0]/30" : i === stepIdx ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white text-[#4A5568] border-[#E2E8F0]"}`}
+                                className={`mb-chip border-2 text-xs ${completion.done[s.key] ? "bg-[#3F8C5E]/15 text-[#2F6B47] border-[#3F8C5E]/30" : i === stepIdx ? "bg-[#E4572E] text-white border-[#E4572E]" : "bg-white text-[#6E675B] border-[#E8E0D2]"}`}
                                 data-testid={`intake-step-jump-${s.key}`}
                             >
                                 {completion.done[s.key] && <Check size={12} />} {s.label}
@@ -141,7 +141,7 @@ export default function StudentIntake() {
 
                 <section className="mb-card p-6 space-y-5" data-testid={`intake-step-${step.key}`}>
                     <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Step {stepIdx + 1} of {STEPS.length}</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Step {stepIdx + 1} of {STEPS.length}</p>
                         <button
                             type="button"
                             onClick={() => setShowInterview(true)}
@@ -151,7 +151,7 @@ export default function StudentIntake() {
                             <Wand2 size={14} /> Skip the form — chat with our coach instead
                         </button>
                     </div>
-                    <h2 className="font-display font-extrabold text-2xl text-[#0B132B]">{step.label}</h2>
+                    <h2 className="font-display font-extrabold text-2xl text-[#201D18]">{step.label}</h2>
 
                     {step.key === "basics" && <BasicsStep profile={profile} setProfile={setProfile} />}
                     {step.key === "adhd" && <AdhdStep profile={profile} setProfile={setProfile} />}
@@ -175,7 +175,7 @@ export default function StudentIntake() {
                     {step.key === "vanderbilt" && <VanderbiltStep profile={profile} setProfile={setProfile} />}
                     {step.key === "review" && <ReviewStep profile={profile} student={student} />}
 
-                    <div className="flex items-center justify-between pt-4 border-t-2 border-[#E2E8F0] gap-2 flex-wrap">
+                    <div className="flex items-center justify-between pt-4 border-t-2 border-[#E8E0D2] gap-2 flex-wrap">
                         <button
                             type="button"
                             onClick={() => setStepIdx(Math.max(0, stepIdx - 1))}
@@ -219,8 +219,8 @@ export default function StudentIntake() {
                 </section>
 
                 {step.key === "vanderbilt" && (
-                    <p className="text-xs text-[#4A5568] font-semibold">
-                        <BookOpen size={11} className="inline mr-1 text-[#876200]" />
+                    <p className="text-xs text-[#6E675B] font-semibold">
+                        <BookOpen size={11} className="inline mr-1 text-[#8A6413]" />
                         {"Short form inspired by the NICHQ Vanderbilt parent rating scale (Wolraich 2003). Not a diagnostic tool — share results with your pediatrician if you're concerned."}
                     </p>
                 )}
@@ -275,7 +275,7 @@ function AdhdStep({ profile, setProfile }) {
                     {[{ v: true, l: "Yes" }, { v: false, l: "No" }, { v: null, l: "Not sure" }].map((o) => (
                         <button key={String(o.v)} type="button"
                             onClick={() => setProfile({ ...profile, diagnosed: o.v })}
-                            className={`mb-chip border-2 ${profile.diagnosed === o.v ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white text-[#0B132B] border-[#E2E8F0]"}`}
+                            className={`mb-chip border-2 ${profile.diagnosed === o.v ? "bg-[#E4572E] text-white border-[#E4572E]" : "bg-white text-[#201D18] border-[#E8E0D2]"}`}
                             data-testid={`intake-diagnosed-${String(o.v)}`}>
                             {o.l}
                         </button>
@@ -293,7 +293,7 @@ function AdhdStep({ profile, setProfile }) {
                     {[{ v: true, l: "Yes" }, { v: false, l: "No" }].map((o) => (
                         <button key={String(o.v)} type="button"
                             onClick={() => setProfile({ ...profile, on_medication: o.v })}
-                            className={`mb-chip border-2 ${profile.on_medication === o.v ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white text-[#0B132B] border-[#E2E8F0]"}`}
+                            className={`mb-chip border-2 ${profile.on_medication === o.v ? "bg-[#E4572E] text-white border-[#E4572E]" : "bg-white text-[#201D18] border-[#E8E0D2]"}`}
                             data-testid={`intake-meds-${String(o.v)}`}>
                             {o.l}
                         </button>
@@ -328,9 +328,9 @@ function ChipMulti({ field, label, suggestions, profile, setProfile, testId }) {
     return (
         <Field label={label}>
             <div className="flex flex-wrap gap-1.5 mb-2" data-testid={`${testId}-selected`}>
-                {selected.length === 0 && <span className="text-xs text-[#A0AEC0] font-bold">Pick from suggestions or type your own.</span>}
+                {selected.length === 0 && <span className="text-xs text-[#9A9286] font-bold">Pick from suggestions or type your own.</span>}
                 {selected.map((v) => (
-                    <span key={v} className="mb-chip bg-[#4361EE] text-white inline-flex items-center gap-1" data-testid={`${testId}-chip-${v.replaceAll(" ", "-")}`}>
+                    <span key={v} className="mb-chip bg-[#E4572E] text-white inline-flex items-center gap-1" data-testid={`${testId}-chip-${v.replaceAll(" ", "-")}`}>
                         {v}
                         <button type="button" onClick={() => remove(v)} className="hover:opacity-70" aria-label={`Remove ${v}`}>
                             <X size={12} />
@@ -353,7 +353,7 @@ function ChipMulti({ field, label, suggestions, profile, setProfile, testId }) {
             </div>
             <div className="flex flex-wrap gap-1.5">
                 {suggestions.filter((s) => !selected.includes(s)).slice(0, 12).map((s) => (
-                    <button key={s} type="button" onClick={() => add(s)} className="mb-chip border-2 border-dashed border-[#E2E8F0] text-[#4A5568] hover:border-[#4361EE] hover:text-[#4361EE]" data-testid={`${testId}-suggest-${s.replaceAll(" ", "-")}`}>
+                    <button key={s} type="button" onClick={() => add(s)} className="mb-chip border-2 border-dashed border-[#E8E0D2] text-[#6E675B] hover:border-[#E4572E] hover:text-[#E4572E]" data-testid={`${testId}-suggest-${s.replaceAll(" ", "-")}`}>
                         + {s}
                     </button>
                 ))}
@@ -373,7 +373,7 @@ function PeakStep({ profile, setProfile }) {
                 <div className="flex flex-wrap gap-2" data-testid="intake-peak">
                     {PEAK_HOUR_OPTIONS.map((o) => (
                         <button key={o.value} type="button" onClick={() => togglePeak(o.value)}
-                            className={`mb-chip border-2 ${(profile.peak_hours || []).includes(o.value) ? "bg-[#FFD166] text-[#876200] border-[#E5BC5C]" : "bg-white text-[#0B132B] border-[#E2E8F0]"}`}
+                            className={`mb-chip border-2 ${(profile.peak_hours || []).includes(o.value) ? "bg-[#E8A33D] text-[#8A6413] border-[#C98A2E]" : "bg-white text-[#201D18] border-[#E8E0D2]"}`}
                             data-testid={`intake-peak-${o.value}`}>
                             {o.label}
                         </button>
@@ -382,7 +382,7 @@ function PeakStep({ profile, setProfile }) {
             </Field>
             <ChipMulti field="motivators" label="What encouragement actually works?" suggestions={SUGGESTED_MOTIVATORS} profile={profile} setProfile={setProfile} testId="intake-motivators" />
             <Field label="Kid Studio: unlock at how many days of spark streak?">
-                <p className="text-xs font-semibold text-[#4A5568] mb-2">
+                <p className="text-xs font-semibold text-[#6E675B] mb-2">
                     Your kid can build their own mini-game packs (Word Match, Memory Cards, Sentence Builder) once they hit this streak. You'll still review every pack before siblings can play it.
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -390,7 +390,7 @@ function PeakStep({ profile, setProfile }) {
                         <button
                             key={n}
                             onClick={() => setProfile({ ...profile, game_studio_unlock_streak: n })}
-                            className={`mb-chip border-2 ${(profile.game_studio_unlock_streak ?? 7) === n ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white text-[#0B132B] border-[#E2E8F0]"}`}
+                            className={`mb-chip border-2 ${(profile.game_studio_unlock_streak ?? 7) === n ? "bg-[#E4572E] text-white border-[#E4572E]" : "bg-white text-[#201D18] border-[#E8E0D2]"}`}
                             data-testid={`intake-studio-${n}`}
                         >{n} days</button>
                     ))}
@@ -412,7 +412,7 @@ function PeakStep({ profile, setProfile }) {
 function VanderbiltStep({ profile, setProfile }) {
     return (
         <div className="space-y-6">
-            <p className="text-sm font-semibold text-[#4A5568]">
+            <p className="text-sm font-semibold text-[#6E675B]">
                 Over the past 6 months, how often have you observed each of these in your child?
             </p>
             <VanderbiltGroup
@@ -441,16 +441,16 @@ function VanderbiltGroup({ title, items, values, onChange, testId }) {
     };
     return (
         <div className="space-y-3" data-testid={testId}>
-            <h3 className="font-display font-bold text-base text-[#0B132B]">{title}</h3>
+            <h3 className="font-display font-bold text-base text-[#201D18]">{title}</h3>
             {items.map((label, i) => (
-                <div key={i} className="rounded-2xl border-2 border-[#E2E8F0] p-3" data-testid={`${testId}-row-${i}`}>
-                    <p className="text-sm text-[#0B132B] font-semibold mb-2">{label}</p>
+                <div key={i} className="rounded-2xl border-2 border-[#E8E0D2] p-3" data-testid={`${testId}-row-${i}`}>
+                    <p className="text-sm text-[#201D18] font-semibold mb-2">{label}</p>
                     <div className="flex flex-wrap gap-1.5">
                         {VANDERBILT_SCALE.map((o) => {
                             const sel = (values[i] ?? null) === o.value;
                             return (
                                 <button key={o.value} type="button" onClick={() => set(i, o.value)}
-                                    className={`mb-chip border-2 text-xs ${sel ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white text-[#4A5568] border-[#E2E8F0]"}`}
+                                    className={`mb-chip border-2 text-xs ${sel ? "bg-[#E4572E] text-white border-[#E4572E]" : "bg-white text-[#6E675B] border-[#E8E0D2]"}`}
                                     data-testid={`${testId}-${i}-${o.value}`}>
                                     {o.value} · {o.label}
                                 </button>
@@ -466,10 +466,10 @@ function VanderbiltGroup({ title, items, values, onChange, testId }) {
 function ReviewStep({ profile, student }) {
     return (
         <div className="space-y-4">
-            <p className="text-sm font-semibold text-[#4A5568]">
+            <p className="text-sm font-semibold text-[#6E675B]">
                 {"Here's what we have for "}{student.name}{". This goes straight into every AI-drafted mission."}
             </p>
-            <div className="rounded-2xl bg-[#F0F8FF] p-4 space-y-2 text-sm" data-testid="intake-review">
+            <div className="rounded-2xl bg-[#FBF6EE] p-4 space-y-2 text-sm" data-testid="intake-review">
                 <ReviewRow label="Grade" value={profile.grade} />
                 <ReviewRow label="Reading level" value={profile.reading_level} />
                 <ReviewRow label="ADHD subtype" value={profile.adhd_subtype} />
@@ -481,8 +481,8 @@ function ReviewStep({ profile, student }) {
                 <ReviewRow label="Motivators" value={(profile.motivators || []).join(", ")} />
                 {profile.interview_summary && (
                     <div className="pt-2 border-t-2 border-white">
-                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#876200]">Coach summary</p>
-                        <p className="text-sm text-[#0B132B] font-semibold mt-0.5">{profile.interview_summary}</p>
+                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#8A6413]">Coach summary</p>
+                        <p className="text-sm text-[#201D18] font-semibold mt-0.5">{profile.interview_summary}</p>
                     </div>
                 )}
             </div>
@@ -493,8 +493,8 @@ function ReviewStep({ profile, student }) {
 function ReviewRow({ label, value }) {
     return (
         <div className="flex gap-3">
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#A0AEC0] w-28 shrink-0 mt-0.5">{label}</span>
-            <span className="text-sm font-semibold text-[#0B132B]">{value || <em className="text-[#A0AEC0]">not yet</em>}</span>
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#9A9286] w-28 shrink-0 mt-0.5">{label}</span>
+            <span className="text-sm font-semibold text-[#201D18]">{value || <em className="text-[#9A9286]">not yet</em>}</span>
         </div>
     );
 }
@@ -502,7 +502,7 @@ function ReviewRow({ label, value }) {
 function Field({ label, children }) {
     return (
         <div>
-            <label className="block text-sm font-bold text-[#0B132B] mb-2">{label}</label>
+            <label className="block text-sm font-bold text-[#201D18] mb-2">{label}</label>
             {children}
         </div>
     );
@@ -574,16 +574,16 @@ function InterviewModal({ studentId, studentName, onClose, onFinished }) {
     }, [session]);
 
     return (
-        <div className="fixed inset-0 z-40 bg-[#0B132B]/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" data-testid="interview-modal" onClick={onClose}>
+        <div className="fixed inset-0 z-40 bg-[#201D18]/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-4" data-testid="interview-modal" onClick={onClose}>
             <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <header className="flex items-center justify-between p-5 border-b-2 border-[#E2E8F0]">
+                <header className="flex items-center justify-between p-5 border-b-2 border-[#E8E0D2]">
                     <div className="flex items-center gap-2">
-                        <div className="h-9 w-9 rounded-2xl bg-[#FFD166] flex items-center justify-center text-[#876200]">
+                        <div className="h-9 w-9 rounded-2xl bg-[#E8A33D] flex items-center justify-center text-[#8A6413]">
                             <MessageCircle size={18} />
                         </div>
                         <div>
-                            <p className="font-display font-extrabold text-lg text-[#0B132B]">Chat with the coach</p>
-                            <p className="text-xs font-bold text-[#4A5568]">Quick 5-minute interview about {studentName}</p>
+                            <p className="font-display font-extrabold text-lg text-[#201D18]">Chat with the coach</p>
+                            <p className="text-xs font-bold text-[#6E675B]">Quick 5-minute interview about {studentName}</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="btn-pop-ghost text-sm" data-testid="interview-close">
@@ -591,10 +591,10 @@ function InterviewModal({ studentId, studentName, onClose, onFinished }) {
                     </button>
                 </header>
                 <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-3" data-testid="interview-transcript">
-                    {!session && <p className="text-center text-[#4A5568] font-bold py-10">Loading the coach…</p>}
+                    {!session && <p className="text-center text-[#6E675B] font-bold py-10">Loading the coach…</p>}
                     {visibleMessages.map((m, i) => (
                         <div key={i} className={`flex ${m.role === "parent" ? "justify-end" : "justify-start"}`}>
-                            <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm font-semibold ${m.role === "parent" ? "bg-[#4361EE] text-white" : "bg-[#F0F8FF] text-[#0B132B]"}`}
+                            <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm font-semibold ${m.role === "parent" ? "bg-[#E4572E] text-white" : "bg-[#FBF6EE] text-[#201D18]"}`}
                                 data-testid={`interview-msg-${m.role}-${i}`}>
                                 {m.content}
                             </div>
@@ -602,16 +602,16 @@ function InterviewModal({ studentId, studentName, onClose, onFinished }) {
                     ))}
                     {busy && (
                         <div className="flex justify-start">
-                            <div className="bg-[#F0F8FF] rounded-2xl px-4 py-2.5 text-sm font-semibold text-[#4A5568] flex items-center gap-2">
+                            <div className="bg-[#FBF6EE] rounded-2xl px-4 py-2.5 text-sm font-semibold text-[#6E675B] flex items-center gap-2">
                                 <Loader2 size={14} className="animate-spin" /> Coach is typing…
                             </div>
                         </div>
                     )}
                 </div>
-                <footer className="border-t-2 border-[#E2E8F0] p-4 space-y-2">
+                <footer className="border-t-2 border-[#E8E0D2] p-4 space-y-2">
                     {wrapped ? (
                         <div className="text-center space-y-2" data-testid="interview-wrapped">
-                            <p className="text-sm font-bold text-[#057a5b] flex items-center justify-center gap-1.5">
+                            <p className="text-sm font-bold text-[#2F6B47] flex items-center justify-center gap-1.5">
                                 <Sparkles size={14} /> Coach has enough to build a great profile.
                             </p>
                             <button onClick={finish} disabled={finishing} className="btn-pop-primary text-sm w-full flex items-center justify-center gap-2" data-testid="interview-save-summary">
@@ -634,7 +634,7 @@ function InterviewModal({ studentId, studentName, onClose, onFinished }) {
                             </button>
                         </div>
                     )}
-                    <p className="text-[10px] text-[#A0AEC0] font-semibold text-center">
+                    <p className="text-[10px] text-[#9A9286] font-semibold text-center">
                         Press Enter to send. The coach will wrap up after ~6 exchanges.
                     </p>
                 </footer>

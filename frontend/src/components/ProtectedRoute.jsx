@@ -6,7 +6,7 @@ export default function ProtectedRoute({ children, role }) {
     if (user === null) {
         return (
             <div className="min-h-screen flex items-center justify-center" data-testid="auth-loading">
-                <div className="text-[#4361EE] font-bold animate-pulse">Loading…</div>
+                <div className="text-[#E4572E] font-bold animate-pulse">Loading…</div>
             </div>
         );
     }

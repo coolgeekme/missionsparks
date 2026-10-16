@@ -59,16 +59,16 @@ export default function InviteAccept() {
                 <div className="mb-card p-8 text-center space-y-4">
                     {loading && (
                         <div className="flex flex-col items-center gap-3 py-6" data-testid="invite-loading">
-                            <Loader2 className="animate-spin text-[#4361EE]" size={32} />
-                            <p className="font-bold text-[#4A5568]">Checking your invite…</p>
+                            <Loader2 className="animate-spin text-[#E4572E]" size={32} />
+                            <p className="font-bold text-[#6E675B]">Checking your invite…</p>
                         </div>
                     )}
 
                     {!loading && err && (
                         <div data-testid="invite-error">
-                            <AlertTriangle className="mx-auto text-[#EF476F]" size={40} />
-                            <h1 className="font-display font-extrabold text-3xl text-[#0B132B] mt-3">Invite unavailable</h1>
-                            <p className="text-[#4A5568] font-semibold mt-2">{err}</p>
+                            <AlertTriangle className="mx-auto text-[#BC4B32]" size={40} />
+                            <h1 className="font-display font-extrabold text-3xl text-[#201D18] mt-3">Invite unavailable</h1>
+                            <p className="text-[#6E675B] font-semibold mt-2">{err}</p>
                             <Link to="/" className="btn-pop-primary inline-flex items-center gap-2 mt-5">
                                 Go home <ArrowRight size={14} />
                             </Link>
@@ -77,20 +77,20 @@ export default function InviteAccept() {
 
                     {!loading && preview && status === "pending" && (
                         <div data-testid="invite-preview">
-                            <Mail className="mx-auto text-[#4361EE]" size={40} />
-                            <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mt-3">You&apos;re invited</p>
-                            <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-[#0B132B] mt-1">
+                            <Mail className="mx-auto text-[#E4572E]" size={40} />
+                            <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286] mt-3">You&apos;re invited</p>
+                            <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-[#201D18] mt-1">
                                 Join {preview.family_name}
                             </h1>
-                            <p className="text-[#4A5568] font-semibold mt-2">
+                            <p className="text-[#6E675B] font-semibold mt-2">
                                 {preview.invited_by_name ? `${preview.invited_by_name} invited` : "You were invited"} as a
-                                <span className="mx-1 mb-chip bg-[#4361EE]/10 text-[#4361EE]">{preview.role === "co_parent" ? "Co-parent" : "Viewer"}</span>
-                                using <span className="text-[#0B132B] font-bold">{preview.email}</span>.
+                                <span className="mx-1 mb-chip bg-[#E4572E]/10 text-[#E4572E]">{preview.role === "co_parent" ? "Co-parent" : "Viewer"}</span>
+                                using <span className="text-[#201D18] font-bold">{preview.email}</span>.
                             </p>
 
                             {!user || !user.id ? (
                                 <div className="mt-6 space-y-2">
-                                    <p className="text-sm text-[#4A5568] font-semibold">Sign in first with the invited email to accept.</p>
+                                    <p className="text-sm text-[#6E675B] font-semibold">Sign in first with the invited email to accept.</p>
                                     <Link
                                         to={`/login?redirect=${encodeURIComponent(`/invite/accept?token=${token}`)}`}
                                         className="btn-pop-primary inline-flex items-center gap-2"
@@ -98,18 +98,18 @@ export default function InviteAccept() {
                                     >
                                         <LogIn size={14} /> Sign in
                                     </Link>
-                                    <p className="text-xs text-[#A0AEC0]">
+                                    <p className="text-xs text-[#9A9286]">
                                         No account yet?{" "}
-                                        <Link to="/register" className="text-[#4361EE] font-bold">Create one</Link>{" "}
+                                        <Link to="/register" className="text-[#E4572E] font-bold">Create one</Link>{" "}
                                         with <span className="font-mono">{preview.email}</span>.
                                     </p>
                                 </div>
                             ) : wrongEmail ? (
-                                <div className="mt-6 rounded-2xl bg-[#FFD166]/15 p-4" data-testid="invite-wrong-email">
-                                    <p className="text-sm text-[#876200] font-bold">
+                                <div className="mt-6 rounded-2xl bg-[#E8A33D]/15 p-4" data-testid="invite-wrong-email">
+                                    <p className="text-sm text-[#8A6413] font-bold">
                                         You&apos;re signed in as <span className="font-mono">{user.email}</span>, but this invite is for <span className="font-mono">{preview.email}</span>.
                                     </p>
-                                    <p className="text-xs text-[#876200] font-semibold mt-2">
+                                    <p className="text-xs text-[#8A6413] font-semibold mt-2">
                                         Log out and sign in with the invited email to accept.
                                     </p>
                                 </div>
@@ -124,15 +124,15 @@ export default function InviteAccept() {
                                 </button>
                             )}
 
-                            <p className="text-xs text-[#A0AEC0] font-semibold mt-4">Expires {new Date(preview.expires_at).toLocaleDateString()}.</p>
+                            <p className="text-xs text-[#9A9286] font-semibold mt-4">Expires {new Date(preview.expires_at).toLocaleDateString()}.</p>
                         </div>
                     )}
 
                     {!loading && preview && status && status !== "pending" && (
                         <div data-testid="invite-already-handled">
-                            <CheckCircle2 className="mx-auto text-[#06D6A0]" size={40} />
-                            <h1 className="font-display font-extrabold text-3xl text-[#0B132B] mt-3">Invite {status}</h1>
-                            <p className="text-[#4A5568] font-semibold mt-2">
+                            <CheckCircle2 className="mx-auto text-[#3F8C5E]" size={40} />
+                            <h1 className="font-display font-extrabold text-3xl text-[#201D18] mt-3">Invite {status}</h1>
+                            <p className="text-[#6E675B] font-semibold mt-2">
                                 {status === "accepted" ? "This invite has already been accepted." :
                                  status === "expired" ? "This invite expired. Ask for a new one." :
                                  "This invite has been cancelled."}

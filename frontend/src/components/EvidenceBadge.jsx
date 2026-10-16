@@ -40,10 +40,10 @@ export default function EvidenceBadge({
 
     const toneClass =
         tone === "indigo"
-            ? "text-[#4361EE] hover:bg-[#4361EE]/10 ring-[#4361EE]/30"
+            ? "text-[#E4572E] hover:bg-[#E4572E]/10 ring-[#E4572E]/30"
             : tone === "muted"
-                ? "text-[#4A5568] hover:bg-[#E2E8F0] ring-[#E2E8F0]"
-                : "text-[#876200] hover:bg-[#FFD166]/30 ring-[#E5BC5C]/40";
+                ? "text-[#6E675B] hover:bg-[#E8E0D2] ring-[#E8E0D2]"
+                : "text-[#8A6413] hover:bg-[#E8A33D]/30 ring-[#C98A2E]/40";
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -63,31 +63,31 @@ export default function EvidenceBadge({
             </PopoverTrigger>
             <PopoverContent
                 align="start"
-                className="w-[min(22rem,90vw)] p-4 bg-white border-2 border-[#E2E8F0] rounded-2xl shadow-xl"
+                className="w-[min(22rem,90vw)] p-4 bg-white border-2 border-[#E8E0D2] rounded-2xl shadow-xl"
                 data-testid="evidence-popover"
             >
                 <div className="flex items-center gap-2 mb-3">
-                    <BookOpen size={16} className="text-[#876200]" />
-                    <h4 className="font-display font-extrabold text-sm text-[#0B132B]">{label}</h4>
+                    <BookOpen size={16} className="text-[#8A6413]" />
+                    <h4 className="font-display font-extrabold text-sm text-[#201D18]">{label}</h4>
                 </div>
                 {!ready ? (
-                    <p className="text-xs font-semibold text-[#4A5568]">Loading…</p>
+                    <p className="text-xs font-semibold text-[#6E675B]">Loading…</p>
                 ) : (
                     <ul className="space-y-3 max-h-72 overflow-y-auto pr-1">
                         {items.map((c) => (
                             <li key={c.id} className="text-xs leading-snug" data-testid={`evidence-item-${c.key}`}>
-                                <p className="font-bold text-[#0B132B]">{c.title}</p>
-                                <p className="text-[#4A5568] font-semibold mt-0.5">
+                                <p className="font-bold text-[#201D18]">{c.title}</p>
+                                <p className="text-[#6E675B] font-semibold mt-0.5">
                                     {c.authors} · {c.year} · <span className="italic">{c.source}</span>
                                 </p>
-                                <p className="text-[#4A5568] mt-1">{c.summary}</p>
+                                <p className="text-[#6E675B] mt-1">{c.summary}</p>
                                 {c.url && (
                                     <a
                                         href={c.url}
                                         target="_blank"
                                         rel="noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-1 mt-1 text-[#4361EE] font-bold hover:underline"
+                                        className="inline-flex items-center gap-1 mt-1 text-[#E4572E] font-bold hover:underline"
                                     >
                                         Read source <ExternalLink size={10} />
                                     </a>

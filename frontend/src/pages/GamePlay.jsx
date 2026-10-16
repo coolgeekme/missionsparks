@@ -57,7 +57,7 @@ export default function GamePlay() {
     if (!game) return null;
     if (loadingPack) {
         return (
-            <div className="min-h-screen flex items-center justify-center text-[#4361EE] font-bold">Loading pack…</div>
+            <div className="min-h-screen flex items-center justify-center text-[#E4572E] font-bold">Loading pack…</div>
         );
     }
     const Game = game.component;
@@ -69,7 +69,7 @@ export default function GamePlay() {
         <div className="min-h-screen" data-testid="game-play-page">
             <Navbar />
             <main className="max-w-3xl mx-auto p-6 md:p-10 space-y-6">
-                <Link to={backHref} className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE]" data-testid="game-play-back">
+                <Link to={backHref} className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E]" data-testid="game-play-back">
                     <ArrowLeft size={16} /> {backLabel}
                 </Link>
                 <header className="flex items-center gap-3">
@@ -77,12 +77,12 @@ export default function GamePlay() {
                         {game.emoji}
                     </div>
                     <div className="flex-1">
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">{game.tag}</p>
-                        <h1 className="font-display font-extrabold text-3xl text-[#0B132B]">{game.name}</h1>
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">{game.tag}</p>
+                        <h1 className="font-display font-extrabold text-3xl text-[#201D18]">{game.name}</h1>
                         {pack && (
-                            <p className="text-sm font-semibold text-[#4A5568] mt-1" data-testid="game-play-pack-info">
-                                Pack: <span className="text-[#0B132B]">{pack.name}</span>
-                                {pack.creator_name && <span className="text-[#A0AEC0]"> · by {pack.creator_name}</span>}
+                            <p className="text-sm font-semibold text-[#6E675B] mt-1" data-testid="game-play-pack-info">
+                                Pack: <span className="text-[#201D18]">{pack.name}</span>
+                                {pack.creator_name && <span className="text-[#9A9286]"> · by {pack.creator_name}</span>}
                             </p>
                         )}
                     </div>
@@ -94,14 +94,14 @@ export default function GamePlay() {
                     ) : (
                         <div className="text-center py-6" data-testid="game-play-finished">
                             <img src={STAR_URL} alt="Star" className="h-28 w-28 mx-auto drop-shadow-lg" />
-                            <h2 className="font-display font-extrabold text-3xl text-[#0B132B] mt-3">Nice job! 🎉</h2>
+                            <h2 className="font-display font-extrabold text-3xl text-[#201D18] mt-3">Nice job! 🎉</h2>
                             {score !== null && (
-                                <p className="text-[#4A5568] font-bold mt-1 flex items-center justify-center gap-2">
-                                    <Trophy className="text-[#FFD166]" size={18} /> Score: <span className="text-[#0B132B] font-extrabold">{score}</span>
+                                <p className="text-[#6E675B] font-bold mt-1 flex items-center justify-center gap-2">
+                                    <Trophy className="text-[#E8A33D]" size={18} /> Score: <span className="text-[#201D18] font-extrabold">{score}</span>
                                 </p>
                             )}
-                            {saving && <p className="text-xs font-bold text-[#A0AEC0] mt-1">Saving…</p>}
-                            {err && <p className="text-xs font-bold text-[#EF476F] mt-1">{err}</p>}
+                            {saving && <p className="text-xs font-bold text-[#9A9286] mt-1">Saving…</p>}
+                            {err && <p className="text-xs font-bold text-[#BC4B32] mt-1">{err}</p>}
                             <div className="flex gap-3 justify-center mt-5">
                                 <button onClick={() => navigate(standalone ? "/games" : "/student")} className="btn-pop-primary" data-testid="game-play-home">
                                     {standalone ? "All games" : "Back to missions"}

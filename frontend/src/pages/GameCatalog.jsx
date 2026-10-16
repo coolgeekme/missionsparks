@@ -87,13 +87,13 @@ export default function GameCatalog() {
         <div className="min-h-screen" data-testid="game-catalog-page">
             <Navbar />
             <main className="max-w-6xl mx-auto p-6 md:p-10 space-y-6">
-                <Link to={isParent ? "/parent" : "/student"} className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE]" data-testid="catalog-back">
+                <Link to={isParent ? "/parent" : "/student"} className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E]" data-testid="catalog-back">
                     <ArrowLeft size={16} /> Back
                 </Link>
                 <header className="mb-card p-6 sm:p-8">
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Family games</p>
-                    <h1 className="font-display font-extrabold text-4xl text-[#0B132B] mt-1">Mini-game library 🎮</h1>
-                    <p className="text-[#4A5568] font-semibold mt-2 max-w-2xl">
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Family games</p>
+                    <h1 className="font-display font-extrabold text-4xl text-[#201D18] mt-1">Mini-game library 🎮</h1>
+                    <p className="text-[#6E675B] font-semibold mt-2 max-w-2xl">
                         {isParent
                             ? "Browse every mini-game, build custom packs your kids can play after missions, and approve creations from your kid's Studio."
                             : "Play any built-in mini-game, or jump into a pack your parent or sibling made. Earn a spark streak to unlock your own Studio."}
@@ -117,7 +117,7 @@ export default function GameCatalog() {
                         <div className="mt-5 flex flex-wrap items-center gap-3">
                             {studio && (
                                 <div
-                                    className={`mb-chip ${studio.unlocked ? "bg-[#06D6A0]/15 text-[#057a5b]" : "bg-[#E2E8F0] text-[#4A5568]"}`}
+                                    className={`mb-chip ${studio.unlocked ? "bg-[#3F8C5E]/15 text-[#2F6B47]" : "bg-[#E8E0D2] text-[#6E675B]"}`}
                                     data-testid="catalog-studio-chip"
                                 >
                                     {studio.unlocked
@@ -132,7 +132,7 @@ export default function GameCatalog() {
                     )}
                 </header>
 
-                {err && <p className="text-sm font-bold text-[#EF476F]" data-testid="catalog-error">{err}</p>}
+                {err && <p className="text-sm font-bold text-[#BC4B32]" data-testid="catalog-error">{err}</p>}
 
                 <div className="flex gap-2 flex-wrap" data-testid="catalog-tabs">
                     <TabBtn active={tab === "builtin"} onClick={() => setTab("builtin")} testid="tab-builtin">Built-in games ({GAMES.length})</TabBtn>
@@ -148,14 +148,14 @@ export default function GameCatalog() {
                                     {g.emoji}
                                 </div>
                                 <div className="flex items-center gap-2 mt-3">
-                                    <h3 className="font-display font-bold text-xl text-[#0B132B]">{g.name}</h3>
+                                    <h3 className="font-display font-bold text-xl text-[#201D18]">{g.name}</h3>
                                     {g.customizable && (
-                                        <span className="mb-chip text-xs py-0.5 px-2 bg-[#FFD166]/30 text-[#876200]">
+                                        <span className="mb-chip text-xs py-0.5 px-2 bg-[#E8A33D]/30 text-[#8A6413]">
                                             <Wand2 size={10} /> Custom
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-sm font-semibold text-[#4A5568] mt-1">{g.blurb}</p>
+                                <p className="text-sm font-semibold text-[#6E675B] mt-1">{g.blurb}</p>
                                 <span className="mb-chip mt-3 text-xs py-0.5 px-2" style={{ background: `${g.color}1a`, color: g.color }}>{g.tag}</span>
                                 <div className="mt-4 flex gap-2">
                                     <button onClick={() => previewBuiltIn(g)} className="btn-pop-ghost text-sm py-2 flex-1 flex items-center justify-center gap-1" data-testid={`builtin-play-${g.key}`}>
@@ -221,15 +221,15 @@ function TabBtn({ active, onClick, children, testid }) {
         <button
             onClick={onClick}
             data-testid={testid}
-            className={`px-4 py-2 rounded-2xl font-bold text-sm border-2 transition-all ${active ? "bg-[#4361EE] border-[#4361EE] text-white" : "bg-white border-[#E2E8F0] text-[#4A5568] hover:border-[#4361EE]"}`}
+            className={`px-4 py-2 rounded-2xl font-bold text-sm border-2 transition-all ${active ? "bg-[#E4572E] border-[#E4572E] text-white" : "bg-white border-[#E8E0D2] text-[#6E675B] hover:border-[#E4572E]"}`}
         >{children}</button>
     );
 }
 
 function StatusChip({ status }) {
-    if (status === "approved") return <span className="mb-chip bg-[#06D6A0]/15 text-[#057a5b]"><CheckCircle2 size={12} /> Approved</span>;
-    if (status === "pending") return <span className="mb-chip bg-[#FFD166]/30 text-[#876200]"><Clock size={12} /> Pending</span>;
-    if (status === "rejected") return <span className="mb-chip bg-[#EF476F]/15 text-[#EF476F]"><XCircle size={12} /> Sent back</span>;
+    if (status === "approved") return <span className="mb-chip bg-[#3F8C5E]/15 text-[#2F6B47]"><CheckCircle2 size={12} /> Approved</span>;
+    if (status === "pending") return <span className="mb-chip bg-[#E8A33D]/30 text-[#8A6413]"><Clock size={12} /> Pending</span>;
+    if (status === "rejected") return <span className="mb-chip bg-[#BC4B32]/15 text-[#BC4B32]"><XCircle size={12} /> Sent back</span>;
     return null;
 }
 
@@ -237,9 +237,9 @@ function PackList({ heading, packs, emptyText, isParent, studentMap, onPlay, onA
     if (!packs?.length && !emptyText) return null;
     return (
         <section className="space-y-3" data-testid={heading ? `pack-section-${heading.replace(/\s+/g, "-").toLowerCase()}` : "pack-section"}>
-            {heading && <h2 className="font-display font-extrabold text-xl text-[#0B132B]">{heading}</h2>}
+            {heading && <h2 className="font-display font-extrabold text-xl text-[#201D18]">{heading}</h2>}
             {!packs.length ? (
-                <p className="text-sm font-bold text-[#A0AEC0]" data-testid="pack-empty">{emptyText}</p>
+                <p className="text-sm font-bold text-[#9A9286]" data-testid="pack-empty">{emptyText}</p>
             ) : (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {packs.map((p) => {
@@ -247,23 +247,23 @@ function PackList({ heading, packs, emptyText, isParent, studentMap, onPlay, onA
                         return (
                             <div key={p.id} className="mb-card p-5" data-testid={`pack-card-${p.id}`}>
                                 <div className="flex items-start justify-between gap-2">
-                                    <div className="h-12 w-12 rounded-2xl flex items-center justify-center text-2xl" style={{ background: `${g?.color || "#4361EE"}1a` }}>
+                                    <div className="h-12 w-12 rounded-2xl flex items-center justify-center text-2xl" style={{ background: `${g?.color || "#E4572E"}1a` }}>
                                         {g?.emoji || "🎮"}
                                     </div>
                                     <StatusChip status={p.status} />
                                 </div>
-                                <h3 className="font-display font-bold text-lg text-[#0B132B] mt-3 leading-snug" data-testid={`pack-name-${p.id}`}>{p.name}</h3>
-                                <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mt-1">{g?.name || p.game_type}</p>
-                                <p className="text-xs font-semibold text-[#4A5568] mt-2">
-                                    By <span className="text-[#0B132B]">{p.creator_name || (p.created_by_role === "parent" ? "Parent" : "Kid")}</span>
+                                <h3 className="font-display font-bold text-lg text-[#201D18] mt-3 leading-snug" data-testid={`pack-name-${p.id}`}>{p.name}</h3>
+                                <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286] mt-1">{g?.name || p.game_type}</p>
+                                <p className="text-xs font-semibold text-[#6E675B] mt-2">
+                                    By <span className="text-[#201D18]">{p.creator_name || (p.created_by_role === "parent" ? "Parent" : "Kid")}</span>
                                 </p>
                                 {p.share_with_student_ids?.length > 0 && (
-                                    <p className="text-xs font-semibold text-[#4A5568] mt-1 inline-flex items-center gap-1">
+                                    <p className="text-xs font-semibold text-[#6E675B] mt-1 inline-flex items-center gap-1">
                                         <Users size={11} /> {p.share_with_student_ids.map((id) => studentMap[id] || "?").join(", ")}
                                     </p>
                                 )}
                                 {p.rejection_reason && (
-                                    <p className="text-xs font-semibold text-[#EF476F] mt-2 italic">"{p.rejection_reason}"</p>
+                                    <p className="text-xs font-semibold text-[#BC4B32] mt-2 italic">"{p.rejection_reason}"</p>
                                 )}
                                 <div className="mt-4 flex flex-wrap gap-2">
                                     {onPlay && (
@@ -287,7 +287,7 @@ function PackList({ heading, packs, emptyText, isParent, studentMap, onPlay, onA
                                         </button>
                                     )}
                                     {onDelete && (
-                                        <button onClick={() => onDelete(p.id)} disabled={busyId === p.id} className="btn-pop-ghost text-sm py-2 flex items-center justify-center text-[#EF476F] disabled:opacity-50" data-testid={`pack-delete-${p.id}`}>
+                                        <button onClick={() => onDelete(p.id)} disabled={busyId === p.id} className="btn-pop-ghost text-sm py-2 flex items-center justify-center text-[#BC4B32] disabled:opacity-50" data-testid={`pack-delete-${p.id}`}>
                                             <Trash2 size={14} />
                                         </button>
                                     )}

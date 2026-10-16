@@ -202,14 +202,14 @@ export default function MomentsTracker() {
         <div className="min-h-screen" data-testid="moments-tracker-page">
             <Navbar />
             <main className="max-w-6xl mx-auto p-6 md:p-10 space-y-6">
-                <Link to="/parent" className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE]" data-testid="moments-back">
+                <Link to="/parent" className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E]" data-testid="moments-back">
                     <ArrowLeft size={16} /> Back to dashboard
                 </Link>
                 <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Behavior tracker</p>
-                        <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#0B132B] mt-1">Moments</h1>
-                        <p className="text-[#4A5568] font-semibold mt-2">Capture what happened, what set it off, and what helped. Patterns build over time.</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Behavior tracker</p>
+                        <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#201D18] mt-1">Moments</h1>
+                        <p className="text-[#6E675B] font-semibold mt-2">Capture what happened, what set it off, and what helped. Patterns build over time.</p>
                     </div>
                     <div className="flex flex-wrap gap-3">
                         <button onClick={() => navigate("/parent/moments/insights")} className="btn-pop-ghost flex items-center gap-2" data-testid="moments-go-insights">
@@ -233,7 +233,7 @@ export default function MomentsTracker() {
                             <button
                                 key={s.id}
                                 onClick={() => setSelected(s)}
-                                className={`mb-chip border-2 ${selected?.id === s.id ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white border-[#E2E8F0]"}`}
+                                className={`mb-chip border-2 ${selected?.id === s.id ? "bg-[#E4572E] text-white border-[#E4572E]" : "bg-white border-[#E8E0D2]"}`}
                                 data-testid={`moments-student-${s.id}`}
                             >
                                 🚀 {s.name}
@@ -244,10 +244,10 @@ export default function MomentsTracker() {
 
                 <section className="mb-card p-5" data-testid="moments-filters">
                     <div className="flex items-center gap-2 mb-3">
-                        <Filter size={16} className="text-[#4361EE]" />
-                        <p className="font-bold text-[#0B132B]">Filter</p>
+                        <Filter size={16} className="text-[#E4572E]" />
+                        <p className="font-bold text-[#201D18]">Filter</p>
                         {(filter.type || filter.trigger) && (
-                            <button onClick={() => setFilter({ type: "", trigger: "" })} className="ml-auto text-xs font-bold text-[#EF476F]" data-testid="moments-filter-clear">
+                            <button onClick={() => setFilter({ type: "", trigger: "" })} className="ml-auto text-xs font-bold text-[#BC4B32]" data-testid="moments-filter-clear">
                                 Clear
                             </button>
                         )}
@@ -267,16 +267,16 @@ export default function MomentsTracker() {
                 <section data-testid="moments-list">
                     {moments.length === 0 ? (
                         <div className="mb-card p-8 text-center" data-testid="moments-empty">
-                            <p className="font-display font-bold text-xl text-[#0B132B]">No moments logged yet</p>
-                            <p className="text-[#4A5568] font-semibold mt-1">Hit "Log moment" the next time something noteworthy happens.</p>
+                            <p className="font-display font-bold text-xl text-[#201D18]">No moments logged yet</p>
+                            <p className="text-[#6E675B] font-semibold mt-1">Hit "Log moment" the next time something noteworthy happens.</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
                             {moments.map((m) => {
                                 const t = typeMap[m.moment_type] || { emoji: "📌", label: m.moment_type, category: "neutral" };
-                                const catColor = t.category === "challenging" ? "bg-[#EF476F]/10 text-[#9b1c3c] border-[#EF476F]" :
-                                    t.category === "positive" ? "bg-[#06D6A0]/15 text-[#057a5b] border-[#06D6A0]" :
-                                    "bg-[#F0F8FF] text-[#0B132B] border-[#E2E8F0]";
+                                const catColor = t.category === "challenging" ? "bg-[#BC4B32]/10 text-[#8A3A26] border-[#BC4B32]" :
+                                    t.category === "positive" ? "bg-[#3F8C5E]/15 text-[#2F6B47] border-[#3F8C5E]" :
+                                    "bg-[#FBF6EE] text-[#201D18] border-[#E8E0D2]";
                                 return (
                                     <article key={m.id} className="mb-card p-4 sm:p-5" data-testid={`moment-${m.id}`}>
                                         <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -285,21 +285,21 @@ export default function MomentsTracker() {
                                                     {t.emoji}
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-display font-bold text-lg text-[#0B132B]">{t.label}</h3>
-                                                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0] mt-0.5 flex items-center gap-1">
+                                                    <h3 className="font-display font-bold text-lg text-[#201D18]">{t.label}</h3>
+                                                    <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286] mt-0.5 flex items-center gap-1">
                                                         <Clock size={12} /> {fmtTime(m.timestamp)} · by {m.logged_by_role}
                                                     </p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span className="mb-chip bg-[#FFD166]/30 text-[#876200]" title="Intensity 1-5">
+                                                <span className="mb-chip bg-[#E8A33D]/30 text-[#8A6413]" title="Intensity 1-5">
                                                     {"●".repeat(m.intensity)}{"○".repeat(5 - m.intensity)}
                                                 </span>
-                                                <button onClick={() => openEdit(m)} className="p-2 rounded-xl hover:bg-[#4361EE]/10" data-testid={`moment-edit-${m.id}`} aria-label="edit">
-                                                    <Pencil size={14} className="text-[#4361EE]" />
+                                                <button onClick={() => openEdit(m)} className="p-2 rounded-xl hover:bg-[#E4572E]/10" data-testid={`moment-edit-${m.id}`} aria-label="edit">
+                                                    <Pencil size={14} className="text-[#E4572E]" />
                                                 </button>
-                                                <button onClick={() => removeMoment(m.id)} className="p-2 rounded-xl hover:bg-[#EF476F]/10" data-testid={`moment-delete-${m.id}`} aria-label="delete">
-                                                    <Trash2 size={14} className="text-[#EF476F]" />
+                                                <button onClick={() => removeMoment(m.id)} className="p-2 rounded-xl hover:bg-[#BC4B32]/10" data-testid={`moment-delete-${m.id}`} aria-label="delete">
+                                                    <Trash2 size={14} className="text-[#BC4B32]" />
                                                 </button>
                                             </div>
                                         </div>
@@ -307,7 +307,7 @@ export default function MomentsTracker() {
                                             <div className="flex flex-wrap gap-1.5 mt-3">
                                                 {m.triggers.map((tg, i) => {
                                                     const tr = trigMap[tg];
-                                                    return <span key={i} className="mb-chip bg-[#4361EE]/10 text-[#4361EE] text-xs py-0.5 px-2">
+                                                    return <span key={i} className="mb-chip bg-[#E4572E]/10 text-[#E4572E] text-xs py-0.5 px-2">
                                                         {tr ? `${tr.emoji} ${tr.label}` : tg}
                                                     </span>;
                                                 })}
@@ -323,9 +323,9 @@ export default function MomentsTracker() {
                                             </div>
                                         )}
                                         {m.transcript && (
-                                            <div className="mt-3 rounded-2xl bg-[#FFD166]/15 border-2 border-[#FFD166] p-3" data-testid={`moment-transcript-${m.id}`}>
-                                                <p className="text-[10px] font-bold uppercase tracking-widest text-[#876200]">🎤 Voice note</p>
-                                                <p className="text-sm font-semibold text-[#0B132B] mt-1 italic">"{m.transcript}"</p>
+                                            <div className="mt-3 rounded-2xl bg-[#E8A33D]/15 border-2 border-[#E8A33D] p-3" data-testid={`moment-transcript-${m.id}`}>
+                                                <p className="text-[10px] font-bold uppercase tracking-widest text-[#8A6413]">🎤 Voice note</p>
+                                                <p className="text-sm font-semibold text-[#201D18] mt-1 italic">"{m.transcript}"</p>
                                                 {m.audio_data && (
                                                     <audio
                                                         controls
@@ -346,20 +346,20 @@ export default function MomentsTracker() {
 
             {formOpen && (
                 <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-3" data-testid="moments-form-modal" onClick={closeForm}>
-                    <div className="bg-white rounded-3xl border-2 border-[#E2E8F0] w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-white rounded-3xl border-2 border-[#E8E0D2] w-full max-w-2xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                         {voiceMode ? (
                             <div className="p-6 space-y-5" data-testid="moments-voice-panel">
                                 <div className="flex items-start justify-between">
                                     <div>
-                                        <h2 className="font-display font-extrabold text-2xl text-[#0B132B]">Speak the moment</h2>
-                                        <p className="text-sm font-semibold text-[#4A5568] mt-1">
+                                        <h2 className="font-display font-extrabold text-2xl text-[#201D18]">Speak the moment</h2>
+                                        <p className="text-sm font-semibold text-[#6E675B] mt-1">
                                             Just describe what happened for {selected?.name}. AI will fill in the form — you'll review before saving.
                                         </p>
-                                        <p className="text-xs font-bold text-[#A0AEC0] mt-2">
+                                        <p className="text-xs font-bold text-[#9A9286] mt-2">
                                             Try: "Enzo was doing homework and got frustrated when math problems got hard. We did a body break and he came back."
                                         </p>
                                     </div>
-                                    <button type="button" onClick={closeForm} className="p-2 rounded-xl hover:bg-[#F7FAFC]" data-testid="moments-voice-close" aria-label="close">
+                                    <button type="button" onClick={closeForm} className="p-2 rounded-xl hover:bg-[#F6F1E7]" data-testid="moments-voice-close" aria-label="close">
                                         <X size={18} />
                                     </button>
                                 </div>
@@ -372,23 +372,23 @@ export default function MomentsTracker() {
                         <form onSubmit={submit} className="p-6 space-y-5" data-testid="moments-form">
                             <div className="flex items-start justify-between">
                                 <div>
-                                    <h2 className="font-display font-extrabold text-2xl text-[#0B132B]">{editing ? "Edit moment" : "Log a moment"}</h2>
-                                    <p className="text-sm font-semibold text-[#4A5568] mt-1">For {selected?.name}. The more detail, the better the pattern.</p>
+                                    <h2 className="font-display font-extrabold text-2xl text-[#201D18]">{editing ? "Edit moment" : "Log a moment"}</h2>
+                                    <p className="text-sm font-semibold text-[#6E675B] mt-1">For {selected?.name}. The more detail, the better the pattern.</p>
                                 </div>
-                                <button type="button" onClick={closeForm} className="p-2 rounded-xl hover:bg-[#F7FAFC]" data-testid="moments-form-close" aria-label="close">
+                                <button type="button" onClick={closeForm} className="p-2 rounded-xl hover:bg-[#F6F1E7]" data-testid="moments-form-close" aria-label="close">
                                     <X size={18} />
                                 </button>
                             </div>
 
                             {transcript && (
-                                <div className="rounded-2xl bg-[#FFD166]/20 border-2 border-[#FFD166] p-3" data-testid="moments-form-transcript">
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#876200]">🎤 What you said</p>
-                                    <p className="text-sm font-semibold text-[#0B132B] mt-1 italic">"{transcript}"</p>
+                                <div className="rounded-2xl bg-[#E8A33D]/20 border-2 border-[#E8A33D] p-3" data-testid="moments-form-transcript">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#8A6413]">🎤 What you said</p>
+                                    <p className="text-sm font-semibold text-[#201D18] mt-1 italic">"{transcript}"</p>
                                 </div>
                             )}
 
                             <div>
-                                <p className="text-sm font-bold text-[#0B132B] mb-2">What happened?</p>
+                                <p className="text-sm font-bold text-[#201D18] mb-2">What happened?</p>
                                 <div className="flex flex-wrap gap-2" data-testid="moments-form-types">
                                     {catalog.moment_types.map((t) => (
                                         <span key={t.key} className="inline-flex items-center">
@@ -396,10 +396,10 @@ export default function MomentsTracker() {
                                                 type="button"
                                                 onClick={() => setForm({ ...form, moment_type: t.key })}
                                                 className={`mb-chip border-2 inline-flex items-center gap-1 ${form.moment_type === t.key
-                                                    ? (t.category === "challenging" ? "bg-[#EF476F] text-white border-[#EF476F]"
-                                                        : t.category === "positive" ? "bg-[#06D6A0] text-white border-[#06D6A0]"
-                                                        : "bg-[#4361EE] text-white border-[#4361EE]")
-                                                    : "bg-white border-[#E2E8F0] text-[#0B132B] hover:border-[#4361EE]"}`}
+                                                    ? (t.category === "challenging" ? "bg-[#BC4B32] text-white border-[#BC4B32]"
+                                                        : t.category === "positive" ? "bg-[#3F8C5E] text-white border-[#3F8C5E]"
+                                                        : "bg-[#E4572E] text-white border-[#E4572E]")
+                                                    : "bg-white border-[#E8E0D2] text-[#201D18] hover:border-[#E4572E]"}`}
                                                 data-testid={`moments-form-type-${t.key}`}
                                             >
                                                 {t.emoji} {t.label}
@@ -417,18 +417,18 @@ export default function MomentsTracker() {
 
                             <div className="grid sm:grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-sm font-bold text-[#0B132B] mb-2">When?</p>
+                                    <p className="text-sm font-bold text-[#201D18] mb-2">When?</p>
                                     <input type="datetime-local" value={form.timestamp} onChange={(e) => setForm({ ...form, timestamp: e.target.value })} className="mb-input" data-testid="moments-form-time" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-bold text-[#0B132B] mb-2">Intensity (1-5)</p>
+                                    <p className="text-sm font-bold text-[#201D18] mb-2">Intensity (1-5)</p>
                                     <input type="range" min="1" max="5" value={form.intensity} onChange={(e) => setForm({ ...form, intensity: Number(e.target.value) })} className="w-full" data-testid="moments-form-intensity" />
-                                    <p className="text-center font-display font-extrabold text-2xl text-[#EF476F]" data-testid="moments-form-intensity-display">{form.intensity}</p>
+                                    <p className="text-center font-display font-extrabold text-2xl text-[#BC4B32]" data-testid="moments-form-intensity-display">{form.intensity}</p>
                                 </div>
                             </div>
 
                             <div>
-                                <p className="text-sm font-bold text-[#0B132B] mb-2">Triggers (tap any that apply)</p>
+                                <p className="text-sm font-bold text-[#201D18] mb-2">Triggers (tap any that apply)</p>
                                 <div className="flex flex-wrap gap-2" data-testid="moments-form-triggers">
                                     {catalog.triggers.map((t) => {
                                         const sel = form.triggers.includes(t.key);
@@ -437,7 +437,7 @@ export default function MomentsTracker() {
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleTrigger(t.key)}
-                                                    className={`mb-chip border-2 inline-flex items-center gap-1 ${sel ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white border-[#E2E8F0] hover:border-[#4361EE]"}`}
+                                                    className={`mb-chip border-2 inline-flex items-center gap-1 ${sel ? "bg-[#E4572E] text-white border-[#E4572E]" : "bg-white border-[#E8E0D2] hover:border-[#E4572E]"}`}
                                                     data-testid={`moments-form-trigger-${t.key}`}
                                                 >
                                                     {t.emoji} {t.label}
@@ -463,7 +463,7 @@ export default function MomentsTracker() {
 
                             <TextField label="Extra notes (optional)" value={form.notes} onChange={(v) => setForm({ ...form, notes: v })} testid="moments-form-notes" textarea />
 
-                            {err && <p className="text-sm font-bold text-[#EF476F] bg-[#EF476F]/10 rounded-xl px-3 py-2" data-testid="moments-form-error">{err}</p>}
+                            {err && <p className="text-sm font-bold text-[#BC4B32] bg-[#BC4B32]/10 rounded-xl px-3 py-2" data-testid="moments-form-error">{err}</p>}
 
                             <div className="flex gap-3 pt-2">
                                 <button type="submit" disabled={busy} className="btn-pop-primary flex-1 flex items-center justify-center gap-2" data-testid="moments-form-submit">
@@ -482,9 +482,9 @@ export default function MomentsTracker() {
 
 function Detail({ label, v }) {
     return (
-        <div className="rounded-2xl bg-[#F0F8FF] border-2 border-[#E2E8F0] p-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[#A0AEC0]">{label}</p>
-            <p className="text-sm font-semibold text-[#0B132B] mt-0.5">{v}</p>
+        <div className="rounded-2xl bg-[#FBF6EE] border-2 border-[#E8E0D2] p-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#9A9286]">{label}</p>
+            <p className="text-sm font-semibold text-[#201D18] mt-0.5">{v}</p>
         </div>
     );
 }
@@ -492,7 +492,7 @@ function Detail({ label, v }) {
 function TextField({ label, value, onChange, testid, textarea }) {
     return (
         <div>
-            <label className="block text-sm font-bold text-[#0B132B] mb-1">{label}</label>
+            <label className="block text-sm font-bold text-[#201D18] mb-1">{label}</label>
             {textarea ? (
                 <textarea rows={2} value={value} onChange={(e) => onChange(e.target.value)} className="mb-input pt-3 h-auto" data-testid={testid} />
             ) : (

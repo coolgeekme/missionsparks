@@ -66,22 +66,22 @@ export default function ReactionTap({ onComplete }) {
     return (
         <div data-testid="game-reaction-tap">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <p className="text-sm font-bold text-[#4A5568]">
+                <p className="text-sm font-bold text-[#6E675B]">
                     {isDecoy || mode.decoyChance > 0
                         ? "Tap ORANGE targets — skip the red ones!"
                         : "Tap the target as fast as you can!"}
                 </p>
                 <div className="flex gap-2 items-center">
-                    <span className="mb-chip bg-[#4361EE]/10 text-[#4361EE] text-xs" data-testid="reaction-mode">{mode.name}</span>
-                    <span className="mb-chip bg-[#FFD166]/30 text-[#876200]" data-testid="reaction-time">⏱ {timeLeft}s</span>
-                    <span className="mb-chip bg-[#06D6A0]/15 text-[#057a5b]" data-testid="reaction-hits">⚡ {hits}</span>
+                    <span className="mb-chip bg-[#E4572E]/10 text-[#E4572E] text-xs" data-testid="reaction-mode">{mode.name}</span>
+                    <span className="mb-chip bg-[#E8A33D]/30 text-[#8A6413]" data-testid="reaction-time">⏱ {timeLeft}s</span>
+                    <span className="mb-chip bg-[#3F8C5E]/15 text-[#2F6B47]" data-testid="reaction-hits">⚡ {hits}</span>
                     {mode.decoyChance > 0 && (
-                        <span className="mb-chip bg-[#EF476F]/15 text-[#EF476F]" data-testid="reaction-misses">✖ {misses}</span>
+                        <span className="mb-chip bg-[#BC4B32]/15 text-[#BC4B32]" data-testid="reaction-misses">✖ {misses}</span>
                     )}
                 </div>
             </div>
 
-            <div className="relative bg-[#F0F8FF] rounded-3xl border-2 border-[#E2E8F0] h-80 overflow-hidden">
+            <div className="relative bg-[#FBF6EE] rounded-3xl border-2 border-[#E8E0D2] h-80 overflow-hidden">
                 {!running && !finished && (
                     <div className="absolute inset-0 flex items-center justify-center">
                         <button onClick={start} className="btn-pop-primary" data-testid="reaction-start">Start ⚡</button>
@@ -90,7 +90,7 @@ export default function ReactionTap({ onComplete }) {
                 {running && (
                     <button
                         onClick={hit}
-                        className={`absolute rounded-full border-4 shadow-[0_6px_0_0_rgba(0,0,0,0.15)] active:translate-y-1 ${isDecoy ? "bg-[#EF476F] border-[#B03656]" : "bg-[#FFD166] border-[#E5BC5C]"}`}
+                        className={`absolute rounded-full border-4 shadow-[0_6px_0_0_rgba(0,0,0,0.15)] active:translate-y-1 ${isDecoy ? "bg-[#BC4B32] border-[#8A3A26]" : "bg-[#E8A33D] border-[#C98A2E]"}`}
                         style={{
                             left: `${pos.x}%`,
                             top: `${pos.y}%`,
@@ -104,10 +104,10 @@ export default function ReactionTap({ onComplete }) {
                 )}
                 {finished && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                        <p className="font-display font-extrabold text-3xl text-[#0B132B]" data-testid="reaction-final-score">
+                        <p className="font-display font-extrabold text-3xl text-[#201D18]" data-testid="reaction-final-score">
                             Score: {Math.max(0, hits - Math.floor(misses / 2))}
                         </p>
-                        <p className="text-[#4A5568] font-semibold">
+                        <p className="text-[#6E675B] font-semibold">
                             {mode.decoyChance > 0
                                 ? `${hits} hits · ${misses} decoys avoided imperfectly. Nice reflexes! 🎯`
                                 : "Nice reflexes! 🎯"}

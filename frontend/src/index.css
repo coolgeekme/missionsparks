@@ -1,23 +1,23 @@
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800&family=Nunito:wght@500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-    --mb-bg: #F0F8FF;
+    --mb-bg: #FBF6EE;
     --mb-surface: #FFFFFF;
-    --mb-primary: #4361EE;
-    --mb-primary-dark: #3A53CC;
-    --mb-secondary: #FFD166;
-    --mb-secondary-dark: #E5BC5C;
-    --mb-accent: #06D6A0;
-    --mb-accent-dark: #05B488;
-    --mb-warning: #EF476F;
-    --mb-text: #0B132B;
-    --mb-text-2: #4A5568;
-    --mb-muted: #A0AEC0;
-    --mb-border: #E2E8F0;
+    --mb-primary: #E4572E;
+    --mb-primary-dark: #C4471F;
+    --mb-secondary: #E8A33D;
+    --mb-secondary-dark: #C98A2E;
+    --mb-accent: #3F8C5E;
+    --mb-accent-dark: #2F6B47;
+    --mb-warning: #BC4B32;
+    --mb-text: #201D18;
+    --mb-text-2: #6E675B;
+    --mb-muted: #9A9286;
+    --mb-border: #E8E0D2;
 }
 
 html, body, #root {
@@ -26,7 +26,7 @@ html, body, #root {
 
 body {
     margin: 0;
-    font-family: 'Nunito', system-ui, sans-serif;
+    font-family: 'Public Sans', system-ui, sans-serif;
     background-color: var(--mb-bg);
     color: var(--mb-text);
     -webkit-font-smoothing: antialiased;
@@ -34,31 +34,31 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6, .font-display {
-    font-family: 'Fredoka', 'Nunito', sans-serif;
+    font-family: 'Fraunces', Georgia, serif;
     letter-spacing: -0.01em;
 }
 
 @layer base {
     :root {
-        --background: 207 100% 97%;
-        --foreground: 222 56% 11%;
+        --background: 37 62% 96%;
+        --foreground: 38 14% 11%;
         --card: 0 0% 100%;
-        --card-foreground: 222 56% 11%;
+        --card-foreground: 38 14% 11%;
         --popover: 0 0% 100%;
-        --popover-foreground: 222 56% 11%;
-        --primary: 230 84% 60%;
+        --popover-foreground: 38 14% 11%;
+        --primary: 14 77% 54%;
         --primary-foreground: 0 0% 100%;
-        --secondary: 41 100% 70%;
-        --secondary-foreground: 222 56% 11%;
-        --muted: 210 20% 96%;
-        --muted-foreground: 215 16% 47%;
-        --accent: 161 94% 43%;
-        --accent-foreground: 222 56% 11%;
-        --destructive: 346 84% 61%;
+        --secondary: 36 79% 57%;
+        --secondary-foreground: 38 14% 11%;
+        --muted: 40 45% 94%;
+        --muted-foreground: 38 9% 39%;
+        --accent: 144 38% 40%;
+        --accent-foreground: 0 0% 100%;
+        --destructive: 11 58% 47%;
         --destructive-foreground: 0 0% 100%;
-        --border: 214 32% 91%;
-        --input: 214 32% 91%;
-        --ring: 230 84% 60%;
+        --border: 38 32% 87%;
+        --input: 38 32% 87%;
+        --ring: 14 77% 54%;
         --radius: 1rem;
     }
 }
@@ -71,16 +71,16 @@ h1, h2, h3, h4, h5, h6, .font-display {
 
 /* Duolingo-style tactile button helpers */
 .btn-pop-primary {
-    @apply bg-[#4361EE] text-white rounded-2xl font-bold py-3 px-6 transition-all duration-150;
-    box-shadow: 0 6px 0 0 #3A53CC;
+    @apply bg-[#E4572E] text-white rounded-2xl font-bold py-3 px-6 transition-all duration-150;
+    box-shadow: 0 6px 0 0 #C4471F;
 }
 .btn-pop-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 0 0 #3A53CC;
+    box-shadow: 0 8px 0 0 #C4471F;
 }
 .btn-pop-primary:active {
     transform: translateY(4px);
-    box-shadow: 0 2px 0 0 #3A53CC;
+    box-shadow: 0 2px 0 0 #C4471F;
 }
 .btn-pop-primary:disabled {
     opacity: 0.6;
@@ -88,49 +88,49 @@ h1, h2, h3, h4, h5, h6, .font-display {
 }
 
 .btn-pop-secondary {
-    @apply bg-[#FFD166] text-[#0B132B] rounded-2xl font-bold py-3 px-6 transition-all duration-150;
-    box-shadow: 0 6px 0 0 #E5BC5C;
+    @apply bg-[#E8A33D] text-[#201D18] rounded-2xl font-bold py-3 px-6 transition-all duration-150;
+    box-shadow: 0 6px 0 0 #C98A2E;
 }
 .btn-pop-secondary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 0 0 #E5BC5C;
+    box-shadow: 0 8px 0 0 #C98A2E;
 }
 .btn-pop-secondary:active {
     transform: translateY(4px);
-    box-shadow: 0 2px 0 0 #E5BC5C;
+    box-shadow: 0 2px 0 0 #C98A2E;
 }
 
 .btn-pop-accent {
-    @apply bg-[#06D6A0] text-white rounded-2xl font-bold py-3 px-6 transition-all duration-150;
-    box-shadow: 0 6px 0 0 #05B488;
+    @apply bg-[#3F8C5E] text-white rounded-2xl font-bold py-3 px-6 transition-all duration-150;
+    box-shadow: 0 6px 0 0 #2F6B47;
 }
 .btn-pop-accent:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 0 0 #05B488;
+    box-shadow: 0 8px 0 0 #2F6B47;
 }
 .btn-pop-accent:active {
     transform: translateY(4px);
-    box-shadow: 0 2px 0 0 #05B488;
+    box-shadow: 0 2px 0 0 #2F6B47;
 }
 
 .btn-pop-ghost {
-    @apply rounded-2xl font-bold py-3 px-6 border-2 border-[#E2E8F0] text-[#0B132B] bg-white transition-all duration-150;
+    @apply rounded-2xl font-bold py-3 px-6 border-2 border-[#E8E0D2] text-[#201D18] bg-white transition-all duration-150;
 }
 .btn-pop-ghost:hover {
-    background-color: #F7FAFC;
+    background-color: #F6F1E7;
 }
 
 .mb-card {
-    @apply bg-white rounded-3xl border-2 border-[#E2E8F0] transition-all duration-200;
-    box-shadow: 0 6px 0 0 #E2E8F0;
+    @apply bg-white rounded-3xl border-2 border-[#E8E0D2] transition-all duration-200;
+    box-shadow: 0 6px 0 0 #E8E0D2;
 }
 .mb-card-hover:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 0 0 #E2E8F0;
+    box-shadow: 0 8px 0 0 #E8E0D2;
 }
 
 .mb-input {
-    @apply h-14 rounded-2xl border-2 border-slate-200 bg-white px-4 text-base font-semibold text-[#0B132B] placeholder:text-[#A0AEC0] focus:outline-none focus:border-[#4361EE] transition-colors;
+    @apply h-14 rounded-2xl border-2 border-slate-200 bg-white px-4 text-base font-semibold text-[#201D18] placeholder:text-[#9A9286] focus:outline-none focus:border-[#E4572E] transition-colors;
     width: 100%;
 }
 
@@ -140,7 +140,7 @@ h1, h2, h3, h4, h5, h6, .font-display {
 
 /* Confetti dots backdrop */
 .mb-dots {
-    background-image: radial-gradient(circle, #C7D9FF 1px, transparent 1.5px);
+    background-image: radial-gradient(circle, #EFE0C8 1px, transparent 1.5px);
     background-size: 22px 22px;
 }
 

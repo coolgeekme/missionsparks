@@ -99,27 +99,27 @@ export default function VerificationGateModal({
         >
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-3xl border-2 border-[#E2E8F0] p-6 sm:p-8 max-w-md w-full"
+                className="bg-white rounded-3xl border-2 border-[#E8E0D2] p-6 sm:p-8 max-w-md w-full"
             >
                 <div className="flex items-start justify-between mb-2 gap-3">
                     <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#4361EE]">One more step</p>
-                        <h2 className="font-display font-extrabold text-2xl text-[#0B132B] mt-0.5">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#E4572E]">One more step</p>
+                        <h2 className="font-display font-extrabold text-2xl text-[#201D18] mt-0.5">
                             {mode === "parent_pin" && "Ask a grown-up"}
                             {mode === "photo" && "Show your work"}
                             {mode === "async_review" && "Ready for review?"}
                         </h2>
                     </div>
-                    <button onClick={() => !busy && onClose?.()} className="text-[#A0AEC0] hover:text-[#0B132B]" data-testid="verification-close">
+                    <button onClick={() => !busy && onClose?.()} className="text-[#9A9286] hover:text-[#201D18]" data-testid="verification-close">
                         <X size={20} />
                     </button>
                 </div>
-                <p className="text-sm font-semibold text-[#4A5568] mb-5 truncate">Mission: <strong>{missionTitle}</strong></p>
+                <p className="text-sm font-semibold text-[#6E675B] mb-5 truncate">Mission: <strong>{missionTitle}</strong></p>
 
                 {mode === "parent_pin" && (
                     <form onSubmit={submitPin} data-testid="verification-pin-form">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-[#4A5568] mb-3">
-                            <Shield size={14} className="text-[#4361EE]" />
+                        <div className="flex items-center gap-2 text-sm font-semibold text-[#6E675B] mb-3">
+                            <Shield size={14} className="text-[#E4572E]" />
                             A grown-up needs to type their 4-digit verify PIN.
                         </div>
                         <input
@@ -129,12 +129,12 @@ export default function VerificationGateModal({
                             autoFocus
                             value={pin}
                             onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                            className="w-full rounded-2xl border-2 border-[#E2E8F0] px-4 py-4 font-mono text-center text-3xl tracking-[1em] focus:border-[#4361EE] outline-none"
+                            className="w-full rounded-2xl border-2 border-[#E8E0D2] px-4 py-4 font-mono text-center text-3xl tracking-[1em] focus:border-[#E4572E] outline-none"
                             placeholder="••••"
                             maxLength={4}
                             data-testid="verification-pin-input"
                         />
-                        {err && <p className="text-sm font-bold text-[#EF476F] mt-3" data-testid="verification-pin-error">{err}</p>}
+                        {err && <p className="text-sm font-bold text-[#BC4B32] mt-3" data-testid="verification-pin-error">{err}</p>}
                         <div className="flex gap-2 mt-4">
                             <button type="submit" disabled={busy || pin.length !== 4} className="btn-pop-primary flex-1 disabled:opacity-50" data-testid="verification-pin-submit">
                                 {busy ? <Loader2 className="animate-spin" size={16} /> : "Verify"}
@@ -148,13 +148,13 @@ export default function VerificationGateModal({
 
                 {mode === "photo" && (
                     <div data-testid="verification-photo-panel">
-                        <div className="flex items-center gap-2 text-sm font-semibold text-[#4A5568] mb-3">
-                            <Camera size={14} className="text-[#4361EE]" />
+                        <div className="flex items-center gap-2 text-sm font-semibold text-[#6E675B] mb-3">
+                            <Camera size={14} className="text-[#E4572E]" />
                             Take a photo showing you're done — a grown-up can see it later.
                         </div>
                         {photoDataUrl ? (
                             <div className="text-center">
-                                <img src={photoDataUrl} alt="preview" className="max-h-64 mx-auto rounded-2xl border-2 border-[#E2E8F0]" data-testid="verification-photo-preview" />
+                                <img src={photoDataUrl} alt="preview" className="max-h-64 mx-auto rounded-2xl border-2 border-[#E8E0D2]" data-testid="verification-photo-preview" />
                                 <button
                                     type="button"
                                     onClick={() => { setPhotoDataUrl(null); fileRef.current && (fileRef.current.value = ""); }}
@@ -167,11 +167,11 @@ export default function VerificationGateModal({
                         ) : (
                             <label
                                 htmlFor="verification-photo-input"
-                                className="block cursor-pointer rounded-2xl border-2 border-dashed border-[#4361EE]/40 bg-[#4361EE]/5 p-8 text-center hover:bg-[#4361EE]/10 transition-all"
+                                className="block cursor-pointer rounded-2xl border-2 border-dashed border-[#E4572E]/40 bg-[#E4572E]/5 p-8 text-center hover:bg-[#E4572E]/10 transition-all"
                             >
-                                <Camera size={32} className="mx-auto text-[#4361EE]" />
-                                <p className="font-display font-extrabold text-base text-[#0B132B] mt-2">Tap to take/pick a photo</p>
-                                <p className="text-xs font-semibold text-[#4A5568] mt-1">Photos stay in your family — never shared with AI.</p>
+                                <Camera size={32} className="mx-auto text-[#E4572E]" />
+                                <p className="font-display font-extrabold text-base text-[#201D18] mt-2">Tap to take/pick a photo</p>
+                                <p className="text-xs font-semibold text-[#6E675B] mt-1">Photos stay in your family — never shared with AI.</p>
                             </label>
                         )}
                         <input
@@ -184,7 +184,7 @@ export default function VerificationGateModal({
                             className="hidden"
                             data-testid="verification-photo-input"
                         />
-                        {err && <p className="text-sm font-bold text-[#EF476F] mt-3">{err}</p>}
+                        {err && <p className="text-sm font-bold text-[#BC4B32] mt-3">{err}</p>}
                         <div className="flex gap-2 mt-4">
                             <button
                                 type="button"
@@ -202,16 +202,16 @@ export default function VerificationGateModal({
 
                 {mode === "async_review" && (
                     <div data-testid="verification-async-panel">
-                        <div className="rounded-2xl bg-[#4361EE]/5 border-2 border-[#4361EE]/20 p-4 mb-4">
-                            <div className="flex items-start gap-2 text-sm font-semibold text-[#0B132B]">
-                                <Clock size={16} className="text-[#4361EE] mt-0.5 flex-shrink-0" />
+                        <div className="rounded-2xl bg-[#E4572E]/5 border-2 border-[#E4572E]/20 p-4 mb-4">
+                            <div className="flex items-start gap-2 text-sm font-semibold text-[#201D18]">
+                                <Clock size={16} className="text-[#E4572E] mt-0.5 flex-shrink-0" />
                                 <div>
                                     <p>When you're ready, a grown-up will check your work and give you the spark.</p>
-                                    <p className="text-xs font-semibold text-[#4A5568] mt-2">You can still write a reflection below.</p>
+                                    <p className="text-xs font-semibold text-[#6E675B] mt-2">You can still write a reflection below.</p>
                                 </div>
                             </div>
                         </div>
-                        {err && <p className="text-sm font-bold text-[#EF476F] mb-3">{err}</p>}
+                        {err && <p className="text-sm font-bold text-[#BC4B32] mb-3">{err}</p>}
                         <div className="flex gap-2">
                             <button
                                 type="button"

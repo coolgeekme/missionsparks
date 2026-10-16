@@ -38,17 +38,17 @@ export default function MissionTimer({ estimatedMinutes }) {
             <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3">
                     <div className={`h-12 w-12 rounded-2xl flex items-center justify-center font-mono font-extrabold ${
-                        running ? "bg-[#06D6A0] text-white" : "bg-[#E2E8F0] text-[#4A5568]"
+                        running ? "bg-[#3F8C5E] text-white" : "bg-[#E8E0D2] text-[#6E675B]"
                     }`} data-testid="mission-timer-status">
                         {running ? "●" : "⏸"}
                     </div>
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Working time</p>
-                        <p className="font-display font-extrabold text-2xl text-[#0B132B] leading-none mt-0.5" data-testid="mission-timer-display">
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Working time</p>
+                        <p className="font-display font-extrabold text-2xl text-[#201D18] leading-none mt-0.5" data-testid="mission-timer-display">
                             {fmt(seconds)}
                         </p>
                         {target > 0 && (
-                            <p className="text-xs font-bold text-[#4A5568] mt-1">
+                            <p className="text-xs font-bold text-[#6E675B] mt-1">
                                 {over ? `+${fmt(seconds - target)} past target` : `Target: ${fmt(target)}`}
                             </p>
                         )}
@@ -64,8 +64,8 @@ export default function MissionTimer({ estimatedMinutes }) {
                 </div>
             </div>
             {target > 0 && (
-                <div className="mt-3 h-2 rounded-full bg-[#E2E8F0] overflow-hidden">
-                    <div className={`h-full ${over ? "bg-[#EF476F]" : "bg-[#06D6A0]"} transition-all`} style={{ width: `${pct}%` }} />
+                <div className="mt-3 h-2 rounded-full bg-[#E8E0D2] overflow-hidden">
+                    <div className={`h-full ${over ? "bg-[#BC4B32]" : "bg-[#3F8C5E]"} transition-all`} style={{ width: `${pct}%` }} />
                 </div>
             )}
         </div>

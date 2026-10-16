@@ -88,20 +88,20 @@ export default function QuickCapture() {
         <div className="min-h-screen" data-testid="quick-capture-page">
             <Navbar />
             <main className="max-w-md mx-auto p-4 sm:p-6 space-y-5">
-                <Link to="/parent" className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE]" data-testid="quick-capture-back">
+                <Link to="/parent" className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E]" data-testid="quick-capture-back">
                     <ArrowLeft size={16} /> Dashboard
                 </Link>
 
                 <header className="text-center">
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Quick log</p>
-                    <h1 className="font-display font-extrabold text-3xl text-[#0B132B] mt-1">How did it go?</h1>
-                    <p className="text-[#4A5568] font-semibold mt-1">One tap — or speak it — and it's logged for the day.</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Quick log</p>
+                    <h1 className="font-display font-extrabold text-3xl text-[#201D18] mt-1">How did it go?</h1>
+                    <p className="text-[#6E675B] font-semibold mt-1">One tap — or speak it — and it's logged for the day.</p>
                 </header>
 
                 {students.length === 0 ? (
                     <div className="mb-card p-6 text-center" data-testid="quick-capture-empty">
-                        <p className="font-display font-bold text-lg text-[#0B132B]">No kids linked yet</p>
-                        <p className="text-[#4A5568] font-semibold mt-1">Link a student from your dashboard first.</p>
+                        <p className="font-display font-bold text-lg text-[#201D18]">No kids linked yet</p>
+                        <p className="text-[#6E675B] font-semibold mt-1">Link a student from your dashboard first.</p>
                         <Link to="/parent" className="btn-pop-primary inline-flex mt-4">Go to dashboard</Link>
                     </div>
                 ) : (
@@ -112,7 +112,7 @@ export default function QuickCapture() {
                                 <button
                                     key={s.id}
                                     onClick={() => pickStudent(s)}
-                                    className={`mb-chip border-2 ${selected?.id === s.id ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white border-[#E2E8F0]"}`}
+                                    className={`mb-chip border-2 ${selected?.id === s.id ? "bg-[#E4572E] text-white border-[#E4572E]" : "bg-white border-[#E8E0D2]"}`}
                                     data-testid={`quick-capture-student-${s.id}`}
                                 >
                                     🚀 {s.name}
@@ -125,7 +125,7 @@ export default function QuickCapture() {
                             <button
                                 onClick={() => capture("positive")}
                                 disabled={!!busy}
-                                className="rounded-3xl border-2 border-[#06D6A0] bg-[#06D6A0] text-white p-6 sm:p-8 flex flex-col items-center gap-3 shadow-[0_8px_0_0_#04A57A] hover:-translate-y-1 active:translate-y-1 active:shadow-none transition-all disabled:opacity-60"
+                                className="rounded-3xl border-2 border-[#3F8C5E] bg-[#3F8C5E] text-white p-6 sm:p-8 flex flex-col items-center gap-3 shadow-[0_8px_0_0_#2F6B47] hover:-translate-y-1 active:translate-y-1 active:shadow-none transition-all disabled:opacity-60"
                                 data-testid="quick-capture-positive"
                             >
                                 <ThumbsUp size={48} fill="currentColor" />
@@ -135,7 +135,7 @@ export default function QuickCapture() {
                             <button
                                 onClick={() => capture("negative")}
                                 disabled={!!busy}
-                                className="rounded-3xl border-2 border-[#EF476F] bg-[#EF476F] text-white p-6 sm:p-8 flex flex-col items-center gap-3 shadow-[0_8px_0_0_#C8385A] hover:-translate-y-1 active:translate-y-1 active:shadow-none transition-all disabled:opacity-60"
+                                className="rounded-3xl border-2 border-[#BC4B32] bg-[#BC4B32] text-white p-6 sm:p-8 flex flex-col items-center gap-3 shadow-[0_8px_0_0_#9A3C28] hover:-translate-y-1 active:translate-y-1 active:shadow-none transition-all disabled:opacity-60"
                                 data-testid="quick-capture-negative"
                             >
                                 <ThumbsDown size={48} fill="currentColor" />
@@ -156,8 +156,8 @@ export default function QuickCapture() {
 
                         {voiceOpen && (
                             <div className="mb-card p-5" data-testid="quick-capture-voice">
-                                <p className="font-display font-bold text-lg text-[#0B132B] mb-1">Describe it for {selected?.name}</p>
-                                <p className="text-xs font-bold text-[#A0AEC0] mb-3">
+                                <p className="font-display font-bold text-lg text-[#201D18] mb-1">Describe it for {selected?.name}</p>
+                                <p className="text-xs font-bold text-[#9A9286] mb-3">
                                     Try: "Enzo got frustrated with math homework, so we took a body break."
                                 </p>
                                 <AudioRecorder onParsed={handleParsed} />
@@ -165,21 +165,21 @@ export default function QuickCapture() {
                         )}
 
                         {err && (
-                            <p className="text-sm font-bold text-[#EF476F] bg-[#EF476F]/10 rounded-xl px-3 py-2 text-center" data-testid="quick-capture-error">
+                            <p className="text-sm font-bold text-[#BC4B32] bg-[#BC4B32]/10 rounded-xl px-3 py-2 text-center" data-testid="quick-capture-error">
                                 {err}
                             </p>
                         )}
                         {lastLogged && !err && (
-                            <div className="rounded-xl bg-[#06D6A0]/10 border-2 border-[#06D6A0] px-3 py-2 text-center" data-testid="quick-capture-confirmation">
-                                <p className="text-sm font-bold text-[#057a5b]">✓ Logged for {lastLogged.name} · {lastLogged.at.toLocaleTimeString()}</p>
-                                <Link to={`/parent/moments?student=${selected?.id}`} className="text-xs font-bold text-[#4361EE] underline inline-flex items-center gap-1 mt-1" data-testid="quick-capture-add-details">
+                            <div className="rounded-xl bg-[#3F8C5E]/10 border-2 border-[#3F8C5E] px-3 py-2 text-center" data-testid="quick-capture-confirmation">
+                                <p className="text-sm font-bold text-[#2F6B47]">✓ Logged for {lastLogged.name} · {lastLogged.at.toLocaleTimeString()}</p>
+                                <Link to={`/parent/moments?student=${selected?.id}`} className="text-xs font-bold text-[#E4572E] underline inline-flex items-center gap-1 mt-1" data-testid="quick-capture-add-details">
                                     Add details / edit →
                                 </Link>
                             </div>
                         )}
 
                         {/* PWA hint */}
-                        <div className="text-center text-xs font-semibold text-[#A0AEC0]" data-testid="quick-capture-pwa-hint">
+                        <div className="text-center text-xs font-semibold text-[#9A9286]" data-testid="quick-capture-pwa-hint">
                             <Sparkles size={12} className="inline mr-1" />
                             On your phone, use "Add to Home Screen" for one-tap access.
                         </div>

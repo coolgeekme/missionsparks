@@ -4,14 +4,14 @@ import { ArrowLeft } from "lucide-react";
 export default function Privacy() {
     return (
         <div className="min-h-screen mb-dots p-6" data-testid="privacy-page">
-            <main className="max-w-3xl mx-auto bg-white rounded-3xl border-2 border-[#E2E8F0] p-6 sm:p-10">
-                <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE] mb-4" data-testid="privacy-back">
+            <main className="max-w-3xl mx-auto bg-white rounded-3xl border-2 border-[#E8E0D2] p-6 sm:p-10">
+                <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E] mb-4" data-testid="privacy-back">
                     <ArrowLeft size={16} /> Back
                 </Link>
-                <h1 className="font-display font-extrabold text-4xl text-[#0B132B]">Privacy Policy</h1>
-                <p className="text-sm text-[#A0AEC0] mt-1">Plain-English draft. Last updated: Feb 2026.</p>
+                <h1 className="font-display font-extrabold text-4xl text-[#201D18]">Privacy Policy</h1>
+                <p className="text-sm text-[#9A9286] mt-1">Plain-English draft. Last updated: Feb 2026.</p>
 
-                <p className="mt-4 text-sm font-bold rounded-2xl border-2 border-[#FFD166] bg-[#FFD166]/15 text-[#876200] p-3">
+                <p className="mt-4 text-sm font-bold rounded-2xl border-2 border-[#E8A33D] bg-[#E8A33D]/15 text-[#8A6413] p-3">
                     ⚠️ This app is a consumer wellness tool. It is <strong>not a medical device</strong>, <strong>not HIPAA-covered</strong>, and is not a substitute for clinical care. Please consult a licensed professional for diagnosis or treatment decisions.
                 </p>
 
@@ -26,12 +26,12 @@ export default function Privacy() {
                 </Section>
 
                 <Section title="How AI is used">
-                    <p>To make logging faster we send your <em>voice recording</em> to an AI provider for transcription, then send the <em>transcript text</em> to another AI provider to extract structured fields. Our current list of AI vendors and what data they receive is maintained on our <Link to="/sub-processors" className="text-[#4361EE] underline" data-testid="privacy-link-subprocessors">sub-processors page</Link>. We do not currently have Business Associate Agreements (BAAs) with these vendors, which means data is processed on consumer-tier endpoints. Don't put protected health information here unless and until those agreements are in place.</p>
-                    <p className="mt-2">You can turn off audio retention with the "Discard audio after transcription" toggle in <Link to="/account" className="text-[#4361EE] underline">your account settings</Link>. When on, recordings are deleted after transcription — only the text is kept.</p>
+                    <p>To make logging faster we send your <em>voice recording</em> to an AI provider for transcription, then send the <em>transcript text</em> to another AI provider to extract structured fields. Our current list of AI vendors and what data they receive is maintained on our <Link to="/sub-processors" className="text-[#E4572E] underline" data-testid="privacy-link-subprocessors">sub-processors page</Link>. We do not currently have Business Associate Agreements (BAAs) with these vendors, which means data is processed on consumer-tier endpoints. Don't put protected health information here unless and until those agreements are in place.</p>
+                    <p className="mt-2">You can turn off audio retention with the "Discard audio after transcription" toggle in <Link to="/account" className="text-[#E4572E] underline">your account settings</Link>. When on, recordings are deleted after transcription — only the text is kept.</p>
                 </Section>
 
                 <Section title="Children and COPPA">
-                    <p>If your child is under 13, you must complete the parental consent form when linking their account. We collect only what's needed to operate the app. We never show behavioral or targeted ads. You can revoke consent and delete all of your child's data at any time from <Link to="/account" className="text-[#4361EE] underline">your account settings</Link>.</p>
+                    <p>If your child is under 13, you must complete the parental consent form when linking their account. We collect only what's needed to operate the app. We never show behavioral or targeted ads. You can revoke consent and delete all of your child's data at any time from <Link to="/account" className="text-[#E4572E] underline">your account settings</Link>.</p>
                 </Section>
 
                 <Section title="Your rights">
@@ -57,8 +57,8 @@ export default function Privacy() {
 function Section({ title, children }) {
     return (
         <section className="mt-6">
-            <h2 className="font-display font-bold text-xl text-[#0B132B]">{title}</h2>
-            <div className="text-sm text-[#0B132B] font-semibold mt-2 space-y-2 leading-relaxed">{children}</div>
+            <h2 className="font-display font-bold text-xl text-[#201D18]">{title}</h2>
+            <div className="text-sm text-[#201D18] font-semibold mt-2 space-y-2 leading-relaxed">{children}</div>
         </section>
     );
 }

@@ -72,8 +72,8 @@ export default function StudentCheckIn() {
                 <Navbar />
                 <main className="max-w-xl mx-auto p-6 md:p-10 text-center">
                     <div className="text-7xl">💛</div>
-                    <h1 className="font-display font-extrabold text-4xl text-[#0B132B] mt-3">Thanks for checking in</h1>
-                    <p className="text-[#4A5568] font-semibold mt-2">Knowing how you feel right now is a superpower. Your parent will see this in your moments.</p>
+                    <h1 className="font-display font-extrabold text-4xl text-[#201D18] mt-3">Thanks for checking in</h1>
+                    <p className="text-[#6E675B] font-semibold mt-2">Knowing how you feel right now is a superpower. Your parent will see this in your moments.</p>
                     <button onClick={() => navigate("/student")} className="btn-pop-primary mt-6" data-testid="checkin-back">
                         Back to missions
                     </button>
@@ -86,37 +86,37 @@ export default function StudentCheckIn() {
         <div className="min-h-screen" data-testid="checkin-page">
             <Navbar />
             <main className="max-w-xl mx-auto p-6 md:p-10 space-y-6">
-                <Link to="/student" className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE]" data-testid="checkin-back-link">
+                <Link to="/student" className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E]" data-testid="checkin-back-link">
                     <ArrowLeft size={16} /> Back to missions
                 </Link>
                 <header className="flex items-center gap-3">
-                    <div className="h-14 w-14 rounded-2xl bg-[#EF476F]/15 flex items-center justify-center text-[#EF476F]">
+                    <div className="h-14 w-14 rounded-2xl bg-[#BC4B32]/15 flex items-center justify-center text-[#BC4B32]">
                         <Heart size={28} />
                     </div>
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Quick check-in</p>
-                        <h1 className="font-display font-extrabold text-3xl text-[#0B132B]">How are you right now?</h1>
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Quick check-in</p>
+                        <h1 className="font-display font-extrabold text-3xl text-[#201D18]">How are you right now?</h1>
                     </div>
                 </header>
 
                 {/* Mode picker */}
                 {mode === "choose" && (
                     <section className="mb-card p-6" data-testid="checkin-mode">
-                        <p className="text-sm font-semibold text-[#4A5568] mb-4">How do you want to check in?</p>
+                        <p className="text-sm font-semibold text-[#6E675B] mb-4">How do you want to check in?</p>
                         <div className="grid sm:grid-cols-2 gap-3">
-                            <button onClick={() => setMode("voice")} className="mb-card mb-card-hover p-5 text-left border-[#EF476F]" data-testid="checkin-mode-voice">
-                                <div className="h-12 w-12 rounded-2xl bg-[#EF476F]/15 flex items-center justify-center text-[#EF476F] mb-2">
+                            <button onClick={() => setMode("voice")} className="mb-card mb-card-hover p-5 text-left border-[#BC4B32]" data-testid="checkin-mode-voice">
+                                <div className="h-12 w-12 rounded-2xl bg-[#BC4B32]/15 flex items-center justify-center text-[#BC4B32] mb-2">
                                     <Mic size={24} />
                                 </div>
-                                <p className="font-display font-bold text-[#0B132B]">🎤 Talk it out</p>
-                                <p className="text-sm text-[#4A5568] font-semibold mt-1">Just say how you feel and what set it off.</p>
+                                <p className="font-display font-bold text-[#201D18]">🎤 Talk it out</p>
+                                <p className="text-sm text-[#6E675B] font-semibold mt-1">Just say how you feel and what set it off.</p>
                             </button>
-                            <button onClick={() => { setMode("tap"); setStep(1); }} className="mb-card mb-card-hover p-5 text-left border-[#4361EE]" data-testid="checkin-mode-tap">
-                                <div className="h-12 w-12 rounded-2xl bg-[#4361EE]/15 flex items-center justify-center text-[#4361EE] mb-2">
+                            <button onClick={() => { setMode("tap"); setStep(1); }} className="mb-card mb-card-hover p-5 text-left border-[#E4572E]" data-testid="checkin-mode-tap">
+                                <div className="h-12 w-12 rounded-2xl bg-[#E4572E]/15 flex items-center justify-center text-[#E4572E] mb-2">
                                     <Keyboard size={24} />
                                 </div>
-                                <p className="font-display font-bold text-[#0B132B]">👆 Tap to pick</p>
-                                <p className="text-sm text-[#4A5568] font-semibold mt-1">Tap a feeling, then a few options.</p>
+                                <p className="font-display font-bold text-[#201D18]">👆 Tap to pick</p>
+                                <p className="text-sm text-[#6E675B] font-semibold mt-1">Tap a feeling, then a few options.</p>
                             </button>
                         </div>
                     </section>
@@ -125,8 +125,8 @@ export default function StudentCheckIn() {
                 {mode === "voice" && (
                     <section className="mb-card p-6 space-y-4" data-testid="checkin-voice-panel">
                         <div>
-                            <h2 className="font-display font-bold text-xl text-[#0B132B]">Talk it out</h2>
-                            <p className="text-sm font-semibold text-[#4A5568] mt-1">Try: "I'm frustrated. Math was too hard and I'm tired."</p>
+                            <h2 className="font-display font-bold text-xl text-[#201D18]">Talk it out</h2>
+                            <p className="text-sm font-semibold text-[#6E675B] mt-1">Try: "I'm frustrated. Math was too hard and I'm tired."</p>
                         </div>
                         <AudioRecorder onParsed={handleParsed} maxSeconds={60} />
                         <button onClick={() => setMode("choose")} className="btn-pop-ghost w-full text-sm py-2" data-testid="checkin-voice-back">Back</button>
@@ -136,21 +136,21 @@ export default function StudentCheckIn() {
                 {/* Step 1: pick moment */}
                 {mode === "tap" && step === 1 && (
                     <section className="mb-card p-6" data-testid="checkin-step-1">
-                        <p className="text-sm font-semibold text-[#4A5568] mb-4">Pick the one that fits best.</p>
+                        <p className="text-sm font-semibold text-[#6E675B] mb-4">Pick the one that fits best.</p>
                         <div className="grid grid-cols-2 gap-3" data-testid="checkin-types">
                             {catalog.moment_types.map((t) => (
                                 <button
                                     key={t.key}
                                     onClick={() => { setType(t.key); setStep(2); }}
                                     className={`rounded-2xl border-2 p-4 text-left transition-all hover:-translate-y-1 ${
-                                        t.category === "challenging" ? "border-[#EF476F]/30 hover:border-[#EF476F] bg-white" :
-                                        t.category === "positive" ? "border-[#06D6A0]/30 hover:border-[#06D6A0] bg-white" :
-                                        "border-[#E2E8F0] hover:border-[#4361EE] bg-white"
+                                        t.category === "challenging" ? "border-[#BC4B32]/30 hover:border-[#BC4B32] bg-white" :
+                                        t.category === "positive" ? "border-[#3F8C5E]/30 hover:border-[#3F8C5E] bg-white" :
+                                        "border-[#E8E0D2] hover:border-[#E4572E] bg-white"
                                     }`}
                                     data-testid={`checkin-type-${t.key}`}
                                 >
                                     <div className="text-3xl">{t.emoji}</div>
-                                    <div className="font-display font-bold text-[#0B132B] mt-1">{t.label}</div>
+                                    <div className="font-display font-bold text-[#201D18] mt-1">{t.label}</div>
                                 </button>
                             ))}
                         </div>
@@ -161,17 +161,17 @@ export default function StudentCheckIn() {
                 {mode === "tap" && step === 2 && (
                     <section className="mb-card p-6 space-y-5" data-testid="checkin-step-2">
                         {transcript && (
-                            <div className="rounded-2xl bg-[#FFD166]/20 border-2 border-[#FFD166] p-3" data-testid="checkin-transcript">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-[#876200]">🎤 What you said</p>
-                                <p className="text-sm font-semibold text-[#0B132B] mt-1 italic">"{transcript}"</p>
+                            <div className="rounded-2xl bg-[#E8A33D]/20 border-2 border-[#E8A33D] p-3" data-testid="checkin-transcript">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-[#8A6413]">🎤 What you said</p>
+                                <p className="text-sm font-semibold text-[#201D18] mt-1 italic">"{transcript}"</p>
                             </div>
                         )}        <div>
-                            <p className="text-sm font-bold text-[#0B132B] mb-2">How strong is it? (1 = a tiny bit, 5 = a lot)</p>
+                            <p className="text-sm font-bold text-[#201D18] mb-2">How strong is it? (1 = a tiny bit, 5 = a lot)</p>
                             <input type="range" min="1" max="5" value={intensity} onChange={(e) => setIntensity(Number(e.target.value))} className="w-full" data-testid="checkin-intensity" />
-                            <p className="text-center font-display font-extrabold text-4xl text-[#EF476F] mt-1" data-testid="checkin-intensity-display">{intensity}</p>
+                            <p className="text-center font-display font-extrabold text-4xl text-[#BC4B32] mt-1" data-testid="checkin-intensity-display">{intensity}</p>
                         </div>
                         <div>
-                            <p className="text-sm font-bold text-[#0B132B] mb-2">What set it off? (tap any that fit)</p>
+                            <p className="text-sm font-bold text-[#201D18] mb-2">What set it off? (tap any that fit)</p>
                             <div className="flex flex-wrap gap-2" data-testid="checkin-triggers">
                                 {catalog.triggers.map((t) => {
                                     const sel = triggers.includes(t.key);
@@ -179,7 +179,7 @@ export default function StudentCheckIn() {
                                         <button
                                             key={t.key} type="button"
                                             onClick={() => toggleTrigger(t.key)}
-                                            className={`mb-chip border-2 ${sel ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white border-[#E2E8F0] hover:border-[#4361EE]"}`}
+                                            className={`mb-chip border-2 ${sel ? "bg-[#E4572E] text-white border-[#E4572E]" : "bg-white border-[#E8E0D2] hover:border-[#E4572E]"}`}
                                             data-testid={`checkin-trigger-${t.key}`}
                                         >
                                             {t.emoji} {t.label}
@@ -189,7 +189,7 @@ export default function StudentCheckIn() {
                             </div>
                         </div>
                         <div>
-                            <p className="text-sm font-bold text-[#0B132B] mb-2">Want to say more? (optional)</p>
+                            <p className="text-sm font-bold text-[#201D18] mb-2">Want to say more? (optional)</p>
                             <textarea
                                 rows={2}
                                 value={note}
@@ -200,7 +200,7 @@ export default function StudentCheckIn() {
                             />
                         </div>
 
-                        {err && <p className="text-sm font-bold text-[#EF476F] bg-[#EF476F]/10 rounded-xl px-3 py-2" data-testid="checkin-error">{err}</p>}
+                        {err && <p className="text-sm font-bold text-[#BC4B32] bg-[#BC4B32]/10 rounded-xl px-3 py-2" data-testid="checkin-error">{err}</p>}
 
                         <div className="flex gap-3">
                             <button onClick={() => setStep(1)} className="btn-pop-ghost flex-1" data-testid="checkin-back-step">Back</button>

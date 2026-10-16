@@ -75,14 +75,14 @@ export default function MomentsInsights() {
         <div className="min-h-screen" data-testid="moments-insights-page">
             <Navbar />
             <main className="max-w-6xl mx-auto p-6 md:p-10 space-y-6">
-                <Link to="/parent/moments" className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE]" data-testid="insights-back">
+                <Link to="/parent/moments" className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E]" data-testid="insights-back">
                     <ArrowLeft size={16} /> Back to moments
                 </Link>
                 <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Patterns & insights</p>
-                        <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#0B132B] mt-1">What the data says</h1>
-                        <p className="text-[#4A5568] font-semibold mt-2">A snapshot to share with therapists or guide your next plan.</p>
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Patterns & insights</p>
+                        <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#201D18] mt-1">What the data says</h1>
+                        <p className="text-[#6E675B] font-semibold mt-2">A snapshot to share with therapists or guide your next plan.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                         <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="mb-input max-w-[10rem]" data-testid="insights-range">
@@ -102,7 +102,7 @@ export default function MomentsInsights() {
                     <div className="flex flex-wrap gap-2">
                         {students.map((s) => (
                             <button key={s.id} onClick={() => setSelected(s)}
-                                className={`mb-chip border-2 ${selected?.id === s.id ? "bg-[#4361EE] text-white border-[#4361EE]" : "bg-white border-[#E2E8F0]"}`}
+                                className={`mb-chip border-2 ${selected?.id === s.id ? "bg-[#E4572E] text-white border-[#E4572E]" : "bg-white border-[#E8E0D2]"}`}
                                 data-testid={`insights-student-${s.id}`}
                             >🚀 {s.name}</button>
                         ))}
@@ -110,11 +110,11 @@ export default function MomentsInsights() {
                 )}
 
                 {!insights ? (
-                    <div className="mb-card p-8 text-center"><p className="text-[#4A5568] font-bold animate-pulse">Loading…</p></div>
+                    <div className="mb-card p-8 text-center"><p className="text-[#6E675B] font-bold animate-pulse">Loading…</p></div>
                 ) : insights.total === 0 ? (
                     <div className="mb-card p-10 text-center" data-testid="insights-empty">
-                        <p className="font-display font-bold text-2xl text-[#0B132B]">No moments yet in this window</p>
-                        <p className="text-[#4A5568] font-semibold mt-2">Log a few moments to start seeing patterns here.</p>
+                        <p className="font-display font-bold text-2xl text-[#201D18]">No moments yet in this window</p>
+                        <p className="text-[#6E675B] font-semibold mt-2">Log a few moments to start seeing patterns here.</p>
                     </div>
                 ) : (
                     <>
@@ -137,7 +137,7 @@ export default function MomentsInsights() {
                                     <XAxis type="number" allowDecimals={false} />
                                     <YAxis dataKey="name" type="category" width={140} />
                                     <Tooltip />
-                                    <Bar dataKey="value" fill="#4361EE" radius={[0, 8, 8, 0]} />
+                                    <Bar dataKey="value" fill="#E4572E" radius={[0, 8, 8, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </ChartCard>
@@ -148,7 +148,7 @@ export default function MomentsInsights() {
                                     <XAxis type="number" allowDecimals={false} />
                                     <YAxis dataKey="name" type="category" width={160} />
                                     <Tooltip />
-                                    <Bar dataKey="value" fill="#EF476F" radius={[0, 8, 8, 0]} />
+                                    <Bar dataKey="value" fill="#BC4B32" radius={[0, 8, 8, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </ChartCard>
@@ -157,22 +157,22 @@ export default function MomentsInsights() {
                             <ChartCard title="By hour of day" testid="chart-by-hour">
                                 <ResponsiveContainer width="100%" height={250}>
                                     <BarChart data={hourData}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#E8E0D2" />
                                         <XAxis dataKey="name" interval={2} />
                                         <YAxis allowDecimals={false} />
                                         <Tooltip />
-                                        <Bar dataKey="value" fill="#06D6A0" radius={[6, 6, 0, 0]} />
+                                        <Bar dataKey="value" fill="#3F8C5E" radius={[6, 6, 0, 0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </ChartCard>
                             <ChartCard title="By day of week" testid="chart-by-dow">
                                 <ResponsiveContainer width="100%" height={250}>
                                     <BarChart data={dowData}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#E8E0D2" />
                                         <XAxis dataKey="name" />
                                         <YAxis allowDecimals={false} />
                                         <Tooltip />
-                                        <Bar dataKey="value" fill="#FFD166" radius={[6, 6, 0, 0]} />
+                                        <Bar dataKey="value" fill="#E8A33D" radius={[6, 6, 0, 0]} />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </ChartCard>
@@ -181,25 +181,25 @@ export default function MomentsInsights() {
                         <ChartCard title={`Trend (last ${days} days)`} testid="chart-trend">
                             <ResponsiveContainer width="100%" height={250}>
                                 <LineChart data={dailyData}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#E8E0D2" />
                                     <XAxis dataKey="name" interval={Math.max(0, Math.floor(dailyData.length / 12) - 1)} />
                                     <YAxis allowDecimals={false} />
                                     <Tooltip />
-                                    <Line type="monotone" dataKey="value" stroke="#4361EE" strokeWidth={3} dot={{ r: 3 }} />
+                                    <Line type="monotone" dataKey="value" stroke="#E4572E" strokeWidth={3} dot={{ r: 3 }} />
                                 </LineChart>
                             </ResponsiveContainer>
                         </ChartCard>
 
                         <section className="mb-card p-5" data-testid="chart-cooccurrence">
-                            <h3 className="font-display font-bold text-lg text-[#0B132B] mb-2">Trigger → moment co-occurrence</h3>
-                            <p className="text-sm font-semibold text-[#4A5568] mb-3">When this trigger happens, this moment shows up most often.</p>
+                            <h3 className="font-display font-bold text-lg text-[#201D18] mb-2">Trigger → moment co-occurrence</h3>
+                            <p className="text-sm font-semibold text-[#6E675B] mb-3">When this trigger happens, this moment shows up most often.</p>
                             {coRows.length === 0 ? (
-                                <p className="text-sm font-bold text-[#A0AEC0]">Not enough data yet.</p>
+                                <p className="text-sm font-bold text-[#9A9286]">Not enough data yet.</p>
                             ) : (
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm">
                                         <thead>
-                                            <tr className="text-left text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">
+                                            <tr className="text-left text-xs font-bold uppercase tracking-widest text-[#9A9286]">
                                                 <th className="py-2">Trigger</th>
                                                 <th className="py-2">Leads to</th>
                                                 <th className="py-2 text-right">Count</th>
@@ -207,10 +207,10 @@ export default function MomentsInsights() {
                                         </thead>
                                         <tbody>
                                             {coRows.map((r, i) => (
-                                                <tr key={i} className="border-t-2 border-[#E2E8F0]">
-                                                    <td className="py-2 font-semibold text-[#0B132B]">{labelTrig(r.trig)}</td>
-                                                    <td className="py-2 font-semibold text-[#0B132B]">{labelType(r.type)}</td>
-                                                    <td className="py-2 text-right font-extrabold text-[#4361EE]">{r.count}×</td>
+                                                <tr key={i} className="border-t-2 border-[#E8E0D2]">
+                                                    <td className="py-2 font-semibold text-[#201D18]">{labelTrig(r.trig)}</td>
+                                                    <td className="py-2 font-semibold text-[#201D18]">{labelType(r.type)}</td>
+                                                    <td className="py-2 text-right font-extrabold text-[#E4572E]">{r.count}×</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -228,8 +228,8 @@ export default function MomentsInsights() {
 function Stat({ label, value }) {
     return (
         <div className="mb-card p-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">{label}</p>
-            <p className="font-display font-extrabold text-3xl text-[#0B132B] mt-1">{value}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">{label}</p>
+            <p className="font-display font-extrabold text-3xl text-[#201D18] mt-1">{value}</p>
         </div>
     );
 }
@@ -239,7 +239,7 @@ function ChartCard({ title, icon, children, testid }) {
         <section className="mb-card p-5" data-testid={testid}>
             <div className="flex items-center gap-2 mb-3">
                 {icon}
-                <h3 className="font-display font-bold text-lg text-[#0B132B]">{title}</h3>
+                <h3 className="font-display font-bold text-lg text-[#201D18]">{title}</h3>
             </div>
             {children}
         </section>

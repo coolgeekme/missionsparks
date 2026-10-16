@@ -89,39 +89,39 @@ export default function ReadingPractice() {
     };
 
     if (!passage) {
-        return <div className="min-h-screen"><Navbar /><div className="p-10 text-center font-bold text-[#4A5568]">Loading…</div></div>;
+        return <div className="min-h-screen"><Navbar /><div className="p-10 text-center font-bold text-[#6E675B]">Loading…</div></div>;
     }
 
     return (
         <div className="min-h-screen" data-testid="reading-practice-page">
             <Navbar />
             <main className="max-w-3xl mx-auto p-6 sm:p-10 space-y-6">
-                <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-[#4361EE]" data-testid="reading-back">
+                <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-[#E4572E]" data-testid="reading-back">
                     <ArrowLeft size={16} /> Back
                 </Link>
 
                 <header className="space-y-2">
                     <div className="flex items-center gap-2">
-                        <div className="h-10 w-10 rounded-2xl bg-[#4361EE] flex items-center justify-center text-white"><BookOpen size={18} /></div>
-                        <p className="text-xs font-bold uppercase tracking-widest text-[#A0AEC0]">Reading practice · {passage.grade_target}</p>
+                        <div className="h-10 w-10 rounded-2xl bg-[#E4572E] flex items-center justify-center text-white"><BookOpen size={18} /></div>
+                        <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Reading practice · {passage.grade_target}</p>
                     </div>
-                    <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-[#0B132B]">{passage.title}</h1>
+                    <h1 className="font-display font-extrabold text-3xl sm:text-4xl text-[#201D18]">{passage.title}</h1>
                 </header>
 
                 <article className="mb-card p-6 space-y-2" data-testid="reading-passage-body">
-                    <p className="text-base text-[#0B132B] font-semibold leading-relaxed whitespace-pre-line">{passage.body}</p>
-                    <p className="text-xs text-[#A0AEC0] font-bold mt-2">{passage.word_count} words</p>
+                    <p className="text-base text-[#201D18] font-semibold leading-relaxed whitespace-pre-line">{passage.body}</p>
+                    <p className="text-xs text-[#9A9286] font-bold mt-2">{passage.word_count} words</p>
                 </article>
 
                 <section className="space-y-4" data-testid="reading-questions">
-                    <h2 className="font-display font-extrabold text-xl text-[#0B132B]">Questions</h2>
+                    <h2 className="font-display font-extrabold text-xl text-[#201D18]">Questions</h2>
                     {passage.questions.map((q, i) => {
                         const fb = feedback && feedback.per_question.find((f) => f.question_id === q.id);
                         return (
                             <div key={q.id} className="mb-card p-5 space-y-2" data-testid={`reading-q-${i}`}>
                                 <div className="flex items-start gap-2">
-                                    <span className="mb-chip text-[10px] bg-[#FFD166]/30 text-[#876200]">{q.type}</span>
-                                    <p className="font-bold text-[#0B132B]">{i + 1}. {q.text}</p>
+                                    <span className="mb-chip text-[10px] bg-[#E8A33D]/30 text-[#8A6413]">{q.type}</span>
+                                    <p className="font-bold text-[#201D18]">{i + 1}. {q.text}</p>
                                 </div>
                                 {!feedback ? (
                                     <>
@@ -146,8 +146,8 @@ export default function ReadingPractice() {
                                     </>
                                 ) : (
                                     <div className="space-y-2">
-                                        <p className="text-sm text-[#0B132B] font-semibold italic">{answers[q.id] || "(no answer)"}</p>
-                                        <div className={`rounded-2xl p-3 ${fb?.correct ? "bg-[#06D6A0]/15 text-[#057a5b]" : "bg-[#FFD166]/30 text-[#876200]"}`} data-testid={`reading-q-feedback-${i}`}>
+                                        <p className="text-sm text-[#201D18] font-semibold italic">{answers[q.id] || "(no answer)"}</p>
+                                        <div className={`rounded-2xl p-3 ${fb?.correct ? "bg-[#3F8C5E]/15 text-[#2F6B47]" : "bg-[#E8A33D]/30 text-[#8A6413]"}`} data-testid={`reading-q-feedback-${i}`}>
                                             <p className="text-sm font-bold">{fb?.correct ? "✓ Got it!" : "Almost — try this lens"} </p>
                                             <p className="text-sm">{fb?.feedback}</p>
                                         </div>
@@ -163,8 +163,8 @@ export default function ReadingPractice() {
                         {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Submit answers
                     </button>
                 ) : (
-                    <div className="mb-card p-6 bg-gradient-to-br from-[#4361EE] to-[#3A53CC] text-white" data-testid="reading-overall">
-                        <Sparkles size={20} className="mb-2 text-[#FFD166]" />
+                    <div className="mb-card p-6 bg-gradient-to-br from-[#E4572E] to-[#C4471F] text-white" data-testid="reading-overall">
+                        <Sparkles size={20} className="mb-2 text-[#E8A33D]" />
                         <p className="font-display font-extrabold text-2xl mb-1">Score: {feedback.score}/{feedback.total}</p>
                         <p className="font-semibold">{feedback.overall}</p>
                     </div>
