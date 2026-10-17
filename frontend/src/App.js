@@ -4,6 +4,7 @@ import { ResearchProvider } from "./contexts/ResearchContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Landing from "./pages/Landing";
 import ParentDashboard from "./pages/ParentDashboard";
 import MissionForm from "./pages/MissionForm";
 import ParentLogs from "./pages/ParentLogs";
@@ -35,7 +36,7 @@ import "./App.css";
 function RootRedirect() {
     const { user } = useAuth();
     if (user === null) return <div className="min-h-screen flex items-center justify-center text-[#E4572E] font-bold">Loading…</div>;
-    if (!user) return <Navigate to="/login" replace />;
+    if (!user) return <Landing />;
     return <Navigate to={user.role === "parent" ? "/parent" : "/student"} replace />;
 }
 
