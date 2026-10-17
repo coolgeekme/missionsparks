@@ -54,7 +54,7 @@ export default function Landing() {
                             </p>
                         </div>
                         <p className="text-lg text-[#6E675B] font-semibold max-w-xl mx-auto">
-                            Turn the small stuff &mdash; &ldquo;read two pages,&rdquo; &ldquo;pack your backpack&rdquo; &mdash; into short missions your kid actually wants to finish, with a spark streak and mini-games on the other side.
+                            Designed for families raising kids with ADHD. Turn the small stuff &mdash; &ldquo;read two pages,&rdquo; &ldquo;pack your backpack&rdquo; &mdash; into short missions your kid actually wants to finish, with a spark streak and mini-games on the other side.
                         </p>
                         <div className="flex flex-wrap items-center justify-center gap-3">
                             <Link to="/register" className="btn-pop-primary text-base flex items-center gap-2" data-testid="landing-cta-register">
