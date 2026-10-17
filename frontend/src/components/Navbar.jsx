@@ -41,9 +41,9 @@ export default function Navbar() {
                     <span className="hidden sm:inline font-display font-extrabold text-2xl text-[#201D18]">Mission<span className="text-[#E4572E]">Sparks</span></span>
                 </Link>
                 {user && user.id && (
-                    <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="relative flex items-center gap-2 sm:gap-3">
                         {isParent && families.length > 0 && (
-                            <div className="relative">
+                            <div>
                                 <button
                                     onClick={() => setFamOpen((v) => !v)}
                                     disabled={switching}
@@ -56,7 +56,7 @@ export default function Navbar() {
                                     {families.length > 1 && <ChevronDown size={14} />}
                                 </button>
                                 {famOpen && (
-                                    <div className="absolute right-0 mt-2 w-72 bg-white border-2 border-[#E8E0D2] rounded-2xl shadow-lg z-40 overflow-hidden" data-testid="nav-family-dropdown">
+                                    <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] bg-white border-2 border-[#E8E0D2] rounded-2xl shadow-lg z-40 overflow-hidden" data-testid="nav-family-dropdown">
                                         <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#9A9286]">Your families</div>
                                         {families.map((f) => (
                                             <button
