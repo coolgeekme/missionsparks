@@ -4476,6 +4476,11 @@ class MomentInsights(BaseModel):
     trigger_to_type: dict  # {trigger: {type: count}}
     top_triggers: List[dict]
     top_types: List[dict]
+    # Trends (frequency + severity over time, and valence correlation)
+    daily_intensity: List[dict] = []   # [{date, avg, count}] — avg is None when no data that day
+    weekly_counts: List[dict] = []     # [{week, count}] — week = Monday ISO date
+    weekly_intensity: List[dict] = []  # [{week, avg, count}]
+    trigger_to_category: dict = {}     # {trigger: {challenging, positive, neutral, other}}
 
 
 @api.get("/moments/insights", response_model=MomentInsights)
@@ -4499,6 +4504,8 @@ async def moments_insights(
 
     moments = await db.moments.find(query, {"_id": 0}).to_list(5000)
 
+    type_category = {t["key"]: t["category"] for t in MOMENT_CATALOG["moment_types"]}
+
     counts_by_type: dict = {}
     counts_by_trigger: dict = {}
     by_hour = [0] * 24
@@ -4506,12 +4513,19 @@ async def moments_insights(
     sums_intensity: dict = {}
     n_intensity: dict = {}
     trigger_to_type: dict = {}
+    trigger_to_category: dict = {}
     daily_buckets: dict = {}
+    daily_intensity_sum: dict = {}
+    daily_intensity_n: dict = {}
+    weekly_count: dict = {}
+    weekly_intensity_sum: dict = {}
+    weekly_intensity_n: dict = {}
 
     for m in moments:
         t = m.get("moment_type", "other")
+        intensity = int(m.get("intensity", 0))
         counts_by_type[t] = counts_by_type.get(t, 0) + 1
-        sums_intensity[t] = sums_intensity.get(t, 0) + int(m.get("intensity", 0))
+        sums_intensity[t] = sums_intensity.get(t, 0) + intensity
         n_intensity[t] = n_intensity.get(t, 0) + 1
         try:
             dt = datetime.fromisoformat(m["timestamp"].replace("Z", "+00:00"))
@@ -4519,23 +4533,45 @@ async def moments_insights(
             by_dow[dt.weekday()] += 1
             d = dt.date().isoformat()
             daily_buckets[d] = daily_buckets.get(d, 0) + 1
+            daily_intensity_sum[d] = daily_intensity_sum.get(d, 0) + intensity
+            daily_intensity_n[d] = daily_intensity_n.get(d, 0) + 1
+            wk = (dt - timedelta(days=dt.weekday())).date().isoformat()  # Monday of ISO week
+            weekly_count[wk] = weekly_count.get(wk, 0) + 1
+            weekly_intensity_sum[wk] = weekly_intensity_sum.get(wk, 0) + intensity
+            weekly_intensity_n[wk] = weekly_intensity_n.get(wk, 0) + 1
         except Exception:
             pass
+        cat = type_category.get(t, "other")
         for tg in m.get("triggers", []) or []:
             counts_by_trigger[tg] = counts_by_trigger.get(tg, 0) + 1
             trigger_to_type.setdefault(tg, {})
             trigger_to_type[tg][t] = trigger_to_type[tg].get(t, 0) + 1
+            tc = trigger_to_category.setdefault(tg, {})
+            tc[cat] = tc.get(cat, 0) + 1
 
     avg_intensity_by_type = {
         k: round(sums_intensity[k] / max(1, n_intensity[k]), 2) for k in sums_intensity
     }
 
-    # daily counts for last N days
+    # daily counts + severity for last N days
     today = datetime.now(timezone.utc).date()
     daily_counts = []
+    daily_intensity = []
     for i in range(max(1, min(days, 180)) - 1, -1, -1):
         d = (today - timedelta(days=i)).isoformat()
         daily_counts.append({"date": d, "count": daily_buckets.get(d, 0)})
+        n = daily_intensity_n.get(d, 0)
+        daily_intensity.append({
+            "date": d,
+            "avg": round(daily_intensity_sum.get(d, 0) / n, 1) if n else None,
+            "count": n,
+        })
+    weekly_counts = [{"week": wk, "count": weekly_count[wk]} for wk in sorted(weekly_count)]
+    weekly_intensity = [
+        {"week": wk, "avg": round(weekly_intensity_sum[wk] / max(1, weekly_intensity_n[wk]), 1),
+         "count": weekly_intensity_n[wk]}
+        for wk in sorted(weekly_intensity_n)
+    ]
 
     top_triggers = sorted(
         [{"key": k, "count": v} for k, v in counts_by_trigger.items()],
@@ -4559,6 +4595,10 @@ async def moments_insights(
         trigger_to_type=trigger_to_type,
         top_triggers=top_triggers,
         top_types=top_types,
+        daily_intensity=daily_intensity,
+        weekly_counts=weekly_counts,
+        weekly_intensity=weekly_intensity,
+        trigger_to_category=trigger_to_category,
     )
 
 

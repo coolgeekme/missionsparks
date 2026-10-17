@@ -2,19 +2,27 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { api, API } from "../lib/api";
-import { ArrowLeft, Download, TrendingUp, BarChart3 } from "lucide-react";
+import { ArrowLeft, Download, TrendingUp, BarChart3, Activity, Link2 } from "lucide-react";
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-    LineChart, Line, CartesianGrid,
+    LineChart, Line, CartesianGrid, Legend,
 } from "recharts";
 
 const DOW_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => `${i}h`);
 
+const CAT_COLORS = {
+    Challenging: "#E4572E",
+    Positive: "#3F8C5E",
+    Neutral: "#E8A33D",
+    Other: "#B7A99A",
+};
+
 export default function MomentsInsights() {
     const [students, setStudents] = useState([]);
     const [selected, setSelected] = useState(null);
     const [days, setDays] = useState(30);
+    const [granularity, setGranularity] = useState("daily");
     const [insights, setInsights] = useState(null);
     const [catalog, setCatalog] = useState({ moment_types: [], triggers: [] });
 
@@ -57,9 +65,32 @@ export default function MomentsInsights() {
     const topTriggerData = (insights?.top_triggers || []).map((x) => ({ name: labelTrig(x.key), value: x.count }));
     const hourData = (insights?.by_hour || []).map((v, i) => ({ name: HOUR_LABELS[i], value: v }));
     const dowData = (insights?.by_dow || []).map((v, i) => ({ name: DOW_LABELS[i], value: v }));
-    const dailyData = (insights?.daily_counts || []).map((d) => ({ name: d.date.slice(5), value: d.count }));
 
-    // build trigger→type co-occurrence rows
+    const dailyData = (insights?.daily_counts || []).map((d) => ({ name: d.date.slice(5), value: d.count }));
+    const weeklyCountData = (insights?.weekly_counts || []).map((w) => ({ name: w.week.slice(5), value: w.count }));
+    const freqData = granularity === "daily" ? dailyData : weeklyCountData;
+
+    const dailyIntensityData = (insights?.daily_intensity || []).map((d) => ({ name: d.date.slice(5), avg: d.avg }));
+    const weeklyIntensityData = (insights?.weekly_intensity || []).map((w) => ({ name: w.week.slice(5), avg: w.avg }));
+    const severityData = granularity === "daily" ? dailyIntensityData : weeklyIntensityData;
+
+    // trigger → behavior correlation (valence category split, ranked by volume)
+    const corrData = useMemo(() => {
+        const t2c = insights?.trigger_to_category || {};
+        return Object.entries(t2c)
+            .map(([trig, cats]) => ({
+                name: labelTrig(trig),
+                Challenging: cats.challenging || 0,
+                Positive: cats.positive || 0,
+                Neutral: cats.neutral || 0,
+                Other: cats.other || 0,
+                total: (cats.challenging || 0) + (cats.positive || 0) + (cats.neutral || 0) + (cats.other || 0),
+            }))
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 8);
+    }, [insights]);
+
+    // trigger → specific behavior co-occurrence rows
     const coRows = useMemo(() => {
         if (!insights?.trigger_to_type) return [];
         const out = [];
@@ -85,6 +116,14 @@ export default function MomentsInsights() {
                         <p className="text-[#6E675B] font-semibold mt-2">A snapshot to share with therapists or guide your next plan.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex rounded-xl border-2 border-[#E8E0D2] overflow-hidden" data-testid="insights-granularity">
+                            {["daily", "weekly"].map((g) => (
+                                <button key={g} onClick={() => setGranularity(g)}
+                                    className={`px-3 py-2 text-sm font-bold capitalize ${granularity === g ? "bg-[#E4572E] text-white" : "bg-white text-[#6E675B]"}`}>
+                                    {g}
+                                </button>
+                            ))}
+                        </div>
                         <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="mb-input max-w-[10rem]" data-testid="insights-range">
                             <option value={7}>Last 7 days</option>
                             <option value={14}>Last 14 days</option>
@@ -130,6 +169,51 @@ export default function MomentsInsights() {
                                 })()
                             } />
                         </div>
+
+                        <ChartCard title={`Frequency (${granularity})`} icon={<TrendingUp size={18} />} testid="chart-trend">
+                            <ResponsiveContainer width="100%" height={250}>
+                                <LineChart data={freqData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#E8E0D2" />
+                                    <XAxis dataKey="name" interval={Math.max(0, Math.floor(freqData.length / 12) - 1)} />
+                                    <YAxis allowDecimals={false} />
+                                    <Tooltip />
+                                    <Line type="monotone" dataKey="value" name="Moments" stroke="#E4572E" strokeWidth={3} dot={{ r: 3 }} connectNulls={false} />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </ChartCard>
+
+                        <ChartCard title={`Severity trend (${granularity})`} icon={<Activity size={18} />} testid="chart-severity">
+                            <p className="text-sm font-semibold text-[#6E675B] mb-3">Average intensity (1–5) over time. A falling line means behaviors are getting milder.</p>
+                            <ResponsiveContainer width="100%" height={250}>
+                                <LineChart data={severityData}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#E8E0D2" />
+                                    <XAxis dataKey="name" interval={Math.max(0, Math.floor(severityData.length / 12) - 1)} />
+                                    <YAxis domain={[0, 5]} ticks={[1, 2, 3, 4, 5]} />
+                                    <Tooltip />
+                                    <Line type="monotone" dataKey="avg" name="Avg intensity" stroke="#3F8C5E" strokeWidth={3} dot={{ r: 3 }} connectNulls={false} />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </ChartCard>
+
+                        <ChartCard title="Trigger → behavior correlation" icon={<Link2 size={18} />} testid="chart-correlation">
+                            <p className="text-sm font-semibold text-[#6E675B] mb-3">When this trigger happens, what kind of behavior follows — challenging, positive, or neutral.</p>
+                            {corrData.length === 0 ? (
+                                <p className="text-sm font-bold text-[#9A9286]">Not enough data yet.</p>
+                            ) : (
+                                <ResponsiveContainer width="100%" height={Math.max(200, corrData.length * 40)}>
+                                    <BarChart data={corrData} layout="vertical" margin={{ left: 80 }}>
+                                        <XAxis type="number" allowDecimals={false} />
+                                        <YAxis dataKey="name" type="category" width={140} />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Bar dataKey="Challenging" stackId="a" fill={CAT_COLORS.Challenging} />
+                                        <Bar dataKey="Positive" stackId="a" fill={CAT_COLORS.Positive} />
+                                        <Bar dataKey="Neutral" stackId="a" fill={CAT_COLORS.Neutral} />
+                                        <Bar dataKey="Other" stackId="a" fill={CAT_COLORS.Other} radius={[0, 8, 8, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            )}
+                        </ChartCard>
 
                         <ChartCard title="Top triggers" icon={<TrendingUp size={18} />} testid="chart-top-triggers">
                             <ResponsiveContainer width="100%" height={300}>
@@ -178,21 +262,9 @@ export default function MomentsInsights() {
                             </ChartCard>
                         </div>
 
-                        <ChartCard title={`Trend (last ${days} days)`} testid="chart-trend">
-                            <ResponsiveContainer width="100%" height={250}>
-                                <LineChart data={dailyData}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#E8E0D2" />
-                                    <XAxis dataKey="name" interval={Math.max(0, Math.floor(dailyData.length / 12) - 1)} />
-                                    <YAxis allowDecimals={false} />
-                                    <Tooltip />
-                                    <Line type="monotone" dataKey="value" stroke="#E4572E" strokeWidth={3} dot={{ r: 3 }} />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </ChartCard>
-
                         <section className="mb-card p-5" data-testid="chart-cooccurrence">
-                            <h3 className="font-display font-bold text-lg text-[#201D18] mb-2">Trigger → moment co-occurrence</h3>
-                            <p className="text-sm font-semibold text-[#6E675B] mb-3">When this trigger happens, this moment shows up most often.</p>
+                            <h3 className="font-display font-bold text-lg text-[#201D18] mb-2">Top trigger → behavior pairs</h3>
+                            <p className="text-sm font-semibold text-[#6E675B] mb-3">The single most common behavior that follows each trigger.</p>
                             {coRows.length === 0 ? (
                                 <p className="text-sm font-bold text-[#9A9286]">Not enough data yet.</p>
                             ) : (

@@ -284,11 +284,31 @@ class TestInsights:
         d = r.json()
         for k in ("total", "counts_by_type", "counts_by_trigger", "by_hour", "by_dow",
                  "daily_counts", "avg_intensity_by_type", "trigger_to_type",
-                 "top_triggers", "top_types"):
+                 "top_triggers", "top_types",
+                 "daily_intensity", "weekly_counts", "weekly_intensity", "trigger_to_category"):
             assert k in d
         assert isinstance(d["by_hour"], list) and len(d["by_hour"]) == 24
         assert isinstance(d["by_dow"], list) and len(d["by_dow"]) == 7
         assert len(d["daily_counts"]) == 30  # default days
+        assert len(d["daily_intensity"]) == 30
+        assert isinstance(d["trigger_to_category"], dict)
+
+    def test_severity_and_correlation_computed(self, student_sess):
+        # seed a known trigger + intensity, then assert it lands in the trends
+        r = student_sess.post(
+            f"{API}/moments",
+            json={"student_id": "x", "moment_type": "meltdown", "intensity": 5,
+                  "triggers": ["hunger"], "notes": "TEST_iter5 corr"},
+            timeout=10,
+        )
+        assert r.status_code == 200
+        _created_ids.append(r.json()["id"])
+        d = student_sess.get(f"{API}/moments/insights", timeout=15).json()
+        assert "hunger" in d["trigger_to_category"]
+        assert d["trigger_to_category"]["hunger"]["challenging"] >= 1
+        today = d["daily_intensity"][-1]
+        assert today["count"] >= 1
+        assert today["avg"] is not None
 
     def test_days_clamp_low(self, student_sess):
         r = student_sess.get(f"{API}/moments/insights", params={"days": 0}, timeout=10)
