@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import SparkMark from "../components/SparkMark";
-import { ArrowRight, ListChecks, Trophy, TrendingUp, Clock, Sparkles, ShieldCheck, BellOff, Trash2 } from "lucide-react";
+import { ArrowRight, ListChecks, Trophy, TrendingUp, Clock, Sparkles, ShieldCheck, BellOff, Trash2, Zap, BarChart3 } from "lucide-react";
 
 function Step({ n, icon: Icon, title, body }) {
     return (
@@ -94,6 +94,20 @@ export default function Landing() {
                             <Feature icon={Sparkles} title="Small steps" body="Chunk the task down &mdash; &ldquo;read two pages,&rdquo; not &ldquo;do your reading.&rdquo; Less to dread, easier to start." />
                             <Feature icon={Clock} title="Time-boxed" body="Five to twenty-five minutes with a clear start and end. No more &ldquo;how long is this going to take.&rdquo;" />
                             <Feature icon={Trophy} title="A real reason to finish" body="The spark streak and mini-game give your kid a reason to check the box &mdash; on their own." />
+                        </div>
+                    </div>
+                </section>
+
+                {/* Behavior tracking — the differentiator */}
+                <section className="px-6 pb-16">
+                    <div className="max-w-4xl mx-auto">
+                        <h2 className="font-display font-extrabold text-3xl text-center text-[#201D18]">
+                            Track behaviors, see the trends
+                        </h2>
+                        <div className="grid sm:grid-cols-3 gap-5 mt-8">
+                            <Feature icon={Zap} title="One-tap moments" body="Positive or negative, logged in a single tap &mdash; or speak it and it&apos;s transcribed for you. Ten seconds, no friction." />
+                            <Feature icon={TrendingUp} title="See the trends" body="Frequency and intensity over time. Watch whether the hard days are getting fewer and milder, week by week." />
+                            <Feature icon={BarChart3} title="Know the why" body="Which triggers lead to which moments. Patterns that show what&apos;s actually going on, not just what happened." />
                         </div>
                     </div>
                 </section>
