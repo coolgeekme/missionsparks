@@ -8,7 +8,7 @@ A kid-friendly app for parents to assign small daily learning "missions" to thei
 - Frontend: React 19 + react-router 7 + Tailwind + shadcn + recharts. Fonts Fredoka/Nunito. Duolingo-style tactile UI.
 
 ## User personas
-- **Parent**: creates/edits missions, reviews reflections, logs Moments by typing or speaking, watches Insights, exports CSV for therapists.
+- **Parent**: creates/edits missions, reviews reflections, logs Moments by typing or speaking, watches Insights, exports CSV.
 - **Student (ADHD-leaning)**: sees today's missions, completes them, reflects, plays one mini-game per completion, self-checks-in by speaking or tapping.
 
 ## Core requirements — Implemented
@@ -36,7 +36,7 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - `POST/GET/DELETE /api/moments`, `GET /api/moments/insights`, `GET /api/moments/export.csv`
 - MomentsTracker timeline + filters, MomentsInsights with 5 recharts views + co-occurrence table
 - StudentCheckIn two-step flow (kid self-log)
-- CSV export ready for therapist hand-off
+- CSV export ready for hand-off
 
 ### Iter 6 — Voice-based Moment capture
 - `POST /api/moments/parse-audio` — Whisper transcribes → Claude extracts catalog-constrained Moment fields
@@ -73,7 +73,7 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - AI mission drafting prompt now requires `evidence_tags` from a controlled vocabulary; backend resolves tags → citation ids. Transitive citations also collected from chosen skills/strategies.
 - New parent-only Research page (`/parent/research`) with search, source-type filter (peer-reviewed / org / guideline), and topic tag filter.
 - `<EvidenceBadge>` popover component surfaces citations next to every clinical chip in Parent Dashboard, Mission Form, and Moments tracker.
-- Privacy: evidence badges are **not** shown to the student role (parent/therapist surface only).
+- Privacy: evidence badges are **not** shown to the student role (parent surface only).
 - 14 new pytest cases (`test_research.py`) — all passing.
 - E2E (testing agent iter8): 100% pass on all 8 acceptance criteria.
 
@@ -106,7 +106,7 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 ### Iter 15 — Co-Parent / Family Group system (2026-02) — Feature B
 - **New `Family` entity**: each family has an owner + members + student_ids. Replaces "parent → linked_student_ids" as the authz boundary.
 - **Auto-migration on startup**: every pre-existing parent gets a personal family containing their previously-linked students. No data loss.
-- **3 permission tiers**: `owner` (full control), `co_parent` (create/edit missions, moments, packs), `viewer` (read-only — great for grandparents, therapists, tutors).
+- **3 permission tiers**: `owner` (full control), `co_parent` (create/edit missions, moments, packs), `viewer` (read-only — great for grandparents, tutors).
 - **Multi-family**: one parent can belong to many families (joint custody, blended households, tutors helping multiple families) with a **family switcher in the Navbar**.
 - **Invite flow (link-based)**: parent generates an invite for `{email, role}`; gets a shareable `invite_url` + token (14-day TTL). Invitee logs in (or registers) with the matching email and accepts via `/invite/accept?token=...`. Includes preview-before-accept, wrong-email guard, and expired/cancelled states.
 - **Family Settings page** (`/family`): members list with name+email+role, role-change select, member-remove, ownership transfer, invite form, pending invites list, danger-zone delete (gated on empty family).
@@ -217,7 +217,7 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 - Fix shipped this iter: `HomePage.jsx submitPin` now calls `refresh()` from AuthContext before navigate, so ProtectedRoute picks up the new kid session.
 
 ### Still open
-- ⚠️ **Sign BAAs with OpenAI (Whisper) + Anthropic (Claude) + MongoDB Atlas dedicated** before any therapist or clinical-track sale.
+- ⚠️ **Sign BAAs with OpenAI (Whisper) + Anthropic (Claude) + MongoDB Atlas dedicated** before any clinical-track sale.
 - ⚠️ **Rate-limit /api/public/waitlist** before launch (public endpoint, spam risk).
 - Legal review of Privacy Policy + Terms by a privacy attorney (drafts are templates).
 - Password-reset flow, brute-force throttling, MongoDB encryption-at-rest.
@@ -233,7 +233,7 @@ Auth (JWT cookies, parent/student roles), missions CRUD with skills+strategies, 
 **Iter 21 (P2) — Teacher/Tutor role + Skill Mastery viz.**
 **V1.1**: daily/weekly reflection journal separate from per-mission log; parent encouragement notes on logs; confidence trend graph.
 **V1.2**: teacher/tutor role with invite flow; skill mastery visualization over time.
-**V2**: streak freezes / "kind day off"; behavior-pattern email digest for parents; AI-suggested intervention plan based on Moments insights; in-app share link to therapist (read-only).
+**V2**: streak freezes / "kind day off"; behavior-pattern email digest for parents; AI-suggested intervention plan based on Moments insights; in-app family share link (read-only).
 
 ## Test credentials
 parent@demo.com / demo1234 (linked to Enzo)

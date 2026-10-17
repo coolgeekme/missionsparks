@@ -5,7 +5,7 @@ import { useAuth } from "./AuthContext";
 /**
  * Loads the full citation library once per session for any authenticated user
  * and exposes a quick id→citation lookup. The student UI never surfaces the
- * library; this is parent/therapist facing.
+ * library; this is parent facing.
  */
 const ResearchContext = createContext({ citations: [], byId: {}, ready: false, refresh: () => {} });
 

@@ -72,7 +72,7 @@ export default function Research() {
                     <p className="text-[#6E675B] font-semibold max-w-2xl">
                         Every skill, strategy, mini-game, and behavior tag in MissionSparks is grounded in
                         peer-reviewed research or authoritative health-organization guidance. Browse the full
-                        library below — share with your child's therapist or teacher.
+                        library below.
                     </p>
                 </header>
 
@@ -182,7 +182,7 @@ export default function Research() {
                     <p>
                         <strong>How to read this library:</strong> Peer-reviewed papers (PubMed-indexed) form the
                         clinical backbone. Authoritative-org sources (CDC, NIMH, AAP, CHADD) reflect the current
-                        consensus most therapists and pediatricians defer to. We update this library as the
+                        consensus most pediatricians defer to. We update this library as the
                         evidence base evolves.
                     </p>
                     <p className="mt-2">

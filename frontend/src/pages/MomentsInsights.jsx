@@ -113,7 +113,7 @@ export default function MomentsInsights() {
                     <div>
                         <p className="text-xs font-bold uppercase tracking-widest text-[#9A9286]">Patterns & insights</p>
                         <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#201D18] mt-1">What the data says</h1>
-                        <p className="text-[#6E675B] font-semibold mt-2">A snapshot to share with therapists or guide your next plan.</p>
+                        <p className="text-[#6E675B] font-semibold mt-2">A snapshot to guide your next plan.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="flex rounded-xl border-2 border-[#E8E0D2] overflow-hidden" data-testid="insights-granularity">

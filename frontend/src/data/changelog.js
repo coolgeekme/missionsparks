@@ -1,6 +1,6 @@
 /**
  * Static changelog feed surfaced on /changelog. Keep entries short and
- * parent-friendly — therapists and educators read this, not engineers.
+ * parent-friendly — parents read this, not engineers.
  * Newest entry first.
  */
 export const CHANGELOG = [
@@ -48,7 +48,7 @@ export const CHANGELOG = [
         items: [
             "Tap-or-talk Moments tracker with 14 moment types and 18 triggers",
             "Voice logging via AI transcription — natural-language → structured moment",
-            "Parent insights dashboard with charts and CSV export for therapists",
+            "Parent insights dashboard with charts and CSV export",
         ],
     },
     {

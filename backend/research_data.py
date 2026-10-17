@@ -3,7 +3,7 @@ Research citation library for MissionSparks.
 
 Every clinically-relevant element of the app (skills, strategies, moment types,
 triggers, mini-games, AI mission drafts) is linked to one or more citations
-from this curated, evidence-informed library. Parents and therapists see the
+from this curated, evidence-informed library. Parents see the
 backing in the UI; kids do not (kept playful for the student view).
 
 Sources are limited to peer-reviewed journals + authoritative organizations

@@ -28,7 +28,7 @@ export default function SubProcessors() {
                     <p className="text-xs font-bold uppercase tracking-widest text-[#E4572E]">Vendor transparency</p>
                     <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#201D18]">Sub-processors</h1>
                     <p className="text-[#6E675B] font-semibold max-w-2xl">
-                        {"Third-party services that may process MissionSparks customer data on our behalf. We maintain this list so therapists, schools, and privacy-conscious parents can see exactly who touches their family's information."}
+                        {"Third-party services that may process MissionSparks customer data on our behalf. We maintain this list so privacy-conscious parents can see exactly who touches their family's information."}
                     </p>
                     <p className="text-xs font-bold text-[#9A9286] pt-1">Last reviewed: Feb 2026. We notify customers by email at least 14 days before adding a new sub-processor.</p>
                 </header>

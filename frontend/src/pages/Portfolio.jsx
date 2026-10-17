@@ -7,7 +7,7 @@ import { ArrowLeft, BookOpen, PenLine, ExternalLink, Award } from "lucide-react"
 
 /**
  * Parent-facing portfolio view of all reading practice + writing pieces
- * generated for a student. Sharable with a therapist / teacher.
+ * generated for a student.
  */
 export default function Portfolio() {
     const { studentId } = useParams();
@@ -47,7 +47,7 @@ export default function Portfolio() {
                     </div>
                     <h1 className="font-display font-extrabold text-4xl sm:text-5xl text-[#201D18]">Reading & Writing Library</h1>
                     <p className="text-[#6E675B] font-semibold max-w-2xl">
-                        Every passage and writing piece generated for your child, ready to share with their therapist or teacher.
+                        Every passage and writing piece generated for your child, ready to review, download, or share with family.
                     </p>
                 </header>
 
