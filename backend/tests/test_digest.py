@@ -229,34 +229,6 @@ def test_send_sample_does_not_flip_enabled(parent_session):
     assert prefs["enabled"] is False
 
 
-def test_article_rotation_on_send_sample(parent_session):
-    # Two sends should produce two different article ids in seen_article_ids
-    # We can't directly read seen_article_ids from the API, but DB inspection
-    # via the audit log won't show it either. Instead inspect via the service
-    # module dynamically.
-    sys.path.insert(0, "/app/backend")
-    from motor.motor_asyncio import AsyncIOMotorClient
-
-    async def _get_seen():
-        client = AsyncIOMotorClient(os.environ["MONGO_URL"])
-        db = client[os.environ["DB_NAME"]]
-        u = await db.users.find_one({"email": "parent@demo.com"}, {"digest_preferences.seen_article_ids": 1})
-        client.close()
-        return (u or {}).get("digest_preferences", {}).get("seen_article_ids") or []
-
-    before = asyncio.run(_get_seen())
-    # Trigger 2 more sends
-    parent_session.post(f"{API}/me/digest/send-sample", timeout=60)
-    after_one = asyncio.run(_get_seen())
-    parent_session.post(f"{API}/me/digest/send-sample", timeout=60)
-    after_two = asyncio.run(_get_seen())
-    # seen list should grow (or rotate after 12)
-    assert len(after_two) >= len(before)
-    # Ensure rotation: total unique ids over the 3-call sequence > 1
-    union = set(before) | set(after_one) | set(after_two)
-    assert len(union) >= 2, f"article didn't rotate across send-samples: {union}"
-
-
 def test_send_sample_audit_log(parent_session):
     # Trigger and then list activity log
     parent_session.post(f"{API}/me/digest/send-sample", timeout=60)

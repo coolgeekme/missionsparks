@@ -1,4 +1,4 @@
-"""Family digest email — periodic kid-activity summary + curated ADHD resources.
+"""Family digest email — periodic kid-activity summary + off-app tips.
 
 The scheduler (in server.py) ticks hourly and calls dispatch_due_digests().
 For each parent who has opted in and whose next_due_at has passed, we build
@@ -17,7 +17,6 @@ from typing import Optional
 
 import pytz
 
-from digest_articles import CURATED_ARTICLES, article_by_id, pick_article_for_parent
 from email_service import _from_address, _configure_if_needed, _escape
 
 import resend  # type: ignore
@@ -352,22 +351,8 @@ def _tips_html(tips: list[dict]) -> str:
     return f"<ul style='margin:0;padding-left:20px;'>{items}</ul>"
 
 
-def _article_html(article: dict) -> str:
-    return (
-        f"<table role='presentation' cellpadding='0' cellspacing='0' border='0' width='100%' "
-        f"style='background:#FFF5E6;border-radius:18px;border:2px solid #FFD166;'>"
-        f"<tr><td style='padding:16px 20px;'>"
-        f"<p style='margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;font-weight:800;color:#876200;'>📰 Worth a read · {_escape(article['source'])}</p>"
-        f"<p style='margin:8px 0 6px;font-size:17px;font-weight:900;color:#0B132B;'>"
-        f"<a href='{_escape(article['url'])}' style='color:#0B132B;text-decoration:underline;'>{_escape(article['title'])}</a>"
-        f"</p>"
-        f"<p style='margin:0;font-size:13px;color:#4A5568;font-weight:600;line-height:1.45;'>{_escape(article['blurb'])}</p>"
-        f"</td></tr></table>"
-    )
-
-
 def _digest_html(*, parent_name: str, period_label: str, kid_cards: list[str],
-                 tips_html: str, article_html: str, app_url: str,
+                 tips_html: str, app_url: str,
                  preferences_url: str) -> str:
     return f"""\
 <!DOCTYPE html>
@@ -393,9 +378,6 @@ def _digest_html(*, parent_name: str, period_label: str, kid_cards: list[str],
       <tr><td style='padding:8px 28px 0;'>
         {_section('Try this off-app', tips_html) if tips_html else ''}
       </td></tr>
-      <tr><td style='padding:0 28px;'>
-        {article_html}
-      </td></tr>
       <tr><td align='center' style='padding:24px 28px 8px;'>
         <a href='{_escape(app_url)}' style='display:inline-block;background:#4361EE;color:#fff;text-decoration:none;font-weight:800;padding:12px 22px;border-radius:14px;box-shadow:0 4px 0 0 #3A53CC;font-size:15px;'>Open MissionSparks</a>
       </td></tr>
@@ -412,7 +394,7 @@ def _digest_html(*, parent_name: str, period_label: str, kid_cards: list[str],
 
 
 def _digest_text(parent_name: str, period_label: str, kid_blocks: list[str],
-                 tips: list[dict], article: dict, app_url: str, preferences_url: str) -> str:
+                 tips: list[dict], app_url: str, preferences_url: str) -> str:
     parts = [f"MissionSparks — {period_label}", f"\nHey {parent_name},\n"]
     if kid_blocks:
         parts.extend(kid_blocks)
@@ -422,7 +404,6 @@ def _digest_text(parent_name: str, period_label: str, kid_blocks: list[str],
         parts.append("\nTry this off-app:")
         for t in tips:
             parts.append(f"- {t['title']}: {t['how']}")
-    parts.append(f"\nWorth a read ({article['source']}): {article['title']}\n{article['url']}\n{article['blurb']}")
     parts.append(f"\nOpen MissionSparks: {app_url}")
     parts.append(f"Manage preferences: {preferences_url}")
     return "\n".join(parts)
@@ -482,8 +463,6 @@ async def _build_and_send(parent_user: dict, *, force: bool = False) -> dict:
         prof = students[0].get("student_profile") or {}
         tips = await _weekly_tips_for_student(students[0]["id"], prof)
 
-    article = pick_article_for_parent(prefs.get("seen_article_ids") or [])
-
     app_url = (os.environ.get("PUBLIC_APP_URL") or "https://missionsparks.com").rstrip("/")
     preferences_url = f"{app_url}/account"
 
@@ -492,7 +471,6 @@ async def _build_and_send(parent_user: dict, *, force: bool = False) -> dict:
         period_label=period_label,
         kid_cards=kid_cards_html,
         tips_html=_tips_html(tips),
-        article_html=_article_html(article),
         app_url=app_url,
         preferences_url=preferences_url,
     )
@@ -501,7 +479,6 @@ async def _build_and_send(parent_user: dict, *, force: bool = False) -> dict:
         period_label=period_label,
         kid_blocks=kid_blocks_text,
         tips=tips,
-        article=article,
         app_url=app_url,
         preferences_url=preferences_url,
     )
@@ -523,15 +500,11 @@ async def _build_and_send(parent_user: dict, *, force: bool = False) -> dict:
         except Exception as e:  # noqa: BLE001
             logger.warning("Digest send failed for %s: %s", parent_user["email"], e)
 
-    # Update prefs even on failure: rotate article + update next_due so we
-    # don't spam the user retrying. last_sent_at only on success.
+    # Update prefs even on failure: advance next_due so we don't spam the
+    # user retrying. last_sent_at only on success.
     now = datetime.now(timezone.utc)
-    new_seen = (prefs.get("seen_article_ids") or []) + [article["id"]]
-    if len(new_seen) >= len(CURATED_ARTICLES):
-        new_seen = []  # rotate back to start
     next_due = compute_next_due(prefs, now_utc=now)
     updates = {
-        "digest_preferences.seen_article_ids": new_seen,
         "digest_preferences.next_due_at": next_due.isoformat(),
     }
     if email_id:

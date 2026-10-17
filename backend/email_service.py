@@ -82,7 +82,7 @@ def _invite_html(family_name: str, role: str, inviter_name: Optional[str],
     role_desc = (
         "create &amp; edit missions, moments, and mini-game packs"
         if role == "co_parent"
-        else "view your kid's progress (read-only — perfect for grandparents, therapists or tutors)"
+        else "view your kid's progress (read-only — perfect for grandparents or other caregivers)"
     )
     return f"""\
 <!DOCTYPE html>
@@ -132,7 +132,7 @@ def _invite_html(family_name: str, role: str, inviter_name: Optional[str],
                 This invite expires on <strong>{_escape(expires_at_human)}</strong>. If you didn&#39;t expect this email, you can safely ignore it.
               </p>
               <p style="font-size:11px;color:#CBD5E0;font-weight:600;margin:8px 0 0;">
-                MissionSparks helps families with ADHD-friendly missions, kid-led progress and research-backed practice.
+                MissionSparks helps families with simple daily missions, kid-led progress and habit tracking.
               </p>
             </td>
           </tr>
