@@ -181,7 +181,11 @@ export default function QuickCapture() {
                         {/* PWA hint */}
                         <div className="text-center text-xs font-semibold text-[#9A9286]" data-testid="quick-capture-pwa-hint">
                             <Sparkles size={12} className="inline mr-1" />
-                            On your phone, use "Add to Home Screen" for one-tap access.
+                            On your phone?{" "}
+                            <Link to="/add-to-home-screen" className="text-[#E4572E] underline font-bold" data-testid="quick-capture-home-screen-link">
+                                Add it to your home screen
+                            </Link>{" "}
+                            for one-tap access.
                         </div>
                     </>
                 )}
