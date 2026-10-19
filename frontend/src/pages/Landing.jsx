@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import SparkMark from "../components/SparkMark";
-import { ArrowRight, ListChecks, Trophy, TrendingUp, Clock, Sparkles, ShieldCheck, BellOff, Trash2, Zap, BarChart3 } from "lucide-react";
+import { ArrowRight, ListChecks, Trophy, TrendingUp, Clock, Sparkles, ShieldCheck, BellOff, Trash2, Zap, BarChart3, Search, Users, Smartphone } from "lucide-react";
 
 function Step({ n, icon: Icon, title, body }) {
     return (
@@ -108,6 +108,24 @@ export default function Landing() {
                             <Feature icon={Zap} title="One-tap moments" body="Positive or negative, logged in a single tap &mdash; or speak it and it&apos;s transcribed for you. Ten seconds, no friction." />
                             <Feature icon={TrendingUp} title="See the trends" body="Frequency and intensity over time. Watch whether the hard days are getting fewer and milder, week by week." />
                             <Feature icon={BarChart3} title="Know the why" body="Which triggers lead to which moments. Patterns that show what&apos;s actually going on, not just what happened." />
+                        </div>
+                    </div>
+                </section>
+
+                {/* Why track — benefits + widget */}
+                <section className="px-6 pb-16">
+                    <div className="max-w-4xl mx-auto">
+                        <h2 className="font-display font-extrabold text-3xl text-center text-[#201D18]">
+                            Why track the little moments?
+                        </h2>
+                        <p className="text-center text-[#6E675B] font-semibold mt-2 max-w-2xl mx-auto">
+                            ADHD days can swing hard &mdash; great mornings, impossible afternoons. Tracking turns that fog into patterns you can actually see.
+                        </p>
+                        <div className="grid sm:grid-cols-2 gap-5 mt-8">
+                            <Feature icon={Search} title="Find the triggers" body="Log what happened and what came before, and the repeat offenders start showing up &mdash; transitions, hunger, homework, a rough night&apos;s sleep." />
+                            <Feature icon={TrendingUp} title="Know what&apos;s working" body="Change the routine or try a new reward, and the trend line tells you if it actually helped &mdash; instead of guessing." />
+                            <Feature icon={Users} title="One shared picture" body="Both parents log the same way, so you&apos;re working from one record instead of three different memories." />
+                            <Feature icon={Smartphone} title="One tap, from your home screen" body="Add MissionSparks to your phone and the widget opens straight to Positive / Negative. Ten seconds, and it&apos;s logged while it&apos;s fresh." />
                         </div>
                     </div>
                 </section>
