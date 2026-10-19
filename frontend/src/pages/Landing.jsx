@@ -58,14 +58,14 @@ export default function Landing() {
                         </p>
                         <div className="flex flex-wrap items-center justify-center gap-3">
                             <Link to="/register" className="btn-pop-primary text-base flex items-center gap-2" data-testid="landing-cta-register">
-                                Create an account <ArrowRight size={18} />
+                                Create a free account <ArrowRight size={18} />
                             </Link>
                             <Link to="/login" className="btn-pop-ghost text-base" data-testid="landing-cta-login">
                                 Sign in
                             </Link>
                         </div>
                         <p className="text-xs font-semibold text-[#9A9286]">
-                            Private by default. Your family&apos;s data stays yours.
+                            Free during beta &middot; no card required. Your family&apos;s data stays yours.
                         </p>
                     </div>
                 </section>
