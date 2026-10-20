@@ -783,7 +783,7 @@ PASSWORD_RESET_TTL_MINUTES = 60
 
 
 @api.post("/auth/forgot-password")
-async def forgot_password(req: ForgotPasswordRequest):
+async def forgot_password(req: ForgotPasswordRequest, request: Request):
     """Email a one-time reset link.
 
     Always returns ok so the endpoint can't be used to discover which
@@ -810,6 +810,10 @@ async def forgot_password(req: ForgotPasswordRequest):
                 "used": False,
             })
             origin = os.environ.get("PUBLIC_APP_URL") or os.environ.get("FRONTEND_URL") or ""
+            if not origin:
+                # Fall back to where the request came from so the emailed link
+                # is always absolute, never a bare "/reset-password?...".
+                origin = request.headers.get("origin") or str(request.base_url).rstrip("/")
             reset_url = (
                 f"{origin.rstrip('/')}/reset-password?token={raw}"
                 if origin else f"/reset-password?token={raw}"
