@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import EvidenceBadge from "../components/EvidenceBadge";
 import StreakFreezeManager from "../components/StreakFreezeManager";
 import PendingReviewsPanel from "../components/PendingReviewsPanel";
+import InstallPrompt from "../components/InstallPrompt";
 import { Popover, PopoverTrigger, PopoverContent } from "../components/ui/popover";
 import { api, formatApiErrorDetail } from "../lib/api";
 import {
@@ -284,6 +285,8 @@ export default function ParentDashboard() {
                         </Link>
                     </div>
                 </header>
+
+                <InstallPrompt />
 
                 <section className="mb-card p-6" data-testid="parent-students-card">
                     <div className="flex items-center gap-2 mb-4">
