@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import { api, formatApiErrorDetail } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
 import NotificationSettingsPanel from "../components/NotificationSettingsPanel";
+import InstallPrompt from "../components/InstallPrompt";
 import { toast } from "sonner";
 import { ArrowLeft, Mic, Download, Trash2, Shield, History, Mail, Send, Clock } from "lucide-react";
 
@@ -169,6 +170,8 @@ export default function Account() {
                 </header>
 
                 {err && <p className="text-sm font-bold text-[#BC4B32] bg-[#BC4B32]/10 rounded-xl px-3 py-2" data-testid="account-error">{err}</p>}
+
+                <InstallPrompt force />
 
                 <section className="mb-card p-6" data-testid="account-audio-section">
                     <div className="flex items-start gap-3">

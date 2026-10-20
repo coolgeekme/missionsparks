@@ -9,7 +9,7 @@ const DISMISS_KEY = "ms_install_prompt_dismissed";
  * Only shows on a mobile browser, only if not already installed (standalone),
  * and only until dismissed. Links to the full step-by-step page.
  */
-export default function InstallPrompt() {
+export default function InstallPrompt({ force = false }) {
     const [show, setShow] = useState(false);
 
     useEffect(() => {
@@ -18,10 +18,11 @@ export default function InstallPrompt() {
             window.navigator.standalone === true;
         const dismissed = localStorage.getItem(DISMISS_KEY) === "1";
         const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "");
-        if (standalone || dismissed || !isMobile) return;
+        if (standalone || !isMobile) return;
+        if (!force && dismissed) return;
         const t = setTimeout(() => setShow(true), 700);
         return () => clearTimeout(t);
-    }, []);
+    }, [force]);
 
     const dismiss = () => {
         localStorage.setItem(DISMISS_KEY, "1");
@@ -54,14 +55,16 @@ export default function InstallPrompt() {
                 >
                     Show me how
                 </Link>
-                <button
-                    onClick={dismiss}
-                    aria-label="Dismiss"
-                    className="text-[#9A9286] hover:text-[#201D18] p-1"
-                    data-testid="install-prompt-dismiss"
-                >
-                    <X size={18} />
-                </button>
+                {!force && (
+                    <button
+                        onClick={dismiss}
+                        aria-label="Dismiss"
+                        className="text-[#9A9286] hover:text-[#201D18] p-1"
+                        data-testid="install-prompt-dismiss"
+                    >
+                        <X size={18} />
+                    </button>
+                )}
             </div>
         </section>
     );
