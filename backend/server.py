@@ -8,8 +8,9 @@ import os
 import uuid
 import asyncio
 import secrets
+import hashlib
 import logging
-from email_service import send_family_invite_email
+from email_service import send_family_invite_email, send_password_reset_email
 import digest_service
 import push_service
 import bcrypt
@@ -125,6 +126,15 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
 
 
 class Skill(BaseModel):
@@ -766,6 +776,96 @@ async def logout(response: Response, request: Request):
 @api.get("/auth/me", response_model=UserPublic)
 async def me(user: dict = Depends(get_current_user)):
     return await _user_to_public(user)
+
+
+# ---------- Password reset ----------
+PASSWORD_RESET_TTL_MINUTES = 60
+
+
+@api.post("/auth/forgot-password")
+async def forgot_password(req: ForgotPasswordRequest):
+    """Email a one-time reset link.
+
+    Always returns ok so the endpoint can't be used to discover which
+    addresses have accounts.
+    """
+    email = req.email.lower().strip()
+    user = await db.users.find_one({"email": email})
+    if user:
+        now = datetime.now(timezone.utc)
+        # Throttle: at most one link per user per minute (silently). The
+        # response is identical either way, so this leaks nothing.
+        recent_cutoff = (now - timedelta(minutes=1)).isoformat()
+        recent = await db.password_resets.find_one(
+            {"user_id": user["id"], "created_at": {"$gt": recent_cutoff}}
+        )
+        if not recent:
+            raw = secrets.token_urlsafe(32)
+            token_hash = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+            await db.password_resets.insert_one({
+                "token_hash": token_hash,
+                "user_id": user["id"],
+                "created_at": now.isoformat(),
+                "expires_at": (now + timedelta(minutes=PASSWORD_RESET_TTL_MINUTES)).isoformat(),
+                "used": False,
+            })
+            origin = os.environ.get("PUBLIC_APP_URL") or os.environ.get("FRONTEND_URL") or ""
+            reset_url = (
+                f"{origin.rstrip('/')}/reset-password?token={raw}"
+                if origin else f"/reset-password?token={raw}"
+            )
+            try:
+                await send_password_reset_email(
+                    to=email,
+                    name=user.get("name"),
+                    reset_url=reset_url,
+                    expires_minutes=PASSWORD_RESET_TTL_MINUTES,
+                )
+            except Exception:  # noqa: BLE001 — email is best-effort
+                logger.exception("password reset email failed for %s", email)
+            await _audit(user, "auth.password_reset_requested",
+                         target_type="user", target_id=user["id"])
+    return {"ok": True}
+
+
+@api.post("/auth/reset-password")
+async def reset_password(req: ResetPasswordRequest):
+    raw = (req.token or "").strip()
+    if not raw:
+        raise HTTPException(status_code=400, detail="This reset link is missing its token.")
+    if len(req.new_password or "") < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+
+    token_hash = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    rec = await db.password_resets.find_one({"token_hash": token_hash, "used": False})
+    if not rec:
+        raise HTTPException(status_code=400,
+                            detail="This reset link is invalid or has already been used.")
+    try:
+        expires = datetime.fromisoformat(rec["expires_at"])
+    except Exception:
+        raise HTTPException(status_code=400, detail="This reset link is invalid.")
+    if expires < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400,
+                            detail="This reset link has expired. Request a new one.")
+
+    user = await db.users.find_one({"id": rec["user_id"]})
+    if not user:
+        raise HTTPException(status_code=400, detail="This reset link is invalid.")
+
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"password_hash": hash_password(req.new_password)}},
+    )
+    # Burn this link and any other outstanding ones for the account.
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.password_resets.update_many(
+        {"user_id": user["id"], "used": False},
+        {"$set": {"used": True, "used_at": now_iso}},
+    )
+    await _audit(user, "auth.password_reset_completed",
+                 target_type="user", target_id=user["id"])
+    return {"ok": True}
 
 
 # ---------- Skills & Strategies ----------

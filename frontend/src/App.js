@@ -31,6 +31,8 @@ import InviteAccept from "./pages/InviteAccept";
 import HomePage from "./pages/HomePage";
 import QuickCapture from "./pages/QuickCapture";
 import AddToHomeScreen from "./pages/AddToHomeScreen";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import { Toaster } from "./components/ui/sonner";
 import "./App.css";
 
@@ -50,6 +52,8 @@ export default function App() {
                     <Routes>
                         <Route path="/" element={<RootRedirect />} />
                         <Route path="/login" element={<Login />} />
+                        <Route path="/forgot-password" element={<ForgotPassword />} />
+                        <Route path="/reset-password" element={<ResetPassword />} />
                         <Route path="/register" element={<Register />} />
                         <Route path="/parent" element={<ProtectedRoute role="parent"><ParentDashboard /></ProtectedRoute>} />
                         <Route path="/parent/missions/new" element={<ProtectedRoute role="parent"><MissionForm /></ProtectedRoute>} />

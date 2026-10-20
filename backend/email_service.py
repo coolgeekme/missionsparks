@@ -168,3 +168,84 @@ async def send_family_invite_email(
     html = _invite_html(family_name, role, inviter_name, invite_url, expires_at_human)
     text = _invite_text(family_name, role, inviter_name, invite_url, expires_at_human)
     return await send_email(to, subject, html, text)
+
+
+def _reset_html(name: Optional[str], reset_url: str, expires_minutes: int) -> str:
+    who = f"Hi {_escape(name)}," if name else "Hi,"
+    return f"""\
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#FBF6EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#201D18;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;background:#ffffff;border-radius:24px;border:2px solid #E8E0D2;overflow:hidden;">
+          <tr>
+            <td style="padding:32px 32px 8px 32px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background:#E4572E;border-radius:14px;width:44px;height:44px;text-align:center;vertical-align:middle;color:#FBF6EE;font-size:22px;font-weight:900;line-height:44px;">&#10022;</td>
+                  <td style="padding-left:12px;font-size:20px;font-weight:900;color:#201D18;">MissionSparks</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 32px 0 32px;">
+              <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:#6E675B;font-weight:700;margin:16px 0 4px;">Password reset</p>
+              <h1 style="font-size:28px;line-height:1.2;color:#201D18;font-weight:900;margin:0 0 8px;">Choose a new password</h1>
+              <p style="font-size:16px;line-height:1.5;color:#6E675B;font-weight:600;margin:0 0 20px;">
+                {who} someone asked to reset the password for your MissionSparks account. Click the button below to pick a new one.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:8px 32px 12px 32px;">
+              <a href="{reset_url}" style="display:inline-block;background:#C4471F;color:#ffffff;text-decoration:none;font-weight:800;font-size:16px;padding:14px 28px;border-radius:16px;">Choose a new password &rarr;</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:4px 32px 4px 32px;">
+              <p style="font-size:12px;color:#6E675B;font-weight:600;margin:8px 0 4px;text-align:center;">Or paste this link into your browser:</p>
+              <p style="font-size:12px;color:#C4471F;font-weight:700;margin:0 0 8px;text-align:center;word-break:break-all;">
+                <a href="{reset_url}" style="color:#C4471F;text-decoration:underline;">{reset_url}</a>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 32px 32px 32px;border-top:1px solid #E8E0D2;">
+              <p style="font-size:12px;color:#6E675B;font-weight:600;margin:12px 0 0;line-height:1.5;">
+                This link expires in {expires_minutes} minutes and can only be used once. If you didn&#39;t ask for this, you can safely ignore it &mdash; your password won&#39;t change.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+
+def _reset_text(name: Optional[str], reset_url: str, expires_minutes: int) -> str:
+    who = f"Hi {name}," if name else "Hi,"
+    return (
+        f"{who}\n\n"
+        f"Someone asked to reset the password for your MissionSparks account.\n"
+        f"Choose a new one here:\n{reset_url}\n\n"
+        f"This link expires in {expires_minutes} minutes and works once. "
+        f"If you didn't ask for this, ignore this email — your password won't change."
+    )
+
+
+async def send_password_reset_email(
+    *,
+    to: str,
+    name: Optional[str],
+    reset_url: str,
+    expires_minutes: int = 60,
+) -> Optional[str]:
+    subject = "Reset your MissionSparks password"
+    html = _reset_html(name, reset_url, expires_minutes)
+    text = _reset_text(name, reset_url, expires_minutes)
+    return await send_email(to, subject, html, text)
