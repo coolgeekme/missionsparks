@@ -9,7 +9,11 @@ import {
 } from "recharts";
 
 const DOW_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => `${i}h`);
+const hourLabel = (h) => (h === 0 ? "12 AM" : h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`);
+const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => hourLabel(i));
+// The browser's own zone — same source toLocaleString() uses, so the charts
+// and the moment list can never disagree.
+const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const CAT_COLORS = {
     Challenging: "#E4572E",
@@ -41,13 +45,15 @@ export default function MomentsInsights() {
     useEffect(() => {
         if (!selected) return;
         (async () => {
-            const { data } = await api.get("/moments/insights", { params: { student_id: selected.id, days } });
+            const { data } = await api.get("/moments/insights", { params: { student_id: selected.id, days, tz: TZ } });
             setInsights(data);
         })();
     }, [selected, days]);
 
     const exportCsv = () => {
-        const url = `${API}/moments/export.csv${selected ? `?student_id=${selected.id}` : ""}`;
+        const params = new URLSearchParams({ tz: TZ });
+        if (selected) params.set("student_id", selected.id);
+        const url = `${API}/moments/export.csv?${params.toString()}`;
         fetch(url, { credentials: "include" })
             .then((r) => r.blob())
             .then((blob) => {
@@ -165,7 +171,7 @@ export default function MomentsInsights() {
                                     const max = Math.max(...insights.by_hour);
                                     if (max === 0) return "—";
                                     const idx = insights.by_hour.indexOf(max);
-                                    return `${idx}:00`;
+                                    return hourLabel(idx);
                                 })()
                             } />
                         </div>
@@ -238,7 +244,7 @@ export default function MomentsInsights() {
                         </ChartCard>
 
                         <div className="grid lg:grid-cols-2 gap-4">
-                            <ChartCard title="By hour of day" testid="chart-by-hour">
+                            <ChartCard title="By hour of day (your local time)" testid="chart-by-hour">
                                 <ResponsiveContainer width="100%" height={250}>
                                     <BarChart data={hourData}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#E8E0D2" />

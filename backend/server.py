@@ -16,6 +16,7 @@ import push_service
 import bcrypt
 import jwt
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from typing import List, Optional, Literal
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Response, Request
@@ -4587,10 +4588,23 @@ class MomentInsights(BaseModel):
     trigger_to_category: dict = {}     # {trigger: {challenging, positive, neutral, other}}
 
 
+def _resolve_tz(user: dict, tz_name: Optional[str] = None):
+    """Analytics are bucketed in the family's local timezone, never raw UTC.
+
+    Precedence: explicit request tz -> account digest timezone -> UTC.
+    """
+    candidate = tz_name or ((user.get("digest_preferences") or {}).get("tz")) or "UTC"
+    try:
+        return ZoneInfo(candidate)
+    except Exception:
+        return timezone.utc
+
+
 @api.get("/moments/insights", response_model=MomentInsights)
 async def moments_insights(
     student_id: Optional[str] = None,
     days: int = 30,
+    tz: Optional[str] = None,
     user: dict = Depends(get_current_user),
 ):
     query: dict = {}
@@ -4605,6 +4619,7 @@ async def moments_insights(
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=max(1, min(days, 180)))
     query["timestamp"] = {"$gte": cutoff.isoformat()}
+    tzinfo = _resolve_tz(user, tz)
 
     moments = await db.moments.find(query, {"_id": 0}).to_list(5000)
 
@@ -4633,6 +4648,9 @@ async def moments_insights(
         n_intensity[t] = n_intensity.get(t, 0) + 1
         try:
             dt = datetime.fromisoformat(m["timestamp"].replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.astimezone(tzinfo)  # bucket in local time, not UTC
             by_hour[dt.hour] += 1
             by_dow[dt.weekday()] += 1
             d = dt.date().isoformat()
@@ -4909,6 +4927,7 @@ async def moments_parse_audio(
 @api.get("/moments/export.csv")
 async def moments_export(
     student_id: Optional[str] = None,
+    tz: Optional[str] = None,
     user: dict = Depends(get_current_user),
 ):
     query: dict = {}
@@ -4925,13 +4944,25 @@ async def moments_export(
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow([
-        "timestamp", "moment_type", "intensity", "duration_minutes",
+        "timestamp", "local_timestamp", "moment_type", "intensity", "duration_minutes",
         "triggers", "context_note", "antecedent", "response", "outcome",
         "logged_by_role", "notes", "transcript",
     ])
+    tzinfo = _resolve_tz(user, tz)
+
+    def _local(ts):
+        try:
+            d = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+            if d.tzinfo is None:
+                d = d.replace(tzinfo=timezone.utc)
+            return d.astimezone(tzinfo).isoformat()
+        except Exception:
+            return ts
+
     for m in moments:
         w.writerow([
             m.get("timestamp", ""),
+            _local(m.get("timestamp", "")),
             m.get("moment_type", ""),
             m.get("intensity", ""),
             m.get("duration_minutes", "") if m.get("duration_minutes") is not None else "",
