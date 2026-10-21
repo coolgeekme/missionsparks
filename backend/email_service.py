@@ -40,6 +40,13 @@ def _from_address() -> str:
     return f"{name} <{email}>"
 
 
+# Brand: paper #FBF6EE, ink #201D18, ember #C4471F (AA on white), line #E8E0D2,
+# muted #6E675B. Email clients can't load Fraunces, so Georgia carries the
+# display tone.
+_SERIF = "Georgia,'Times New Roman',serif"
+_SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+
+
 def _escape(s: Optional[str]) -> str:
     if not s:
         return ""
@@ -87,51 +94,50 @@ def _invite_html(family_name: str, role: str, inviter_name: Optional[str],
     return f"""\
 <!DOCTYPE html>
 <html>
-<body style="margin:0;padding:0;background:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0B132B;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="padding:32px 16px;">
+<body style="margin:0;padding:0;background:#FBF6EE;font-family:{_SANS};color:#201D18;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="padding:28px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;background:#ffffff;border-radius:24px;border:2px solid #E2E8F0;overflow:hidden;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="560" style="max-width:560px;background:#FFFFFF;border-radius:26px;border:1px solid #E8E0D2;overflow:hidden;">
+          <tr><td style="height:6px;background:#E4572E;font-size:0;line-height:0;">&nbsp;</td></tr>
           <tr>
-            <td style="padding:32px 32px 12px 32px;">
+            <td style="padding:26px 32px 10px 32px;">
               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td style="background:#4361EE;border-radius:14px;width:48px;height:48px;text-align:center;vertical-align:middle;color:#ffffff;font-size:22px;font-weight:900;line-height:48px;">⚡</td>
-                  <td style="padding-left:12px;font-size:22px;font-weight:900;color:#0B132B;">MissionSparks</td>
+                  <td style="background:#E4572E;border-radius:14px;width:44px;height:44px;text-align:center;vertical-align:middle;color:#FBF6EE;font-size:22px;font-weight:900;line-height:44px;">&#10022;</td>
+                  <td style="padding-left:12px;font-family:{_SERIF};font-size:22px;font-weight:700;color:#201D18;">MissionSparks</td>
                 </tr>
               </table>
             </td>
           </tr>
           <tr>
             <td style="padding:8px 32px 0 32px;">
-              <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:#A0AEC0;font-weight:700;margin:16px 0 4px;">You&#39;re invited</p>
-              <h1 style="font-size:28px;line-height:1.2;color:#0B132B;font-weight:900;margin:0 0 8px;">Join {fam}</h1>
-              <p style="font-size:16px;line-height:1.5;color:#4A5568;font-weight:600;margin:0 0 20px;">
-                {inviter} invited you to be a <strong style="color:#0B132B;">{role_label}</strong> on MissionSparks. As a {role_label}, you can {role_desc}.
+              <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:#6E675B;font-weight:800;margin:16px 0 6px;">You&#39;re invited</p>
+              <h1 style="font-family:{_SERIF};font-size:30px;line-height:1.25;color:#201D18;font-weight:700;margin:0 0 10px;">Join {fam}</h1>
+              <p style="font-size:16px;line-height:1.6;color:#3A342C;font-weight:500;margin:0 0 22px;">
+                {inviter} invited you to be a <strong style="color:#201D18;">{role_label}</strong> on MissionSparks. As a {role_label}, you can {role_desc}.
               </p>
             </td>
           </tr>
           <tr>
-            <td align="center" style="padding:8px 32px 12px 32px;">
-              <a href="{invite_url}" style="display:inline-block;background:#4361EE;color:#ffffff;text-decoration:none;font-weight:800;font-size:16px;padding:14px 28px;border-radius:16px;box-shadow:0 4px 0 0 #3A53CC;">Accept invite →</a>
+            <td align="center" style="padding:4px 32px 14px 32px;">
+              <a href="{invite_url}" style="display:inline-block;background:#C4471F;color:#FFFFFF;text-decoration:none;font-weight:800;font-size:16px;padding:14px 28px;border-radius:14px;">Accept invite &rarr;</a>
             </td>
           </tr>
           <tr>
             <td style="padding:4px 32px 4px 32px;">
-              <p style="font-size:12px;color:#A0AEC0;font-weight:600;margin:8px 0 4px;text-align:center;">
-                Or paste this link into your browser:
-              </p>
-              <p style="font-size:12px;color:#4361EE;font-weight:700;margin:0 0 8px;text-align:center;word-break:break-all;">
-                <a href="{invite_url}" style="color:#4361EE;text-decoration:underline;">{invite_url}</a>
+              <p style="font-size:12px;color:#6E675B;font-weight:600;margin:8px 0 4px;text-align:center;">Or paste this link into your browser:</p>
+              <p style="font-size:12px;color:#C4471F;font-weight:700;margin:0 0 8px;text-align:center;word-break:break-all;">
+                <a href="{invite_url}" style="color:#C4471F;text-decoration:underline;">{invite_url}</a>
               </p>
             </td>
           </tr>
           <tr>
-            <td style="padding:8px 32px 32px 32px;border-top:1px solid #E2E8F0;">
-              <p style="font-size:12px;color:#A0AEC0;font-weight:600;margin:12px 0 0;line-height:1.5;">
-                This invite expires on <strong>{_escape(expires_at_human)}</strong>. If you didn&#39;t expect this email, you can safely ignore it.
+            <td style="padding:10px 32px 30px 32px;border-top:1px solid #E8E0D2;">
+              <p style="font-size:12px;color:#6E675B;font-weight:600;margin:14px 0 0;line-height:1.6;">
+                This invite expires on <strong style="color:#201D18;">{_escape(expires_at_human)}</strong>. If you didn&#39;t expect this email, you can safely ignore it.
               </p>
-              <p style="font-size:11px;color:#CBD5E0;font-weight:600;margin:8px 0 0;">
+              <p style="font-size:11px;color:#6E675B;font-weight:600;margin:8px 0 0;">
                 MissionSparks helps families with simple daily missions, kid-led progress and habit tracking.
               </p>
             </td>

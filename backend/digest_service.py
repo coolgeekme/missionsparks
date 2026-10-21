@@ -285,11 +285,18 @@ _FALLBACK_TIPS = [
 
 
 # ---------- Email rendering ----------
+# Brand tokens: paper #FBF6EE, ink #201D18, ember #C4471F (AA on white),
+# gold #E8A33D, line #E8E0D2, muted #6E675B. Email clients can't load
+# Fraunces, so Georgia carries the display tone.
+SERIF = "Georgia,'Times New Roman',serif"
+SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+
+
 def _section(title: str, body_html: str) -> str:
     return f"""
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 24px 0;">
-      <tr><td style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:#A0AEC0;padding:0 0 6px 0;">{_escape(title)}</td></tr>
-      <tr><td style="font-size:15px;line-height:1.5;color:#0B132B;font-weight:500;">{body_html}</td></tr>
+      <tr><td style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.14em;color:#6E675B;padding:0 0 8px 0;">{_escape(title)}</td></tr>
+      <tr><td style="font-size:15px;line-height:1.6;color:#201D18;font-weight:500;">{body_html}</td></tr>
     </table>
     """
 
@@ -305,7 +312,7 @@ def _kid_card_html(name: str, snap: dict) -> str:
     moments = snap.get("moments") or []
 
     cards = []
-    cards.append(f"<strong style='color:#0B132B;'>{cs}-day spark streak</strong> ⚡ &nbsp;<span style='color:#A0AEC0;'>(longest: {longest} days)</span>")
+    cards.append(f"<strong style='color:#201D18;'>{cs}-day spark streak</strong> <span style='color:#E4572E;'>&#10022;</span> &nbsp;<span style='color:#6E675B;'>(longest: {longest} days)</span>")
     if missions or total_missions:
         cards.append(f"{missions} mission{'s' if missions != 1 else ''} completed")
     if games:
@@ -313,25 +320,25 @@ def _kid_card_html(name: str, snap: dict) -> str:
         if top:
             line += f" — top score {top['score']} on {_escape(top['game_key'])}"
         cards.append(line)
-    bullets = "".join([f"<li style='margin:4px 0;'>{c}</li>" for c in cards])
+    bullets = "".join([f"<li style='margin:5px 0;'>{c}</li>" for c in cards])
 
     moments_html = ""
     if moments:
         def _moment_text(m: dict) -> str:
             return (m.get("context_note") or m.get("transcript") or m.get("notes") or "").strip()
         items = "".join([
-            f"<li style='margin:6px 0;color:#4A5568;'><em>“{_escape(_moment_text(m)[:140])}”</em> "
-            f"<span style='color:#A0AEC0;font-size:12px;'>({_escape(m.get('moment_type') or 'moment')})</span></li>"
+            f"<li style='margin:7px 0;color:#3A342C;'><em>&ldquo;{_escape(_moment_text(m)[:140])}&rdquo;</em> "
+            f"<span style='color:#6E675B;font-size:12px;'>({_escape(m.get('moment_type') or 'moment')})</span></li>"
             for m in moments if _moment_text(m)
         ])
         if items:
-            moments_html = f"<p style='margin:12px 0 4px;font-weight:700;color:#0B132B;'>Recent moments</p><ul style='margin:0;padding-left:18px;'>{items}</ul>"
+            moments_html = f"<p style='margin:14px 0 4px;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:#6E675B;'>Recent moments</p><ul style='margin:0;padding-left:18px;'>{items}</ul>"
 
     return f"""
-    <table role='presentation' cellpadding='0' cellspacing='0' border='0' width='100%' style='background:#F8FAFC;border-radius:18px;border:2px solid #E2E8F0;margin:0 0 16px 0;'>
+    <table role='presentation' cellpadding='0' cellspacing='0' border='0' width='100%' style='background:#FBF6EE;border-radius:18px;border:1px solid #E8E0D2;margin:0 0 14px 0;'>
       <tr><td style='padding:18px 22px;'>
-        <p style='margin:0 0 6px 0;font-size:20px;font-weight:900;color:#0B132B;'>{_escape(name)}</p>
-        <ul style='margin:0;padding-left:18px;color:#0B132B;'>{bullets}</ul>
+        <p style='margin:0 0 8px;font-family:{SERIF};font-size:21px;font-weight:700;color:#201D18;'>{_escape(name)}</p>
+        <ul style='margin:0;padding-left:18px;color:#3A342C;font-size:14px;line-height:1.6;'>{bullets}</ul>
         {moments_html}
       </td></tr>
     </table>
@@ -342,10 +349,10 @@ def _tips_html(tips: list[dict]) -> str:
     if not tips:
         return ""
     items = "".join([
-        f"<li style='margin:10px 0;'>"
-        f"<strong style='color:#0B132B;'>{_escape(t.get('title',''))}</strong><br/>"
-        f"<span style='color:#4A5568;font-size:13px;font-style:italic;'>{_escape(t.get('why',''))}</span><br/>"
-        f"<span style='color:#0B132B;'>{_escape(t.get('how',''))}</span>"
+        f"<li style='margin:12px 0;'>"
+        f"<strong style='font-family:{SERIF};font-size:16px;color:#201D18;'>{_escape(t.get('title',''))}</strong><br/>"
+        f"<span style='color:#6E675B;font-size:13px;font-style:italic;'>{_escape(t.get('why',''))}</span><br/>"
+        f"<span style='color:#3A342C;font-size:14px;line-height:1.6;'>{_escape(t.get('how',''))}</span>"
         f"</li>"
         for t in tips
     ])
@@ -357,35 +364,36 @@ def _digest_html(*, parent_name: str, period_label: str, kid_cards: list[str],
                  preferences_url: str) -> str:
     return f"""\
 <!DOCTYPE html>
-<html><body style='margin:0;padding:0;background:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#0B132B;'>
-<table role='presentation' width='100%' cellpadding='0' cellspacing='0' border='0' style='padding:24px 12px;'>
+<html><body style='margin:0;padding:0;background:#FBF6EE;font-family:{SANS};color:#201D18;'>
+<table role='presentation' width='100%' cellpadding='0' cellspacing='0' border='0' style='padding:28px 12px;'>
   <tr><td align='center'>
-    <table role='presentation' cellpadding='0' cellspacing='0' border='0' width='600' style='max-width:600px;background:#ffffff;border-radius:24px;border:2px solid #E2E8F0;overflow:hidden;'>
-      <tr><td style='padding:28px 28px 4px;'>
+    <table role='presentation' cellpadding='0' cellspacing='0' border='0' width='600' style='max-width:600px;background:#FFFFFF;border-radius:26px;border:1px solid #E8E0D2;overflow:hidden;'>
+      <tr><td style='height:6px;background:#E4572E;font-size:0;line-height:0;'>&nbsp;</td></tr>
+      <tr><td style='padding:26px 28px 4px;'>
         <table role='presentation' cellpadding='0' cellspacing='0' border='0'>
           <tr>
-            <td style='background:#4361EE;border-radius:14px;width:44px;height:44px;text-align:center;vertical-align:middle;color:#fff;font-size:20px;font-weight:900;line-height:44px;'>⚡</td>
-            <td style='padding-left:12px;font-size:20px;font-weight:900;color:#0B132B;'>MissionSparks</td>
+            <td style='background:#E4572E;border-radius:14px;width:44px;height:44px;text-align:center;vertical-align:middle;color:#FBF6EE;font-size:22px;font-weight:900;line-height:44px;'>&#10022;</td>
+            <td style='padding-left:12px;font-family:{SERIF};font-size:22px;font-weight:700;color:#201D18;'>MissionSparks</td>
           </tr>
         </table>
       </td></tr>
-      <tr><td style='padding:12px 28px 0 28px;'>
-        <p style='margin:0;font-size:12px;text-transform:uppercase;letter-spacing:0.12em;color:#A0AEC0;font-weight:800;'>{_escape(period_label)}</p>
-        <h1 style='margin:4px 0 16px;font-size:26px;font-weight:900;color:#0B132B;line-height:1.2;'>Hey {_escape(parent_name)}, here&#39;s the latest</h1>
+      <tr><td style='padding:14px 28px 0;'>
+        <p style='margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:#6E675B;font-weight:800;'>{_escape(period_label)}</p>
+        <h1 style='margin:6px 0 18px;font-family:{SERIF};font-size:28px;font-weight:700;color:#201D18;line-height:1.25;'>Hey {_escape(parent_name)}, here&#39;s the latest</h1>
       </td></tr>
       <tr><td style='padding:0 28px;'>
-        {''.join(kid_cards) if kid_cards else "<p style='color:#A0AEC0;font-weight:600;'>No kid activity to report yet.</p>"}
+        {''.join(kid_cards) if kid_cards else "<p style='color:#6E675B;font-weight:600;'>No kid activity to report yet.</p>"}
       </td></tr>
-      <tr><td style='padding:8px 28px 0;'>
+      <tr><td style='padding:10px 28px 0;'>
         {_section('Try this off-app', tips_html) if tips_html else ''}
       </td></tr>
-      <tr><td align='center' style='padding:24px 28px 8px;'>
-        <a href='{_escape(app_url)}' style='display:inline-block;background:#4361EE;color:#fff;text-decoration:none;font-weight:800;padding:12px 22px;border-radius:14px;box-shadow:0 4px 0 0 #3A53CC;font-size:15px;'>Open MissionSparks</a>
+      <tr><td align='center' style='padding:20px 28px 6px;'>
+        <a href='{_escape(app_url)}' style='display:inline-block;background:#C4471F;color:#FFFFFF;text-decoration:none;font-weight:800;padding:13px 24px;border-radius:14px;font-size:15px;'>Open MissionSparks</a>
       </td></tr>
-      <tr><td style='padding:8px 28px 24px;border-top:1px solid #E2E8F0;'>
-        <p style='font-size:11px;color:#A0AEC0;font-weight:600;text-align:center;margin:16px 0 0;'>
+      <tr><td style='padding:10px 28px 26px;border-top:1px solid #E8E0D2;'>
+        <p style='font-size:11px;color:#6E675B;font-weight:600;text-align:center;margin:16px 0 0;line-height:1.6;'>
           You&#39;re getting this because you opted in to family digests.
-          <a href='{_escape(preferences_url)}' style='color:#4361EE;text-decoration:underline;'>Manage preferences</a>.
+          <a href='{_escape(preferences_url)}' style='color:#C4471F;text-decoration:underline;'>Manage preferences</a>.
         </p>
       </td></tr>
     </table>
@@ -484,7 +492,7 @@ async def _build_and_send(parent_user: dict, *, force: bool = False) -> dict:
         preferences_url=preferences_url,
     )
 
-    subject = "Your daily MissionSparks digest 🌅" if prefs["cadence"] == "daily" else "Your weekly MissionSparks digest ⚡"
+    subject = "Your daily MissionSparks digest" if prefs["cadence"] == "daily" else "Your weekly MissionSparks digest"
 
     email_id: Optional[str] = None
     if _configure_if_needed():
