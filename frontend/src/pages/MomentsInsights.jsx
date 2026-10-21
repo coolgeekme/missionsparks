@@ -22,6 +22,32 @@ const CAT_COLORS = {
     Other: "#B7A99A",
 };
 
+const TONE_BAR = {
+    watch: "border-l-[#E8A33D]",
+    good: "border-l-[#3F8C5E]",
+    neutral: "border-l-[#C9BFAE]",
+};
+
+/**
+ * One plain-English finding. The number is the hook, the sentence is the point —
+ * a parent should be able to read the row and know what to do without parsing
+ * an axis.
+ */
+function FindingCard({ f }) {
+    return (
+        <div
+            className={`mb-card p-4 border-l-4 ${TONE_BAR[f.tone] || TONE_BAR.neutral}`}
+            data-testid={`finding-${f.kind}`}
+        >
+            <p className="font-display font-extrabold text-3xl text-[#201D18] leading-none tracking-tight">
+                {f.value}
+            </p>
+            <p className="font-bold text-sm text-[#201D18] mt-2 leading-snug">{f.title}</p>
+            <p className="text-xs font-semibold text-[#6E675B] mt-1 leading-relaxed">{f.detail}</p>
+        </div>
+    );
+}
+
 export default function MomentsInsights() {
     const [students, setStudents] = useState([]);
     const [selected, setSelected] = useState(null);
@@ -163,6 +189,28 @@ export default function MomentsInsights() {
                     </div>
                 ) : (
                     <>
+                        {(insights.findings || []).length > 0 ? (
+                            <section data-testid="insights-findings">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <h2 className="font-display font-extrabold text-2xl text-[#201D18]">What the data says</h2>
+                                </div>
+                                <p className="text-sm font-semibold text-[#6E675B] mb-3">
+                                    Plain readings of the last {days} days — strongest signals first.
+                                </p>
+                                <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                                    {insights.findings.map((f) => <FindingCard key={f.kind} f={f} />)}
+                                </div>
+                            </section>
+                        ) : (
+                            <div className="mb-card p-5" data-testid="insights-not-enough">
+                                <p className="font-bold text-[#201D18]">Not enough data to find a pattern yet</p>
+                                <p className="text-sm font-semibold text-[#6E675B] mt-1">
+                                    Log a handful more moments and this fills in — it needs a few in the same
+                                    time of day before it will call something a pattern.
+                                </p>
+                            </div>
+                        )}
+
                         <div className="grid sm:grid-cols-3 gap-4">
                             <Stat label="Moments logged" value={insights.total} />
                             <Stat label="Unique trigger types" value={Object.keys(insights.counts_by_trigger).length} />
@@ -177,6 +225,10 @@ export default function MomentsInsights() {
                         </div>
 
                         <ChartCard title={`Frequency (${granularity})`} icon={<TrendingUp size={18} />} testid="chart-trend">
+                            <p className="text-sm font-semibold text-[#6E675B] mb-3">
+                                How often moments get logged. A spike day is worth a second look — something
+                                happened that day.
+                            </p>
                             <ResponsiveContainer width="100%" height={250}>
                                 <LineChart data={freqData}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#E8E0D2" />
@@ -244,16 +296,48 @@ export default function MomentsInsights() {
                         </ChartCard>
 
                         <div className="grid lg:grid-cols-2 gap-4">
-                            <ChartCard title="By hour of day (your local time)" testid="chart-by-hour">
-                                <ResponsiveContainer width="100%" height={250}>
-                                    <BarChart data={hourData}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#E8E0D2" />
-                                        <XAxis dataKey="name" interval={2} />
-                                        <YAxis allowDecimals={false} />
-                                        <Tooltip />
-                                        <Bar dataKey="value" fill="#3F8C5E" radius={[6, 6, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                            <ChartCard title="When moments happen (your local time)" testid="chart-by-hour">
+                                <p className="text-sm font-semibold text-[#6E675B] mb-3">
+                                    Darker bars mean more moments. The flat stretches are the calm parts of
+                                    the day — worth protecting.
+                                </p>
+                                {(() => {
+                                    const maxH = Math.max(...insights.by_hour, 1);
+                                    const peak = insights.by_hour.indexOf(maxH);
+                                    return (
+                                        <>
+                                            <div className="flex items-end gap-[3px]" data-testid="hour-strip">
+                                                {insights.by_hour.map((v, i) => {
+                                                    const pct = v / maxH;
+                                                    return (
+                                                        <div key={i} className="flex-1">
+                                                            <div
+                                                                className="rounded-md"
+                                                                style={{
+                                                                    height: `${16 + pct * 84}px`,
+                                                                    background: v === 0
+                                                                        ? "#F4EEE3"
+                                                                        : `rgba(228,87,46,${0.20 + pct * 0.70})`,
+                                                                    outline: i === peak && maxH > 0 ? "2px solid #201D18" : "none",
+                                                                    outlineOffset: "1px",
+                                                                }}
+                                                                title={`${hourLabel(i)} · ${v} moment${v === 1 ? "" : "s"}`}
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            <div className="flex justify-between mt-2 text-[10px] font-bold uppercase tracking-wider text-[#9A9286]">
+                                                <span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>11 PM</span>
+                                            </div>
+                                            {maxH > 0 && (
+                                                <p className="text-xs font-bold text-[#201D18] mt-3">
+                                                    Peak: {hourLabel(peak)} — {maxH} moment{maxH === 1 ? "" : "s"}.
+                                                </p>
+                                            )}
+                                        </>
+                                    );
+                                })()}
                             </ChartCard>
                             <ChartCard title="By day of week" testid="chart-by-dow">
                                 <ResponsiveContainer width="100%" height={250}>

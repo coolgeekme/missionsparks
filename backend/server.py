@@ -4611,6 +4611,7 @@ class MomentInsights(BaseModel):
     weekly_counts: List[dict] = []     # [{week, count}] — week = Monday ISO date
     weekly_intensity: List[dict] = []  # [{week, avg, count}]
     trigger_to_category: dict = {}     # {trigger: {challenging, positive, neutral, other}}
+    findings: List[dict] = []          # plain-English observations, strongest first
 
 
 def _resolve_tz(user: dict, tz_name: Optional[str] = None):
@@ -4642,7 +4643,11 @@ async def moments_insights(
         else:
             query["student_id"] = {"$in": await _accessible_student_ids(user)}
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=max(1, min(days, 180)))
+    now_utc = datetime.now(timezone.utc)
+    win_days = max(1, min(days, 180))
+    cutoff = now_utc - timedelta(days=win_days)
+    prev_cutoff = cutoff - timedelta(days=win_days)
+    base_query = dict(query)  # student scope, before the time window is added
     query["timestamp"] = {"$gte": cutoff.isoformat()}
     tzinfo = _resolve_tz(user, tz)
 
@@ -4701,7 +4706,7 @@ async def moments_insights(
     }
 
     # daily counts + severity for last N days
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(tzinfo).date()
     daily_counts = []
     daily_intensity = []
     for i in range(max(1, min(days, 180)) - 1, -1, -1):
@@ -4731,6 +4736,180 @@ async def moments_insights(
         reverse=True,
     )[:8]
 
+    # ---------------- Plain-English findings ----------------
+    # Charts show shape; parents want the sentence. Everything below is derived
+    # from the same moments, already bucketed in the household's timezone.
+    def _hl(hour: int) -> str:
+        h = int(hour) % 24
+        return "12 AM" if h == 0 else "12 PM" if h == 12 else (f"{h} AM" if h < 12 else f"{h - 12} PM")
+
+    def _local_dt(m: dict):
+        d = datetime.fromisoformat(m["timestamp"].replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=timezone.utc)
+        return d.astimezone(tzinfo)
+
+    cat_of = lambda k: type_category.get(k) or "other"  # noqa: E731
+    chal_n = sum(v for k, v in counts_by_type.items() if cat_of(k) == "challenging")
+    pos_n = sum(v for k, v in counts_by_type.items() if cat_of(k) == "positive")
+    cur_total = len(moments)
+    findings: List[dict] = []
+
+    chal_hour = [0] * 24
+    chal_dow = [0] * 7
+    chal_days = set()
+    for m in moments:
+        if cat_of(m.get("moment_type")) != "challenging":
+            continue
+        try:
+            dt = _local_dt(m)
+        except Exception:
+            continue
+        chal_hour[dt.hour] += 1
+        chal_dow[dt.weekday()] += 1
+        chal_days.add(dt.date().isoformat())
+
+    # 1) Hardest contiguous 3-hour stretch
+    if sum(chal_hour):
+        best_i, best_sum = 0, -1
+        for i in range(24):
+            s = sum(chal_hour[(i + k) % 24] for k in range(3))
+            if s > best_sum:
+                best_i, best_sum = i, s
+        pct = round(100 * best_sum / max(1, sum(chal_hour)))
+        findings.append({
+            "kind": "peak_window",
+            "value": f"{_hl(best_i)}–{_hl(best_i + 3)}",
+            "title": "Hardest stretch of the day",
+            "detail": f"{best_sum} hard moment{'s' if best_sum != 1 else ''} land in this window — {pct}% of them all.",
+            "tone": "watch",
+        })
+
+    # 2) Frequency trend vs the previous equally-long window
+    chal_keys = [t["key"] for t in MOMENT_CATALOG["moment_types"] if t["category"] == "challenging"]
+    pos_keys = [t["key"] for t in MOMENT_CATALOG["moment_types"] if t["category"] == "positive"]
+    prev_rng = {"$gte": prev_cutoff.isoformat(), "$lt": cutoff.isoformat()}
+    try:
+        prev_total = await db.moments.count_documents({**base_query, "timestamp": prev_rng})
+        prev_chal = await db.moments.count_documents(
+            {**base_query, "timestamp": prev_rng, "moment_type": {"$in": chal_keys}})
+        prev_pos = await db.moments.count_documents(
+            {**base_query, "timestamp": prev_rng, "moment_type": {"$in": pos_keys}})
+    except Exception:
+        prev_total = prev_chal = prev_pos = 0
+
+    if prev_chal and chal_n:
+        delta = round(100 * (chal_n - prev_chal) / prev_chal)
+        if abs(delta) >= 10:
+            findings.append({
+                "kind": "trend",
+                "value": f"{delta:+d}%",
+                "title": f"Hard moments are {'down' if delta < 0 else 'up'} {abs(delta)}%",
+                "detail": f"{chal_n} in this stretch vs {prev_chal} in the {win_days} days before.",
+                "tone": "good" if delta < 0 else "watch",
+            })
+
+    # 3) Share of moments that were positive
+    if cur_total:
+        pos_pct = round(100 * pos_n / cur_total)
+        tail = ""
+        if prev_total:
+            prev_pct = round(100 * prev_pos / prev_total)
+            diff = pos_pct - prev_pct
+            if abs(diff) >= 5:
+                tail = f" That's {abs(diff)} points {'higher' if diff > 0 else 'lower'} than the stretch before."
+        findings.append({
+            "kind": "positive_ratio",
+            "value": f"{pos_pct}%",
+            "title": "Moments that were positive",
+            "detail": f"{pos_n} of {cur_total} logged moments.{tail}",
+            "tone": "good" if pos_pct >= 50 else "neutral",
+        })
+
+    # 4) School day vs weekend intensity
+    start_day = now_utc.astimezone(tzinfo).date() - timedelta(days=win_days - 1)
+    n_weekday = sum(1 for i in range(win_days) if (start_day + timedelta(days=i)).weekday() < 5)
+    n_weekend = win_days - n_weekday
+    wd_chal, we_chal = sum(chal_dow[:5]), sum(chal_dow[5:])
+    if n_weekday and n_weekend and (wd_chal or we_chal):
+        wd_rate = wd_chal / n_weekday
+        we_rate = we_chal / n_weekend
+        if we_rate > 0:
+            ratio = wd_rate / we_rate
+            if ratio >= 1.3:
+                findings.append({
+                    "kind": "school_vs_weekend",
+                    "value": f"{ratio:.1f}×",
+                    "title": "School days run harder",
+                    "detail": f"{wd_rate:.1f} hard moments per school day vs {we_rate:.1f} per weekend day.",
+                    "tone": "watch",
+                })
+            elif ratio <= 0.77:
+                findings.append({
+                    "kind": "school_vs_weekend",
+                    "value": f"{1 / ratio:.1f}×",
+                    "title": "Weekends run harder",
+                    "detail": f"{we_rate:.1f} hard moments per weekend day vs {wd_rate:.1f} on school days.",
+                    "tone": "watch",
+                })
+
+    # 5) Strongest trigger (highest lift over the baseline challenge rate)
+    if cur_total and chal_n:
+        baseline = chal_n / cur_total
+        trigger_labels = {t["key"]: t["label"] for t in MOMENT_CATALOG.get("triggers", [])}
+        best = None
+        for tg, cats in trigger_to_category.items():
+            seen = counts_by_trigger.get(tg, 0)
+            if seen < 3:
+                continue
+            share = cats.get("challenging", 0) / seen
+            if share < 0.4:
+                continue
+            lift = share / baseline if baseline else 0
+            if lift >= 1.2 and (best is None or lift > best[1]):
+                best = (tg, lift, share, seen)
+        if best:
+            tg, lift, share, seen = best
+            label = trigger_labels.get(tg, tg)
+            findings.append({
+                "kind": "trigger_lift",
+                "key": tg,
+                "value": f"{round(share * 100)}%",
+                "title": f"Strongest trigger: {label}",
+                "detail": f"Shows up before {round(share * 100)}% of hard moments — {lift:.1f}× the average trigger. Logged {seen} times.",
+                "tone": "watch",
+            })
+
+    # 6) Longest calm stretch (only up to the most recent log, so an idle tail
+    #    doesn't get mistaken for a peaceful week)
+    if moments:
+        try:
+            last_day = max(_local_dt(m).date() for m in moments)
+        except Exception:
+            last_day = today
+        run = best_run = 0
+        best_end = None
+        span = (last_day - start_day).days
+        for i in range(max(0, span) + 1):
+            day = (start_day + timedelta(days=i)).isoformat()
+            if day in chal_days:
+                run = 0
+            else:
+                run += 1
+                if run > best_run:
+                    best_run, best_end = run, day
+        if best_run >= 3:
+            findings.append({
+                "kind": "calm_streak",
+                "value": f"{best_run} days",
+                "title": "Longest calm stretch",
+                "detail": f"{best_run} days in a row with no hard moments logged, through {best_end}.",
+                "tone": "good",
+            })
+
+    # Watch-style findings first so the parent sees the actionable ones.
+    findings.sort(key=lambda f: (0 if f["tone"] == "watch" else 1))
+
     return MomentInsights(
         total=len(moments),
         counts_by_type=counts_by_type,
@@ -4746,6 +4925,7 @@ async def moments_insights(
         weekly_counts=weekly_counts,
         weekly_intensity=weekly_intensity,
         trigger_to_category=trigger_to_category,
+        findings=findings,
     )
 
 
