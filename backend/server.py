@@ -4880,18 +4880,21 @@ async def moments_insights(
                 "tone": "watch",
             })
 
-    # 6) Longest calm stretch (only up to the most recent log, so an idle tail
-    #    doesn't get mistaken for a peaceful week)
+    # 6) Longest calm stretch. Clamped to the window where data actually exists:
+    #    an empty stretch before the first log, or after the last one, is not a
+    #    calm week — it's just absence of evidence.
     if moments:
         try:
             last_day = max(_local_dt(m).date() for m in moments)
+            first_day = min(_local_dt(m).date() for m in moments)
         except Exception:
-            last_day = today
+            last_day = first_day = today
+        start = max(start_day, first_day)
         run = best_run = 0
         best_end = None
-        span = (last_day - start_day).days
+        span = (last_day - start).days
         for i in range(max(0, span) + 1):
-            day = (start_day + timedelta(days=i)).isoformat()
+            day = (start + timedelta(days=i)).isoformat()
             if day in chal_days:
                 run = 0
             else:
