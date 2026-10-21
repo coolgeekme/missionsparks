@@ -226,7 +226,7 @@ export default function Account() {
                             <div className="flex-1">
                                 <h2 className="font-display font-bold text-xl text-[#201D18]">Family digest email</h2>
                                 <p className="text-sm text-[#6E675B] font-semibold mt-1">
-                                    A regular summary of each kid&apos;s activity + a personalized off-app activity + an ADHD article worth reading.
+                                    A regular summary of each kid&apos;s activity, plus a personalized off-app activity to try.
                                 </p>
 
                                 <div className="mt-4 flex items-center gap-3">

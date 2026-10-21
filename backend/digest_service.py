@@ -138,12 +138,12 @@ async def _student_window_summary(student_id: str, hours_back: int) -> dict:
 
 _TIP_FOCUSES = [
     ("momentum", "Help the parent reinforce a small WIN their kid just had — anchor identity ('you are someone who…')"),
-    ("regulation", "Help the parent support emotional REGULATION when the kid gets dysregulated or overwhelmed."),
-    ("connection", "Help the parent build CONNECTION (low-stakes 1:1 time, shared interest, body-doubling)."),
+    ("big-feelings", "Help the parent support BIG FEELINGS when the kid gets overwhelmed."),
+    ("connection", "Help the parent build CONNECTION (low-stakes 1:1 time, shared interest)."),
     ("self-esteem", "Help the parent grow the kid's SELF-ESTEEM through process praise and competence-building."),
     ("transition", "Help the parent ease TRANSITIONS (school↔home, screens↔homework, day↔bedtime)."),
-    ("focus", "Help the parent build sustained FOCUS via movement primers, body-doubling, and chunking."),
-    ("sleep", "Help the parent improve SLEEP routine — wind-down rituals, screen distance, brain-dump."),
+    ("focus", "Help the parent build sustained FOCUS via movement breaks and chunking."),
+    ("sleep", "Help the parent improve the SLEEP routine — wind-down rituals, screens parked early, brain-dump."),
 ]
 
 
@@ -174,15 +174,16 @@ async def _weekly_tips_for_student(student_id: str, profile: Optional[dict]) -> 
     grade = (profile or {}).get("grade") or "elementary"
     reading_level = (profile or {}).get("reading_level") or ""
     prompt = (
-        "You are a warm, evidence-informed coach helping a parent of a child with ADHD-friendly support needs. "
+        "You are a warm, practical coach helping a parent support their child day to day. "
         f"TODAY'S FOCUS: {focus_brief}\n\n"
         "Suggest exactly 3 SHORT, SPECIFIC, OFF-APP activities the family can do TODAY/THIS WEEK to support "
         "the child along the focus above. Each tip must be: (a) doable in under 30 minutes, "
-        "(b) low-prep, (c) tied to ADHD research (executive function, dopamine regulation, body-doubling, "
-        "co-regulation, mastery loops), and (d) tied to the child's interests when possible. "
-        "AVOID repeating commonplace tips like 'use a timer' or 'set a routine' — be specific and novel.\n\n"
-        "Return ONLY valid JSON: a list of 3 objects with keys: title (<= 7 words), why (1 sentence on the "
-        "underlying mechanism), how (1-2 sentences on doing it). No preamble, no markdown.\n\n"
+        "(b) low-prep, (c) grounded in ordinary family routines (movement, connection, chunking, "
+        "predictable structure), and (d) tied to the child's interests when possible. "
+        "AVOID repeating commonplace tips like 'use a timer' or 'set a routine' — be specific and novel. "
+        "Write for a parent, not a clinician: no diagnoses, no brain chemistry, no research citations.\n\n"
+        "Return ONLY valid JSON: a list of 3 objects with keys: title (<= 7 words), why (1 sentence on why "
+        "it helps, in plain language), how (1-2 sentences on doing it). No preamble, no markdown.\n\n"
         f"Child grade: {grade}\nReading level: {reading_level}\n"
         f"Interests: {', '.join(interests) or '(none specified)'}\n"
         f"Motivators that work: {', '.join(motivators) or '(none specified)'}\n"
@@ -214,7 +215,7 @@ async def _weekly_tips_for_student(student_id: str, profile: Optional[dict]) -> 
         except Exception as e:  # noqa: BLE001
             logger.warning("Tip generation failed for student %s: %s", student_id, e)
     if not tips:
-        # Static evidence-backed fallback — picks 3 from a larger pool seeded by day
+        # Static plain-language fallback — picks 3 from a larger pool seeded by day
         # so even fallback rotates daily.
         pool = _FALLBACK_TIPS
         idx = today.toordinal() % len(pool)
@@ -232,52 +233,52 @@ async def _weekly_tips_for_student(student_id: str, profile: Optional[dict]) -> 
 _FALLBACK_TIPS = [
     {
         "title": "20-minute movement snack before homework",
-        "why": "Aerobic movement primes dopamine + focus circuits for up to 2 hours.",
+        "why": "A little hard breathing first makes the next stretch of sitting easier.",
         "how": "Pick anything that gets a sweat going — backyard dance party, brisk walk, bike loop. No screens, no instructions.",
     },
     {
-        "title": "Body-double the hardest task",
-        "why": "ADHD brains regulate better with quiet co-presence, not directives.",
+        "title": "Sit nearby for the hardest task",
+        "why": "Kids settle faster when someone stays close without giving directions.",
         "how": "Sit next to your child while they work on the toughest task for 10 minutes. Don't talk, don't correct — just be there.",
     },
     {
         "title": "Two-minute bedtime brain dump",
-        "why": "Externalizing tomorrow's worries shortens sleep latency.",
+        "why": "Getting a worry out of their head makes it easier to fall asleep.",
         "how": "Right before brushing teeth, ask 'what's one thing you're thinking about for tomorrow?' Write it on a sticky together.",
     },
     {
-        "title": "Name-it-to-tame-it big feeling",
-        "why": "Labeling an emotion engages the prefrontal cortex and lowers amygdala arousal.",
+        "title": "Name the big feeling",
+        "why": "Naming a feeling takes some of the heat out of it.",
         "how": "Next time they melt down, slowly say 'sounds like that's frustration showing up'. Don't fix it — just name it.",
     },
     {
         "title": "Choose the first 2 minutes",
-        "why": "Starting is the hardest step for ADHD brains; commitment to a small open beats willpower.",
+        "why": "Starting is usually the hardest part, and a tiny promise beats willpower.",
         "how": "Pick the dreaded task. Set a timer for 2 minutes. Promise they can stop after. Most kids keep going.",
     },
     {
-        "title": "Process praise > person praise",
-        "why": "'You worked really hard on that' grows grit; 'you're so smart' grows fear of failure (Dweck).",
+        "title": "Praise the effort, not the kid",
+        "why": "Praising effort points at something they can repeat tomorrow.",
         "how": "Today, give one piece of praise that names a specific behavior — not a trait. Watch their face change.",
     },
     {
-        "title": "Pre-bed phone parking",
-        "why": "Blue light + dopamine spikes from short-form video erode REM sleep, which kids with ADHD already miss.",
+        "title": "Phones park in the kitchen",
+        "why": "Screens close to bedtime push bedtime later; parking them early makes wind-down easier.",
         "how": "Create a 'phones charge in the kitchen' rule, with you doing it first. The rule must be the same for everyone.",
     },
     {
         "title": "Five-senses cool-down",
-        "why": "Grounding through senses interrupts the stress cycle in ~90 seconds.",
+        "why": "Counting senses gives a heated moment something to do while it cools.",
         "how": "When tempers heat up, name together: 5 things you see, 4 you hear, 3 you can touch, 2 you smell, 1 you taste.",
     },
     {
         "title": "Interest-bridge a chore",
-        "why": "Pairing a low-interest task with a high-interest one borrows dopamine to power the boring half.",
+        "why": "Pairing a boring job with something they like gets the boring half done.",
         "how": "Loud music they pick + the dish stack. Pokemon audiobook + sweeping. Their playlist is the trade.",
     },
     {
         "title": "One-on-one 'special time' (10 minutes)",
-        "why": "Predictable connection drops behavior problems by ~30% in studies of parent-child play.",
+        "why": "A predictable stretch of one-on-one time tends to smooth out the rest of the week.",
         "how": "Tell them: 'Tonight, 10 minutes, you choose what we do, no phones, no siblings.' Do it. Repeat tomorrow.",
     },
 ]

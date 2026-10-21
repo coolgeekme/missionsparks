@@ -1990,7 +1990,7 @@ async def _generate_spark(family_doc: dict, kind: str) -> dict:
     used_fallback = False
     try:
         text = await _ai_chat(
-            "You write tiny, joyful daily snippets for an ADHD-friendly kids' learning app. "
+            "You write tiny, joyful daily snippets for a kids' learning app. "
             "Keep every output to ONE short line (max ~22 words). Age-appropriate. No emojis at the start. "
             "Never reveal you are an AI. Never include URLs.",
             user_text,
@@ -4091,7 +4091,7 @@ async def generate_reading_passage(req: ReadingPassageRequest,
     name = student.get("name", "the reader")
     system = (
         "You write short, kid-friendly nonfiction or simple narrative passages used in a "
-        "reading-comprehension practice app for children with ADHD. The reader's name is "
+        "reading-comprehension practice app for kids. The reader's name is "
         f"{name}. Match the target reading level EXACTLY — short sentences for younger "
         "levels, mostly common words. Keep total length between 120 and 200 words. "
         "Content must be safe for kids (no violence, no scary themes, no romance). "
@@ -4212,7 +4212,7 @@ async def generate_writing_prompt(req: WritingPromptRequest,
 
     name = student.get("name", "the writer")
     system = (
-        "You design tiny, kid-friendly writing prompts for a child with ADHD who needs "
+        "You design tiny, kid-friendly writing prompts for a child who needs "
         f"scaffolding for multi-paragraph writing. The writer's name is {name}. "
         "The output is a writing prompt, a paragraph scaffold (3-5 short steps the kid "
         "follows in order), and 3-5 sentence starters they can copy and finish. "
@@ -4259,7 +4259,7 @@ async def submit_writing(piece_id: str, sub: WritingSubmission,
         raise HTTPException(status_code=400, detail="Draft cannot be empty")
 
     system = (
-        "You're a warm, playful writing coach giving feedback to a child with ADHD on their "
+        "You're a warm, playful writing coach giving feedback to a child on their "
         "writing. Be specific and kind — call out one concrete thing that worked, and one "
         "thing to try next time. Do NOT correct spelling or grammar unless it makes the "
         "meaning unclear. No grading. 2-3 sentences total. 1-2 fun emojis ok."
@@ -4312,7 +4312,7 @@ async def get_writing_piece(piece_id: str, user: dict = Depends(get_current_user
     return p
 
 
-# ---------- Moments (ADHD behavior + trigger tracking) ----------
+# ---------- Moments (behavior + trigger tracking) ----------
 MOMENT_CATALOG = {
     "moment_types": [
         # Challenging
