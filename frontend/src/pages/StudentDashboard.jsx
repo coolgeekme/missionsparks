@@ -10,8 +10,7 @@ import {
 
 const isoDate = (d) => {
     const x = new Date(d);
-    x.setHours(0, 0, 0, 0);
-    return x.toISOString().slice(0, 10);
+    return new Date(x.getTime() - x.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 };
 const todayISO = () => isoDate(new Date());
 const addDays = (iso, n) => {

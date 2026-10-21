@@ -6,7 +6,12 @@ import EvidenceBadge from "../components/EvidenceBadge";
 import { api, formatApiErrorDetail } from "../lib/api";
 import { Save, Trash2, Plus, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+// Local calendar date — NOT toISOString(), which converts to UTC and hands
+// back tomorrow for anyone west of Greenwich in the evening.
+const todayISO = () => {
+    const d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+};
 
 export default function MissionForm() {
     const { id } = useParams();

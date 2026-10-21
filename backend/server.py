@@ -138,6 +138,10 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
+class TimezoneUpdate(BaseModel):
+    tz: str
+
+
 class Skill(BaseModel):
     id: str
     name: str
@@ -617,6 +621,7 @@ async def _ensure_personal_family(parent_user: dict) -> str:
         }],
         "student_ids": list(parent_user.get("linked_student_ids", [])),
         "home_dashboard_enabled": False,
+        "tz": parent_user.get("timezone"),
     }
     await db.families.insert_one(dict(fam))
     await db.users.update_one({"id": parent_user["id"]}, {"$set": {"active_family_id": fid}})
@@ -871,6 +876,26 @@ async def reset_password(req: ResetPasswordRequest):
     await _audit(user, "auth.password_reset_completed",
                  target_type="user", target_id=user["id"])
     return {"ok": True}
+
+
+@api.post("/me/timezone")
+async def set_my_timezone(req: TimezoneUpdate, user: dict = Depends(get_current_user)):
+    """Persist the browser's zone so streaks, due dates and digests agree.
+
+    Written to the user and stamped onto every family they belong to, so a
+    student session or the digest scheduler inherits the household zone
+    instead of re-deriving it (and defaulting to UTC).
+    """
+    try:
+        ZoneInfo(req.tz)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Unknown timezone")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"timezone": req.tz}})
+    if user.get("role") == "parent":
+        await db.families.update_many(
+            {"members.user_id": user["id"]}, {"$set": {"tz": req.tz}},
+        )
+    return {"ok": True, "tz": req.tz}
 
 
 # ---------- Skills & Strategies ----------

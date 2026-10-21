@@ -3,22 +3,24 @@ import { api, formatApiErrorDetail } from "../lib/api";
 import { toast } from "sonner";
 import { Snowflake, Plus, Trash2, Loader2, Info } from "lucide-react";
 
-// Date helpers — keep in UTC to match backend.
-function todayUTCIso() {
+// Date helpers — local calendar days. The backend now buckets streaks in the
+// household's zone, so the UI must speak the same calendar or the two disagree
+// every evening.
+function todayLocalIso() {
     const d = new Date();
-    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString().slice(0, 10);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
-function yesterdayUTCIso() {
+function yesterdayLocalIso() {
     const d = new Date();
-    d.setUTCDate(d.getUTCDate() - 1);
-    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toISOString().slice(0, 10);
+    d.setDate(d.getDate() - 1);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
 export default function StreakFreezeManager({ studentId, studentName, onChanged }) {
     const [state, setState] = useState({ freezes: [], remaining_this_month: 0, monthly_cap: 4, granted_this_month: 0 });
     const [loading, setLoading] = useState(true);
     const [adding, setAdding] = useState(false);
-    const [pickDate, setPickDate] = useState(yesterdayUTCIso());
+    const [pickDate, setPickDate] = useState(yesterdayLocalIso());
     const [pickReason, setPickReason] = useState("");
     const [showForm, setShowForm] = useState(false);
 
@@ -63,7 +65,7 @@ export default function StreakFreezeManager({ studentId, studentName, onChanged 
     };
 
     const noneLeft = (state.remaining_this_month || 0) <= 0;
-    const today = todayUTCIso();
+    const today = todayLocalIso();
     const tooOld = (() => {
         try {
             const minDate = new Date();

@@ -22,6 +22,15 @@ export function AuthProvider({ children }) {
         refresh();
     }, [refresh]);
 
+    // Tell the server which zone this household lives in, so streaks, due
+    // dates and the digest bucket days the same way the UI does.
+    const userId = user && user.id;
+    useEffect(() => {
+        if (!userId) return;
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (tz) api.post("/me/timezone", { tz }).catch(() => {});
+    }, [userId]);
+
     const login = async (email, password) => {
         setError("");
         try {

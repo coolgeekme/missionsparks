@@ -5,7 +5,9 @@ Used by both server.py (`/api/streak`, home dashboard tiles) and digest_service.
 and the email showed different streaks for the same kid.
 
 Streak rules (Iter 20):
-- A day counts as "completed" if there's >=1 mission_log with status='completed' on that date (UTC).
+- A day counts as "completed" if there's >=1 mission_log with status='completed' on that
+  calendar day IN THE FAMILY'S TIMEZONE (not UTC). In UTC-7, a 7 PM mission belongs to
+  today, not tomorrow.
 - Streak runs backward from today (or yesterday if today's not complete yet).
 - Days are "skipped" without breaking the streak when:
     * the family's `streak_weekend_mode` is `weekdays_only` and the day is Sat/Sun, OR
@@ -17,18 +19,53 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import List, Optional
+from zoneinfo import ZoneInfo
 
 
 WEEKEND_MODE_ALL = "all_days"
 WEEKEND_MODE_WEEKDAYS = "weekdays_only"
 
 
-def _date_from_iso(ts: str) -> str:
-    """YYYY-MM-DD from any ISO timestamp. Defensive."""
+async def _family_tz(db, student_id: str):
+    """The household's timezone.
+
+    Stored on the family record so student sessions and the digest inherit it
+    without every caller re-deriving it. Falls back to the owner's saved zone,
+    then UTC — a bad/missing zone must never 500 a dashboard.
+    """
+    try:
+        fam = await db.families.find_one(
+            {"student_ids": student_id},
+            {"_id": 0, "tz": 1, "owner_user_id": 1, "members.user_id": 1},
+        )
+    except Exception:
+        fam = None
+    name = (fam or {}).get("tz")
+    if not name:
+        f = fam or {}
+        owner = f.get("owner_user_id") or ((f.get("members") or [{}])[0].get("user_id"))
+        if owner:
+            u = await db.users.find_one(
+                {"id": owner}, {"_id": 0, "timezone": 1, "digest_preferences": 1},
+            )
+            name = (u or {}).get("timezone") or ((u or {}).get("digest_preferences") or {}).get("tz")
+    try:
+        return ZoneInfo(name) if name else timezone.utc
+    except Exception:
+        return timezone.utc
+
+
+def _date_from_iso(ts: str, tz=None) -> str:
+    """YYYY-MM-DD (in `tz`) from any ISO timestamp. Defensive."""
     if not ts:
         return ""
     try:
-        return datetime.fromisoformat(ts.replace("Z", "+00:00")).date().isoformat()
+        d = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=timezone.utc)
+        if tz is not None:
+            d = d.astimezone(tz)
+        return d.date().isoformat()
     except Exception:
         return ts[:10]
 
@@ -68,11 +105,12 @@ async def _family_weekend_mode_for(db, student_id: str) -> str:
 
 async def compute_streak(db, student_id: str) -> StreakSnapshot:
     """Canonical streak compute. Reads from mission_logs + streak_freezes + families."""
+    tz = await _family_tz(db, student_id)
     # 1) Pull all completed-mission dates
     logs = await db.mission_logs.find(
         {"student_id": student_id, "status": "completed"}, {"_id": 0, "timestamp": 1, "mission_id": 1},
     ).to_list(5000)
-    completed_dates = sorted({_date_from_iso(lg["timestamp"]) for lg in logs if lg.get("timestamp")})
+    completed_dates = sorted({_date_from_iso(lg["timestamp"], tz) for lg in logs if lg.get("timestamp")})
     date_set = set(completed_dates)
 
     # 2) Pull family weekend setting + freezes
@@ -82,7 +120,7 @@ async def compute_streak(db, student_id: str) -> StreakSnapshot:
     ).to_list(500)
     freeze_dates = {f["date"] for f in freeze_docs if f.get("date")}
 
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(tz).date()
     today_iso = today.isoformat()
 
     # 3) Longest streak across all history.
@@ -158,7 +196,7 @@ async def compute_streak(db, student_id: str) -> StreakSnapshot:
     completed_today_mids = {
         lg["mission_id"]
         for lg in logs
-        if lg.get("mission_id") and _date_from_iso(lg.get("timestamp", "")) == today_iso
+        if lg.get("mission_id") and _date_from_iso(lg.get("timestamp", ""), tz) == today_iso
     }
     completed_today_count = len(todays_mission_ids & completed_today_mids)
     missions_today_count = len(todays_mission_ids)
@@ -205,7 +243,7 @@ async def compute_streak(db, student_id: str) -> StreakSnapshot:
 
 async def freezes_this_month(db, student_id: str) -> int:
     """Quick count for quota checks."""
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(await _family_tz(db, student_id)).date()
     month_prefix = today.isoformat()[:7] + "-"
     return await db.streak_freezes.count_documents(
         {"student_id": student_id, "date": {"$regex": f"^{month_prefix}"}},
