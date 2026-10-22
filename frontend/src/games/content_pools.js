@@ -117,3 +117,25 @@ export const SENTENCE_PUZZLES = [
     "Roz watched the tiny bird build a nest",
     "We can solve hard problems one step at a time",
 ];
+
+// Feelings Detective — a one-line moment, the feeling it belongs to, and three
+// plausible-but-wrong feelings. Keep these concrete and everyday: the skill is
+// naming what happened, not diagnosing anything.
+export const FEELING_SCENARIOS = [
+    { scenario: "Your little brother knocked over the tower you spent an hour building.", feeling: "Frustrated", distractors: ["Proud", "Sleepy", "Curious"] },
+    { scenario: "You practiced a song all week and got through it in front of the class.", feeling: "Proud", distractors: ["Embarrassed", "Bored", "Nervous"] },
+    { scenario: "Your best friend moved to another state last week.", feeling: "Sad", distractors: ["Excited", "Silly", "Calm"] },
+    { scenario: "Tomorrow you have to read your writing out loud to the whole class.", feeling: "Nervous", distractors: ["Relaxed", "Angry", "Grateful"] },
+    { scenario: "You got a new puppy and it licked your whole face.", feeling: "Excited", distractors: ["Annoyed", "Bored", "Lonely"] },
+    { scenario: "Someone cut in front of you in line for the third time.", feeling: "Annoyed", distractors: ["Thankful", "Peaceful", "Shy"] },
+    { scenario: "You left your homework at home and the teacher is collecting it right now.", feeling: "Worried", distractors: ["Cheerful", "Confident", "Curious"] },
+    { scenario: "You ate lunch alone because your friends were out sick.", feeling: "Lonely", distractors: ["Thrilled", "Calm", "Proud"] },
+    { scenario: "You lost your favorite hoodie and you've looked everywhere.", feeling: "Disappointed", distractors: ["Grateful", "Bored", "Safe"] },
+    { scenario: "Your friend let you borrow their favorite book for the weekend.", feeling: "Grateful", distractors: ["Jealous", "Angry", "Tired"] },
+    { scenario: "You tried to tie your shoes five times and finally got it.", feeling: "Proud", distractors: ["Guilty", "Sad", "Bored"] },
+    { scenario: "A loud crash woke you up in the middle of the night.", feeling: "Scared", distractors: ["Calm", "Silly", "Proud"] },
+    { scenario: "You have to sit in a quiet waiting room for 20 minutes with nothing to do.", feeling: "Bored", distractors: ["Furious", "Grateful", "Excited"] },
+    { scenario: "You accidentally snapped your friend's favorite crayon.", feeling: "Guilty", distractors: ["Proud", "Cheerful", "Calm"] },
+    { scenario: "Two of your friends are arguing and you're standing right between them.", feeling: "Uncomfortable", distractors: ["Excited", "Relaxed", "Joyful"] },
+    { scenario: "You finally beat the level that made you quit three times.", feeling: "Thrilled", distractors: ["Bored", "Ashamed", "Sleepy"] },
+];
