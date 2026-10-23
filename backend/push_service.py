@@ -66,6 +66,7 @@ DEFAULT_NOTIFICATION_PREFS = {
     "parent_kid_completed": True,
     "parent_pending_review": True,
     "parent_coparent_activity": True,
+    "parent_moment_logged": True,
     "parent_digest_ready": True,
     # Kid-facing:
     "kid_missions_morning": True,

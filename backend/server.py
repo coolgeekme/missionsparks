@@ -4504,6 +4504,39 @@ async def create_moment(req: MomentCreate, user: dict = Depends(get_current_user
     doc.pop("_id", None)
     await _audit(user, "moment.create", target_type="student", target_id=student_id,
                  meta={"moment_type": doc["moment_type"], "has_audio": bool(audio_data)})
+
+    # Ping the OTHER parents in the family. Whoever logged it doesn't need a push
+    # about their own tap — the value is a co-parent seeing it as it happens, and
+    # a parent seeing it when the kid logs one themselves. Best-effort: a push
+    # failure must never fail the write.
+    try:
+        mt = next((t for t in MOMENT_CATALOG["moment_types"] if t["key"] == doc["moment_type"]), None)
+        label = (mt or {}).get("label") or doc["moment_type"].replace("_", " ")
+        cat = (mt or {}).get("category") or "other"
+        kid = await db.users.find_one({"id": student_id}, {"_id": 0, "name": 1})
+        kid_name = (kid or {}).get("name") or "your child"
+        note = (doc.get("context_note") or "").strip()
+        snippet = f" — {note[:80]}" if note else ""
+        if cat == "positive":
+            title = f"Good moment for {kid_name}"
+        elif cat == "challenging":
+            title = f"Hard moment for {kid_name}"
+        else:
+            title = f"New moment for {kid_name}"
+        for pid in await _linked_parent_ids(student_id):
+            if pid == user["id"]:
+                continue
+            await push_service.send_push_to_user(
+                pid,
+                pref_key="parent_moment_logged",
+                title=title,
+                body=f"{label}{snippet}",
+                url="/parent/moments",
+                tag=f"moment-{moment_id}",
+            )
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Moment push failed: %s", e)
+
     return Moment(**doc)
 
 

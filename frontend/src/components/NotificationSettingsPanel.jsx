@@ -16,6 +16,7 @@ const PREF_ROWS = {
         ["parent_kid_completed", "Kid finished today", "When your kid completes all of today's missions."],
         ["parent_pending_review", "Awaiting your review", "When your kid submits a mission that needs your approval."],
         ["parent_coparent_activity", "Co-parent activity", "When another parent adds a mission or grants a freeze."],
+        ["parent_moment_logged", "New moments", "When a moment is logged for one of your kids by someone else."],
         ["parent_digest_ready", "Digest ready", "A ping alongside your daily/weekly digest email."],
     ],
     kid: [
