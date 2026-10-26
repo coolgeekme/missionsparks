@@ -4540,6 +4540,89 @@ async def create_moment(req: MomentCreate, user: dict = Depends(get_current_user
     return Moment(**doc)
 
 
+# ---------- Daily context check-in (the baseline) ----------
+# Every moment row is conditioned on a moment happening, so "what's different
+# about hard days" is unanswerable without a row for the calm ones. This is that
+# baseline: three taps a day, parent-entered, never kid-facing.
+#
+# Medication is recorded, never interpreted. We describe the parent's own log
+# ("meds were logged after 9am on 7 of 9 hard days"); we never assert that a
+# prescription caused or would fix anything.
+
+class DailyCheckinUpsert(BaseModel):
+    date: Optional[str] = None            # YYYY-MM-DD in household tz; defaults to today
+    meds_taken: Optional[bool] = None
+    meds_time: Optional[str] = None       # "HH:MM"
+    no_meds_today: Optional[bool] = None
+    sleep_bucket: Optional[str] = None    # "8plus" | "7" | "6" | "under6"
+    ate_breakfast: Optional[bool] = None
+    ate_lunch: Optional[bool] = None
+    ate_dinner: Optional[bool] = None
+
+
+SLEEP_BUCKETS = {"8plus": 8.5, "7": 7.0, "6": 6.0, "under6": 5.0}
+
+
+@api.get("/students/{student_id}/checkin")
+async def get_daily_checkin(student_id: str, date: Optional[str] = None,
+                            user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, student_id, write=False)
+    day = date or datetime.now(_resolve_tz(user)).date().isoformat()
+    row = await db.daily_checkins.find_one({"student_id": student_id, "date": day}, {"_id": 0})
+    return {"date": day, "checkin": row}
+
+
+@api.put("/students/{student_id}/checkin")
+async def upsert_daily_checkin(student_id: str, req: DailyCheckinUpsert,
+                               user: dict = Depends(require_role("parent"))):
+    await _assert_parent_owns_student(user, student_id, write=True)
+    day = req.date or datetime.now(_resolve_tz(user)).date().isoformat()
+    try:
+        datetime.fromisoformat(day)
+    except Exception:
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+
+    updates = req.model_dump(exclude_unset=True)
+    updates.pop("date", None)
+
+    if "sleep_bucket" in updates and updates["sleep_bucket"] not in SLEEP_BUCKETS:
+        raise HTTPException(status_code=400, detail="unknown sleep_bucket")
+    if updates.get("meds_time"):
+        try:
+            hh, mm = updates["meds_time"].split(":")
+            if not (0 <= int(hh) <= 23 and 0 <= int(mm) <= 59):
+                raise ValueError
+        except Exception:
+            raise HTTPException(status_code=400, detail="meds_time must be HH:MM")
+
+    # "No meds today" and "taken at HH:MM" are mutually exclusive — clear the
+    # other side rather than leaving a row that says both.
+    if updates.get("no_meds_today"):
+        updates["meds_taken"] = None
+        updates["meds_time"] = None
+    elif updates.get("meds_taken"):
+        updates["no_meds_today"] = False
+        if not updates.get("meds_time"):
+            updates["meds_time"] = datetime.now(_resolve_tz(user)).strftime("%H:%M")
+    elif updates.get("meds_taken") is False:
+        updates["meds_time"] = None
+
+    now = datetime.now(timezone.utc).isoformat()
+    await db.daily_checkins.update_one(
+        {"student_id": student_id, "date": day},
+        {
+            "$set": {**updates, "student_id": student_id, "date": day,
+                     "logged_by_user_id": user["id"], "updated_at": now},
+            "$setOnInsert": {"id": str(uuid.uuid4()), "created_at": now},
+        },
+        upsert=True,
+    )
+    row = await db.daily_checkins.find_one({"student_id": student_id, "date": day}, {"_id": 0})
+    await _audit(user, "checkin.upsert", target_type="student", target_id=student_id,
+                 meta={"date": day, "fields": list(updates.keys())})
+    return {"date": day, "checkin": row}
+
+
 @api.get("/moments", response_model=List[Moment])
 async def list_moments(
     student_id: Optional[str] = None,
@@ -4943,6 +5026,70 @@ async def moments_insights(
                 "tone": "good",
             })
 
+    # 7) Daily-context comparison — "what's different about hard days".
+    #    Only answerable because the check-in gives us rows for calm days too.
+    #    Medication is DESCRIBED, never interpreted: no causal or clinical claim.
+    try:
+        scope = base_query.get("student_id")
+        cq = {"date": {"$gte": start_day.isoformat(), "$lte": today.isoformat()}}
+        if scope is not None:
+            cq["student_id"] = scope
+        checkins = await db.daily_checkins.find(cq, {"_id": 0}).to_list(5000)
+    except Exception:
+        checkins = []
+
+    if checkins:
+        hard_ci, calm_ci = [], []
+        for c in checkins:
+            (hard_ci if c.get("date") in chal_days else calm_ci).append(c)
+
+        def _late_meds(rows):
+            timed = [r for r in rows if r.get("meds_taken") and r.get("meds_time")]
+            return sum(1 for r in timed if r["meds_time"] >= "09:00"), len(timed)
+
+        hl, ht = _late_meds(hard_ci)
+        cl, ct = _late_meds(calm_ci)
+        if ht >= 3 and ct >= 3 and hl != cl:
+            findings.append({
+                "kind": "meds_timing",
+                "value": f"{hl} of {ht}",
+                "title": "Meds were logged later on hard days",
+                "detail": (f"After 9am on {hl} of {ht} hard days, versus {cl} of {ct} calm days. "
+                           "That describes your own log — it is not a medical finding."),
+                "tone": "watch" if hl > cl else "neutral",
+            })
+
+        def _sleep_avg(rows):
+            vals = [SLEEP_BUCKETS[r["sleep_bucket"]] for r in rows
+                    if r.get("sleep_bucket") in SLEEP_BUCKETS]
+            return (sum(vals) / len(vals), len(vals)) if vals else (None, 0)
+
+        ha, hn = _sleep_avg(hard_ci)
+        ca, cn = _sleep_avg(calm_ci)
+        if hn >= 3 and cn >= 3 and ha is not None and ca is not None and abs(ha - ca) >= 0.5:
+            findings.append({
+                "kind": "sleep_gap",
+                "value": f"{ha - ca:+.1f}h",
+                "title": "Sleep looked different on hard days",
+                "detail": f"About {ha:.1f}h on hard days vs {ca:.1f}h on calm days, per your check-ins.",
+                "tone": "watch" if ha < ca else "neutral",
+            })
+
+        def _skipped_breakfast(rows):
+            known = [r for r in rows if r.get("ate_breakfast") is not None]
+            return sum(1 for r in known if r["ate_breakfast"] is False), len(known)
+
+        hs, hk = _skipped_breakfast(hard_ci)
+        cs, ck = _skipped_breakfast(calm_ci)
+        if hk >= 3 and ck >= 3 and hs >= 2 and (hs / hk) > (cs / ck):
+            findings.append({
+                "kind": "breakfast_gap",
+                "value": f"{hs} of {hk}",
+                "title": "Breakfast was skipped on hard days",
+                "detail": f"No breakfast logged on {hs} of {hk} hard days, versus {cs} of {ck} calm days.",
+                "tone": "watch",
+            })
+
     # Watch-style findings first so the parent sees the actionable ones.
     findings.sort(key=lambda f: (0 if f["tone"] == "watch" else 1))
 
@@ -5273,6 +5420,7 @@ async def on_startup():
     await db.missions.create_index([("student_id", 1), ("due_date", 1)])
     await db.mission_logs.create_index([("student_id", 1), ("timestamp", -1)])
     await db.citations.create_index("key", unique=True)
+    await db.daily_checkins.create_index([("student_id", 1), ("date", 1)], unique=True)
 
     # Seed citations (idempotent by `key`)
     citation_key_to_id: dict = {}

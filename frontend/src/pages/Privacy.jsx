@@ -36,6 +36,7 @@ export default function Privacy() {
                         <><strong>Child details you enter</strong> — a first name or nickname, grade, reading level, interests, and any preferences you choose to record. A child does not enter their own email address.</>,
                         <><strong>Missions and completions</strong> — mission titles, steps, due dates, and the record of what was completed and when.</>,
                         <><strong>Moments</strong> — the observations you (or your child) log: moment type, intensity, triggers, short notes, and optional voice recordings with their transcripts.</>,
+                        <><strong>Daily check-in</strong> — the context you record each day for a child: whether medication was taken and roughly when, how they slept, and which meals they ate. This exists so a hard day can be compared with a calm one. We record what you enter; we never assess whether a medication is working or recommend any change to it.</>,
                         <><strong>Settings</strong> — digest preferences, whether to discard audio after transcription, and notification subscriptions if you enable them.</>,
                         <><strong>Activity log</strong> — a record of actions taken inside your account (sign-ins, edits, exports, deletions), kept so a parent can see what happened.</>,
                     ]} />
