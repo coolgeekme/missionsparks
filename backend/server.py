@@ -4373,6 +4373,7 @@ MOMENT_CATALOG = {
         {"key": "reading", "label": "Reading", "emoji": "📖"},
         {"key": "screen_ended", "label": "Screen time ended", "emoji": "📺"},
         {"key": "medication", "label": "Medication wearing off", "emoji": "💊"},
+        {"key": "meds_not_taken", "label": "Meds not taken yet", "emoji": "💊"},
         {"key": "sleep_deficit", "label": "Poor sleep last night", "emoji": "🌙"},
         {"key": "social_demand", "label": "Social demands", "emoji": "👥"},
         {"key": "unexpected_change", "label": "Unexpected change", "emoji": "🌀"},
@@ -5144,6 +5145,16 @@ def _moment_extraction_system_prompt() -> str:
         f"{types}\n\n"
         "Pick triggers (zero or more) from this catalog (use the KEYS):\n"
         f"{trigs}\n\n"
+        "CONTEXT CUES — the parent is usually narrating the thing that explains the moment. "
+        "When they mention any of these, tag the matching trigger AND copy their exact words into "
+        "antecedent:\n"
+        "  - medication: 'hadn't taken it yet' -> meds_not_taken; 'wearing off' or a late dose -> medication\n"
+        "  - food: 'didn't eat lunch', 'skipped breakfast', 'was starving' -> hunger\n"
+        "  - sleep: 'up late', 'kept waking' -> sleep_deficit; 'exhausted right now' -> tiredness\n"
+        "  - screens ending, task switches, loud rooms -> screen_ended / transition / loud_noise\n"
+        "  - homework or math named specifically -> homework / math\n"
+        "Tag ONLY what they actually said. If they didn't mention it, leave it out — do not "
+        "infer medication, meals, or sleep from the behavior itself.\n\n"
         "Other fields are free-text snippets pulled directly from the narration:\n"
         "  - context_note: where/what activity was happening\n"
         "  - antecedent: what happened right BEFORE the moment\n"
