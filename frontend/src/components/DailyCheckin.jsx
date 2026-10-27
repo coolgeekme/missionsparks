@@ -9,6 +9,18 @@ const SLEEP_OPTIONS = [
     ["under6", "<6h"],
 ];
 
+const DOSE_SLOTS = [
+    ["morning", "Morning"],
+    ["midday", "Midday"],
+    ["afternoon", "Afternoon"],
+    ["evening", "Evening"],
+];
+
+const nowTime = () => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+
 const MEALS = [
     ["ate_breakfast", "Breakfast"],
     ["ate_lunch", "Lunch"],
@@ -79,6 +91,17 @@ export default function DailyCheckin() {
         }
     };
 
+    // Doses are named slots, not a counter: a family can take a morning
+    // long-acting dose plus an afternoon booster, and each gets its own tap.
+    const toggleDose = (sid, row, slot) => {
+        const doses = Array.isArray(row.doses) ? row.doses : [];
+        const existing = doses.find((d) => d.slot === slot);
+        const next = existing
+            ? doses.filter((d) => d.slot !== slot)
+            : [...doses, { slot, time: nowTime() }];
+        save(sid, { doses: next, no_meds_today: false });
+    };
+
     if (!students.length) return null;
 
     return (
@@ -93,7 +116,8 @@ export default function DailyCheckin() {
             <div className="mt-4 space-y-4">
                 {students.map((s) => {
                     const row = rows[s.id] || {};
-                    const complete = row.sleep_bucket && (row.meds_taken !== null && row.meds_taken !== undefined || row.no_meds_today);
+                    const doses = Array.isArray(row.doses) ? row.doses : [];
+                    const complete = row.sleep_bucket && (doses.length > 0 || row.no_meds_today);
                     return (
                         <div key={s.id} className="border-t-2 border-[#E8E0D2] pt-3 first:border-t-0 first:pt-0" data-testid={`checkin-${s.id}`}>
                             <div className="flex items-center gap-2 mb-2">
@@ -107,24 +131,26 @@ export default function DailyCheckin() {
                                         <Pill size={11} /> Meds
                                     </p>
                                     <div className="flex flex-wrap gap-1.5">
-                                        <Chip
-                                            active={row.meds_taken === true}
-                                            disabled={busy[s.id]}
-                                            onClick={() => save(s.id, { meds_taken: true })}
-                                        >
-                                            {row.meds_taken === true ? `Taken ${row.meds_time || ""}`.trim() : "Taken"}
-                                        </Chip>
-                                        <Chip
-                                            active={row.meds_taken === false}
-                                            disabled={busy[s.id]}
-                                            onClick={() => save(s.id, { meds_taken: false })}
-                                        >
-                                            Not yet
-                                        </Chip>
+                                        {DOSE_SLOTS.map(([slot, label]) => {
+                                            const dose = doses.find((d) => d.slot === slot);
+                                            return (
+                                                <Chip
+                                                    key={slot}
+                                                    active={!!dose}
+                                                    disabled={busy[s.id]}
+                                                    onClick={() => toggleDose(s.id, row, slot)}
+                                                >
+                                                    {dose ? `${label} ${dose.time}` : label}
+                                                </Chip>
+                                            );
+                                        })}
                                         <Chip
                                             active={row.no_meds_today === true}
                                             disabled={busy[s.id]}
-                                            onClick={() => save(s.id, { no_meds_today: true })}
+                                            onClick={() => save(s.id, {
+                                                no_meds_today: !row.no_meds_today,
+                                                ...(row.no_meds_today ? {} : { doses: [] }),
+                                            })}
                                         >
                                             No meds
                                         </Chip>

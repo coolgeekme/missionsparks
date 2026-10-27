@@ -4552,8 +4552,7 @@ async def create_moment(req: MomentCreate, user: dict = Depends(get_current_user
 
 class DailyCheckinUpsert(BaseModel):
     date: Optional[str] = None            # YYYY-MM-DD in household tz; defaults to today
-    meds_taken: Optional[bool] = None
-    meds_time: Optional[str] = None       # "HH:MM"
+    doses: Optional[List[dict]] = None    # [{"slot": "morning", "time": "HH:MM"}, ...]
     no_meds_today: Optional[bool] = None
     sleep_bucket: Optional[str] = None    # "8plus" | "7" | "6" | "under6"
     ate_breakfast: Optional[bool] = None
@@ -4562,6 +4561,18 @@ class DailyCheckinUpsert(BaseModel):
 
 
 SLEEP_BUCKETS = {"8plus": 8.5, "7": 7.0, "6": 6.0, "under6": 5.0}
+# Most ADHD regimens are one long-acting dose plus a midday/afternoon booster,
+# so the slots are named rather than a bare counter — a named slot is what makes
+# "the afternoon dose ran late" comparable across days.
+DOSE_SLOTS = ("morning", "midday", "afternoon", "evening")
+
+
+def _dose_times(row: dict) -> list[str]:
+    """Dose times from either shape (current `doses` array, or a legacy single)."""
+    times = [d.get("time") for d in (row.get("doses") or []) if isinstance(d, dict) and d.get("time")]
+    if not times and row.get("meds_taken") and row.get("meds_time"):
+        times = [row["meds_time"]]
+    return sorted(t for t in times if isinstance(t, str) and len(t) == 5)
 
 
 @api.get("/students/{student_id}/checkin")
@@ -4588,25 +4599,33 @@ async def upsert_daily_checkin(student_id: str, req: DailyCheckinUpsert,
 
     if "sleep_bucket" in updates and updates["sleep_bucket"] not in SLEEP_BUCKETS:
         raise HTTPException(status_code=400, detail="unknown sleep_bucket")
-    if updates.get("meds_time"):
-        try:
-            hh, mm = updates["meds_time"].split(":")
-            if not (0 <= int(hh) <= 23 and 0 <= int(mm) <= 59):
-                raise ValueError
-        except Exception:
-            raise HTTPException(status_code=400, detail="meds_time must be HH:MM")
 
-    # "No meds today" and "taken at HH:MM" are mutually exclusive — clear the
-    # other side rather than leaving a row that says both.
+    if updates.get("doses") is not None:
+        clean = {}
+        for d in updates["doses"]:
+            if not isinstance(d, dict):
+                continue
+            slot = str(d.get("slot") or "").strip().lower()
+            tm = str(d.get("time") or "").strip()
+            if slot not in DOSE_SLOTS:
+                raise HTTPException(status_code=400, detail=f"unknown dose slot: {slot}")
+            if tm:
+                try:
+                    hh, mm = tm.split(":")
+                    if not (0 <= int(hh) <= 23 and 0 <= int(mm) <= 59):
+                        raise ValueError
+                except Exception:
+                    raise HTTPException(status_code=400, detail="dose time must be HH:MM")
+            clean[slot] = {"slot": slot, "time": tm}
+        # one entry per slot, in schedule order
+        updates["doses"] = [clean[s] for s in DOSE_SLOTS if s in clean]
+        if updates["doses"]:
+            updates["no_meds_today"] = False
+
+    # "No meds today" means no doses at all — clear the slots rather than
+    # leaving a row that claims both.
     if updates.get("no_meds_today"):
-        updates["meds_taken"] = None
-        updates["meds_time"] = None
-    elif updates.get("meds_taken"):
-        updates["no_meds_today"] = False
-        if not updates.get("meds_time"):
-            updates["meds_time"] = datetime.now(_resolve_tz(user)).strftime("%H:%M")
-    elif updates.get("meds_taken") is False:
-        updates["meds_time"] = None
+        updates["doses"] = []
 
     now = datetime.now(timezone.utc).isoformat()
     await db.daily_checkins.update_one(
@@ -5044,17 +5063,21 @@ async def moments_insights(
         for c in checkins:
             (hard_ci if c.get("date") in chal_days else calm_ci).append(c)
 
-        def _late_meds(rows):
-            timed = [r for r in rows if r.get("meds_taken") and r.get("meds_time")]
-            return sum(1 for r in timed if r["meds_time"] >= "09:00"), len(timed)
+        def _late_first_dose(rows):
+            firsts = []
+            for r in rows:
+                ts = _dose_times(r)
+                if ts:
+                    firsts.append(ts[0])
+            return sum(1 for t in firsts if t >= "09:00"), len(firsts)
 
-        hl, ht = _late_meds(hard_ci)
-        cl, ct = _late_meds(calm_ci)
+        hl, ht = _late_first_dose(hard_ci)
+        cl, ct = _late_first_dose(calm_ci)
         if ht >= 3 and ct >= 3 and hl != cl:
             findings.append({
                 "kind": "meds_timing",
                 "value": f"{hl} of {ht}",
-                "title": "Meds were logged later on hard days",
+                "title": "The first dose landed later on hard days",
                 "detail": (f"After 9am on {hl} of {ht} hard days, versus {cl} of {ct} calm days. "
                            "That describes your own log — it is not a medical finding."),
                 "tone": "watch" if hl > cl else "neutral",
